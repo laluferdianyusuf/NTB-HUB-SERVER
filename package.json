@@ -1,0 +1,35 @@
+{
+  "name": "backend-prisma",
+  "version": "1.0.0",
+  "description": "Backend API with Express, TypeScript, and Prisma",
+  "main": "dist/server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon --watch src --ext ts --exec tsx src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "seed": "tsx prisma/seed.ts",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^6.18.0",
+    "@prisma/extension-accelerate": "^2.0.2",
+    "bcryptjs": "^3.0.2",
+    "body-parser": "^1.20.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^3.0.0",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.12.12",
+    "nodemon": "^3.1.10",
+    "prisma": "^6.18.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  // Visit https://aka.ms/tsconfig to read more about this file
+  "compileOnSave": false,
+  "compilerOptions": {
+    // File Layout
+    // "rootDir": "./src",
+    // "outDir": "./dist",
+
+    // Environment Settings
+    // See also https://aka.ms/tsconfig/module
+    "module": "commonjs",
+    "target": "es2024",
+    "lib": ["ES2024", "ESNext.AsyncIterable"],
+    "typeRoots": ["node_modules/@types"],
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
+    "pretty": true,
+    // For nodejs:
+    // "lib": ["esnext"],
+    // "types": ["node"],
+    // and npm install -D @types/node
+
+    // Other Outputs
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "dist",
+    "allowJs": true,
+    "noEmit": false,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "baseUrl": "src"
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules"]
+}
