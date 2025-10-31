@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
-import { UserRepository } from "../repositories/user.repository";
-import { User } from "../models/user.model";
+import { UserRepository } from "../repositories/user.repo";
+import jwt from "jsonwebtoken";
+import { User } from "@prisma/client";
 
 const userRepository = new UserRepository();
 
@@ -86,6 +87,66 @@ export class UserService {
     }
   }
 
+  async login(data: User) {
+    try {
+      const existing = await userRepository.findByEmail(data.email);
+      if (!existing) {
+        return {
+          status: false,
+          status_code: 404,
+          message: "User not found",
+          data: null,
+        };
+      }
+
+      if (data.email !== existing.email) {
+        return {
+          status: false,
+          status_code: 407,
+          message: "Wrong email",
+          data: null,
+        };
+      }
+
+      const isPasswordCorrect = bcrypt.compareSync(
+        data.password,
+        existing.password
+      );
+
+      if (!isPasswordCorrect) {
+        return {
+          status: false,
+          status_code: 407,
+          message: "Password doesn't match",
+          data: null,
+        };
+      }
+
+      const token = jwt.sign(
+        {
+          id: existing.id,
+          name: existing.name,
+          email: existing.email,
+          createdAt: existing.createdAt,
+        },
+        "jwt-secret"
+      );
+      return {
+        status: true,
+        status_code: 201,
+        message: "Logged in successfully",
+        data: token,
+      };
+    } catch (error) {
+      return {
+        status: false,
+        status_code: 500,
+        message: "Server error: " + error,
+        data: null,
+      };
+    }
+  }
+
   async updateUser(id: string, data: Partial<User>) {
     try {
       const user = await userRepository.findById(id);
@@ -132,13 +193,13 @@ export class UserService {
         };
       }
 
-      await userRepository.delete(id);
+      const deletedUser = await userRepository.delete(id);
 
       return {
         status: true,
         status_code: 200,
         message: "User deleted successfully",
-        data: null,
+        data: deletedUser,
       };
     } catch (error) {
       return {

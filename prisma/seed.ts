@@ -8,7 +8,7 @@ async function main() {
   const adminPassword = await bcrypt.hash("admin123", 10);
   const userPassword = await bcrypt.hash("user123", 10);
 
-  const admin = await prisma.user.create({
+  await prisma.user.create({
     data: {
       name: "Admin",
       email: "admin@billiard.com",
@@ -17,7 +17,7 @@ async function main() {
     },
   });
 
-  const user = await prisma.user.create({
+  await prisma.user.create({
     data: {
       name: "Ferdian",
       email: "user@billiard.com",
@@ -25,9 +25,6 @@ async function main() {
       role: "USER",
     },
   });
-
-  console.log("Seed success:");
-  console.log({ admin, user });
 }
 
 main()

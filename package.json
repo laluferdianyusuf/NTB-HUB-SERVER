@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "type": "module",
   "scripts": {
-    "dev": "nodemon --watch src --ext ts --exec tsx src/server.ts",
+    "dev": "nodemon --legacy-watch --watch src --ext ts,tsx,json --exec npx tsx src/server.ts --verbose",
     "build": "tsc",
     "start": "node dist/server.js",
     "seed": "tsx prisma/seed.ts",
@@ -19,14 +19,21 @@
     "@prisma/extension-accelerate": "^2.0.2",
     "bcryptjs": "^3.0.2",
     "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "midtrans-client": "^1.4.3",
+    "socket.io": "^4.8.1",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
+    "@types/cors": "^2.8.19",
     "@types/express": "^4.17.21",
     "@types/jest": "^30.0.0",
     "@types/node": "^20.12.12",
+    "@types/socket.io": "^3.0.2",
     "@types/supertest": "^6.0.3",
     "jest": "^30.2.0",
     "nodemon": "^3.1.10",

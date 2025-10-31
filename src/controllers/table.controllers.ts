@@ -1,12 +1,14 @@
 import { Request, Response } from "express";
-import { UserService } from "../services/user.services";
+import { TableServices } from "../services/table.services";
+const tableService = new TableServices();
 
-const userService = new UserService();
-
-export class UserController {
-  async getAll(req: Request, res: Response) {
+export class TableControllers {
+  async createTable(req: Request, res: Response) {
     try {
-      const result = await userService.getAllUsers();
+      const data = req.body;
+      const floorId = req.params.floorId;
+      const result = await tableService.createTable(data, floorId);
+
       res.status(result.status_code).json(result);
     } catch (error: any) {
       res.status(500).json({
@@ -18,9 +20,11 @@ export class UserController {
     }
   }
 
-  async getById(req: Request, res: Response) {
+  async getTableByFloorId(req: Request, res: Response) {
     try {
-      const result = await userService.getUserById(req.params.id);
+      const floorId = req.params.floorId;
+      const result = await tableService.getTableByFloorId(floorId);
+
       res.status(result.status_code).json(result);
     } catch (error: any) {
       res.status(500).json({
@@ -32,9 +36,11 @@ export class UserController {
     }
   }
 
-  async create(req: Request, res: Response) {
+  async getTableById(req: Request, res: Response) {
     try {
-      const result = await userService.createUser(req.body);
+      const id = req.params.id;
+      const result = await tableService.getTableById(id);
+
       res.status(result.status_code).json(result);
     } catch (error: any) {
       res.status(500).json({
@@ -46,9 +52,12 @@ export class UserController {
     }
   }
 
-  async update(req: Request, res: Response) {
+  async updateTable(req: Request, res: Response) {
     try {
-      const result = await userService.updateUser(req.params.id, req.body);
+      const id = req.params.id;
+      const data = req.body;
+      const result = await tableService.updateTable(id, data);
+
       res.status(result.status_code).json(result);
     } catch (error: any) {
       res.status(500).json({
@@ -60,9 +69,11 @@ export class UserController {
     }
   }
 
-  async delete(req: Request, res: Response) {
+  async deleteTable(req: Request, res: Response) {
     try {
-      const result = await userService.deleteUser(req.params.id);
+      const id = req.params.id;
+      const result = await tableService.deleteTable(id);
+
       res.status(result.status_code).json(result);
     } catch (error: any) {
       res.status(500).json({

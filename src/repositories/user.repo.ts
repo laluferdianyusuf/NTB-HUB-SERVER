@@ -1,11 +1,12 @@
-import { PrismaClient } from "@prisma/client";
-import { User } from "../models/user.model";
+import { PrismaClient, User } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 export class UserRepository {
   async findAll(): Promise<User[]> {
-    return prisma.user.findMany();
+    const res = await prisma.user.findMany();
+
+    return res;
   }
 
   async findById(id: string): Promise<User | null> {

@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,43 +7,55 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role { 
-  USER
-  ADMIN 
+enum Role {
+  CUSTOMER
+  CASHIER
+  OWNER
+  SUPERUSER
 }
-enum VenueType { 
-  BILLIARD 
-  MINI_SOCCER 
-  CAFE 
+
+enum VenueType {
+  BILLIARD
+  MINI_SOCCER
+  CAFE
 }
-enum TableStatus { 
-  AVAILABLE 
-  BOOKED 
-  MAINTENANCE 
+
+enum TableStatus {
+  AVAILABLE
+  BOOKED
+  MAINTENANCE
 }
-enum BookingStatus { 
-  PENDING 
-  PAID 
-  CANCELLED 
-  COMPLETED 
+
+enum BookingStatus {
+  PENDING
+  PAID
+  CANCELLED
+  COMPLETED
 }
-enum PaymentStatus { 
-  PENDING 
-  SUCCESS 
-  FAILED 
-  EXPIRED 
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  EXPIRED
 }
 
 model User {
-  id             String            @id @default(uuid())
-  name           String
-  email          String            @unique
-  password       String
-  role           Role              @default(USER)
-  reservations   Booking[]
-  locations      LocationTracking[]
-  notifications  Notification[]
-  createdAt      DateTime          @default(now())
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(CUSTOMER)
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  venues        Venue[]            @relation("OwnerVenues")
+  bookings      Booking[]
+  notifications Notification[]
+  locations     LocationTracking[]
+  logs          Log[]
 }
 
 model Venue {
@@ -57,21 +63,27 @@ model Venue {
   name        String
   type        VenueType
   address     String
+  description String
   latitude    Float?
   longitude   Float?
-  floors      Floor[]
-  tables      Table[]
-  menus       Menu[]
-  bookings    Booking[]
+  ownerId     String?
   createdAt   DateTime  @default(now())
+
+  // Relations
+  owner    User?     @relation("OwnerVenues", fields: [ownerId], references: [id])
+  floors   Floor[]
+  tables   Table[]
+  menus    Menu[]
+  bookings Booking[]
 }
 
 model Floor {
-  id        String   @id @default(uuid())
-  number    Int
-  venueId   String
-  venue     Venue    @relation(fields: [venueId], references: [id])
-  tables    Table[]
+  id      String  @id @default(uuid())
+  name    String
+  level   Int?
+  venueId String
+  venue   Venue   @relation(fields: [venueId], references: [id])
+  tables  Table[]
 }
 
 model Table {
@@ -79,90 +91,121 @@ model Table {
   tableNumber Int
   floorId     String?
   venueId     String
-  status      TableStatus  @default(AVAILABLE)
-  bookings    Booking[]
+  status      TableStatus @default(AVAILABLE)
   createdAt   DateTime    @default(now())
 
-  floor       Floor?       @relation(fields: [floorId], references: [id])
-  venue       Venue       @relation(fields: [venueId], references: [id])
+  // Relations
+  floor    Floor?    @relation(fields: [floorId], references: [id])
+  venue    Venue     @relation(fields: [venueId], references: [id])
+  bookings Booking[]
 }
 
 model Booking {
-  id          String       @id @default(uuid())
-  userId      String
-  venueId     String
-  tableId     String
-  startTime   DateTime
-  endTime     DateTime
-  status      BookingStatus @default(PENDING)
-  paymentId   String?
-  totalPrice  Float
-  createdAt   DateTime     @default(now())
+  id         String        @id @default(uuid())
+  userId     String
+  venueId    String
+  tableId    String
+  startTime  DateTime
+  endTime    DateTime
+  totalPrice Float
+  status     BookingStatus @default(PENDING)
+  paymentId  String?
+  createdAt  DateTime      @default(now())
 
-  user        User         @relation(fields: [userId], references: [id])
-  venue       Venue        @relation(fields: [venueId], references: [id])
-  table       Table        @relation(fields: [tableId], references: [id])
-  payment     Payment?
-  orderItems  OrderItem[]
+  // Relations
+  user       User        @relation(fields: [userId], references: [id])
+  venue      Venue       @relation(fields: [venueId], references: [id])
+  table      Table       @relation(fields: [tableId], references: [id])
+  payment    Payment?
+  orderItems OrderItem[]
+  review     Review?
 }
 
 model Payment {
-  id            String       @id @default(uuid())
-  bookingId     String       @unique  
-  provider      String
-  transactionId String?
-  amount        Float
-  status        PaymentStatus @default(PENDING)
-  paymentUrl    String?
-  paidAt        DateTime?
-  createdAt     DateTime      @default(now())
+  id              String    @id @default(uuid())
+  orderId         String    @unique
+  userId          String
+  bookingId       String    @unique
+  amount          Float
+  status          String
+  paymentType     String?
+  bank            String?
+  transactionId   String?
+  transactionTime DateTime?
+  settlementTime  DateTime?
+  vaNumber        String?
+  fraudStatus     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  booking       Booking       @relation(fields: [bookingId], references: [id])
+  booking Booking @relation(fields: [bookingId], references: [id])
 }
 
-
-
 model Menu {
-  id          String       @id @default(uuid())
+  id          String   @id @default(uuid())
   venueId     String
   name        String
   price       Float
   category    String
-  isAvailable Boolean      @default(true)
-  createdAt   DateTime     @default(now())
+  isAvailable Boolean  @default(true)
+  createdAt   DateTime @default(now())
 
-  venue       Venue        @relation(fields: [venueId], references: [id])
-  orderItems  OrderItem[]
+  // Relations
+  venue      Venue       @relation(fields: [venueId], references: [id])
+  orderItems OrderItem[]
 }
 
 model OrderItem {
-  id          String       @id @default(uuid())
-  bookingId   String
-  menuId      String
-  quantity    Int
-  subtotal    Float
+  id        String @id @default(uuid())
+  bookingId String
+  menuId    String
+  quantity  Int
+  subtotal  Float
 
-  booking     Booking      @relation(fields: [bookingId], references: [id])
-  menu        Menu         @relation(fields: [menuId], references: [id])
+  // Relations
+  booking Booking @relation(fields: [bookingId], references: [id])
+  menu    Menu    @relation(fields: [menuId], references: [id])
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  bookingId String   @unique
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  booking Booking @relation(fields: [bookingId], references: [id])
 }
 
 model LocationTracking {
-  id        String    @id @default(uuid())
+  id        String   @id @default(uuid())
   userId    String
   latitude  Float
   longitude Float
-  updatedAt DateTime  @updatedAt
+  updatedAt DateTime @updatedAt
 
-  user      User      @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 }
 
 model Notification {
-  id        String    @id @default(uuid())
+  id        String   @id @default(uuid())
   userId    String
   title     String
   message   String
-  isRead    Boolean   @default(false)
-  createdAt DateTime  @default(now())
+  type      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
 
-  user      User      @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Log {
+  id          String   @id @default(uuid())
+  userId      String?
+  action      String
+  description String?
+  createdAt   DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
 }
