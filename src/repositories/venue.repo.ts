@@ -8,11 +8,21 @@ export class VenueRepository {
   }
 
   async findVenueById(id: string): Promise<Venue | null> {
-    return prisma.venue.findUnique({ where: { id } });
+    return prisma.venue.findUnique({
+      where: { id },
+      include: { invitation: true },
+    });
   }
 
   async createVenue(data: Venue): Promise<Venue> {
-    return prisma.venue.create({ data });
+    return prisma.venue.create({
+      data: {
+        name: data.name ?? "Untitled Venue",
+        address: data.address ?? "",
+        description: data.description ?? "",
+        type: data.type ?? "UNKNOWN",
+      },
+    });
   }
 
   async updateVenue(id: string, data: Partial<Venue>): Promise<Venue> {

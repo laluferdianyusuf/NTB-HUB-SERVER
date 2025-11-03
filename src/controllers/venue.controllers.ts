@@ -3,22 +3,6 @@ import { VenueServices } from "../services/venue.services";
 const venueServices = new VenueServices();
 
 export class VenueControllers {
-  async createVenue(req: Request, res: Response) {
-    try {
-      const data = req.body;
-      const result = await venueServices.createVenue(data);
-
-      res.status(result.status_code).json(result);
-    } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        status_code: 500,
-        message: error.message || "Internal Server Error",
-        data: null,
-      });
-    }
-  }
-
   async getVenues(req: Request, res: Response) {
     try {
       const result = await venueServices.getVenues();

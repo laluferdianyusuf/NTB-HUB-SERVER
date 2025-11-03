@@ -1,28 +1,16 @@
 import { Venue } from "@prisma/client";
-import { VenueRepository } from "./../repositories/venue.repo";
+import {
+  VenueRepository,
+  InvitationKeyRepository,
+  VenueBalanceRepository,
+} from "./../repositories";
+import { randomUUID } from "crypto";
 
 const venueRepository = new VenueRepository();
+const invitationRepository = new InvitationKeyRepository();
+const venueBalanceRepository = new VenueBalanceRepository();
 
 export class VenueServices {
-  async createVenue(data: Venue) {
-    try {
-      const createdVenue = await venueRepository.createVenue(data);
-      return {
-        status: true,
-        status_code: 201,
-        message: "Venue created successfully",
-        data: createdVenue,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
-    }
-  }
-
   async getVenues() {
     try {
       const venues = await venueRepository.findAllVenue();
@@ -84,13 +72,25 @@ export class VenueServices {
         };
       }
 
-      const updated = await venueRepository.updateVenue(id, data);
+      const updated = await venueRepository.updateVenue(id, {
+        ...data,
+        isActive: true,
+      });
 
+      const oldInvitation = await invitationRepository.findByVenueId(id);
+      if (oldInvitation) {
+        await invitationRepository.deleteByVenueId(id);
+      }
+
+      await venueBalanceRepository.generateInitialBalance(id);
+
+      const key = `SIGN-${randomUUID()}`;
+      const newKey = await invitationRepository.generate(id, null, key);
       return {
         status: true,
         status_code: 200,
         message: "Venue updated",
-        data: updated,
+        data: { ...updated, newKey },
       };
     } catch (error) {
       return {
@@ -114,7 +114,7 @@ export class VenueServices {
           data: null,
         };
       }
-
+      await invitationRepository.deleteByVenueId(id);
       const deleted = await venueRepository.deleteVenue(id);
 
       return {
