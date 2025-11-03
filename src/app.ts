@@ -1,10 +1,15 @@
-import { PaymentController } from "./controllers/payment.controllers";
-import { BookingControllers } from "./controllers/booking.controllers";
-import { MenuControllers } from "./controllers/menu.controllers";
-import { TableControllers } from "./controllers/table.controllers";
-import { UserController } from "./controllers/user.controllers";
-import { VenueControllers } from "./controllers/venue.controllers";
-import { FloorControllers } from "./controllers/floor.controllers";
+import {
+  BookingControllers,
+  MenuControllers,
+  TableControllers,
+  UserController,
+  VenueControllers,
+  FloorControllers,
+  InvitationController,
+  UserBalanceController,
+  VenueBalanceController,
+  PointsController,
+} from "./controllers";
 import "dotenv/config";
 import express from "express";
 import bodyParser from "body-parser";
@@ -14,6 +19,7 @@ import { Server } from "socket.io";
 import { OrderControllers } from "controllers/order.controllers";
 import { LocationController } from "controllers/location.controllers";
 import { NotificationController } from "controllers/notification.controllers";
+import { TransactionController } from "controllers/transaction.controllers";
 
 const app = express();
 app.use(cors());
@@ -27,16 +33,23 @@ const io = new Server(server, {
   },
 });
 
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 const userController = new UserController(io);
 const venueController = new VenueControllers();
 const floorController = new FloorControllers();
 const tableController = new TableControllers();
 const menuController = new MenuControllers();
 const bookingController = new BookingControllers(io);
-const paymentController = new PaymentController(io);
+const transactionController = new TransactionController(io);
 const orderController = new OrderControllers();
 const locationController = new LocationController(io);
 const notificationController = new NotificationController(io);
+const invitationController = new InvitationController();
+const userBalanceController = new UserBalanceController();
+const venueBalanceController = new VenueBalanceController();
+const pointsController = new PointsController(io);
 app.get("/", (req, res) => res.send({ message: "Successful" }));
 
 // Routes
@@ -55,7 +68,6 @@ app.delete("/api/v1/delete-user/:id", (req, res) =>
 );
 
 // venue
-app.post("/api/v2/venues", (req, res) => venueController.createVenue(req, res));
 app.get("/api/v2/venues", (req, res) => venueController.getVenues(req, res));
 app.get("/api/v2/venue/:id", (req, res) =>
   venueController.getVenueById(req, res)
@@ -136,16 +148,13 @@ app.put("/api/v6/booking/:id/complete", (req, res) =>
   bookingController.completeBooking(req, res)
 );
 
-// payment
-app.post("/api/v7/payments", (req, res) =>
-  paymentController.createPayment(req, res)
+// transaction
+app.post("/api/v7/topUp", (req, res) => transactionController.topUp(req, res));
+app.post("/api/v7/transaction/callback", (req, res) =>
+  transactionController.midtransCallback(req, res)
 );
-app.get("/api/v7/payments", (req, res) => paymentController.getAll(req, res));
-app.get("/api/v7/payment/:id", (req, res) =>
-  paymentController.getById(req, res)
-);
-app.post("/api/v7/payment/callback", (req, res) =>
-  paymentController.handlePaymentCallback(req, res)
+app.get("/api/v7/transactions", (req, res) =>
+  transactionController.findAllTransactions(req, res)
 );
 
 // order
@@ -181,5 +190,25 @@ app.put("/api/v10/notification/:id/read", (req, res) =>
   notificationController.markRead(req, res)
 );
 app.delete("/api/v10/notification/:id");
+
+// invitation
+app.post("/api/v11/venue/invitation", (req, res) =>
+  invitationController.generateInvitationKey(req, res)
+);
+
+// user balance
+app.get("/api/v12/user/:userId/balance", (req, res) =>
+  userBalanceController.getUserBalance(req, res)
+);
+
+// venue balance
+app.get("/api/v13/venue/:venueId/balance", (req, res) =>
+  venueBalanceController.getVenueBalance(req, res)
+);
+
+// points
+app.get("/api/v14/user/:userId/points", (req, res) =>
+  pointsController.getUserTotalPoints(req, res)
+);
 
 export { app, io, server };
