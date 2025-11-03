@@ -1,211 +1,291 @@
 generator client {
-  provider = "prisma-client-js"
+provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+provider = "postgresql"
+url = env("DATABASE_URL")
 }
 
 enum Role {
-  CUSTOMER
-  CASHIER
-  OWNER
-  SUPERUSER
+CUSTOMER
+ADMIN
 }
 
 enum VenueType {
-  BILLIARD
-  MINI_SOCCER
-  CAFE
+BILLIARD
+MINI_SOCCER
+CAFE
+UNKNOWN
 }
 
 enum TableStatus {
-  AVAILABLE
-  BOOKED
-  MAINTENANCE
+AVAILABLE
+BOOKED
+MAINTENANCE
 }
 
 enum BookingStatus {
-  PENDING
-  PAID
-  CANCELLED
-  COMPLETED
+PENDING
+PAID
+CANCELLED
+COMPLETED
 }
 
-enum PaymentStatus {
-  PENDING
-  SUCCESS
-  FAILED
-  EXPIRED
+enum TransactionStatus {
+PENDING
+SUCCESS
+FAILED
+REFUNDED
+}
+
+enum TransactionType {
+TOPUP
+DEDUCTION
+}
+
+enum PointActivityType {
+REGISTER
+TOPUP
+BOOKING
+REVIEW
+}
+
+enum InvoiceStatus {
+PENDING
+PAID
+CANCELLED
+REFUNDED
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      Role     @default(CUSTOMER)
-  phone     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+id String @id @default(uuid())
+name String
+email String @unique
+password String
+role Role @default(CUSTOMER)
+phone String?
+createdAt DateTime @default(now())
+updatedAt DateTime @default(now()) @updatedAt
 
-  // Relations
-  venues        Venue[]            @relation("OwnerVenues")
-  bookings      Booking[]
-  notifications Notification[]
-  locations     LocationTracking[]
-  logs          Log[]
+// Relations
+bookings Booking[]
+transactions Transaction[]
+notifications Notification[]
+locations LocationTracking[]
+logs Log[]
+balance UserBalance?
+points Point[]
+}
+
+model UserBalance {
+id String @id @default(uuid())
+userId String @unique
+balance Float @default(0)
+updatedAt DateTime @default(now()) @updatedAt
+
+user User @relation(fields: [userId], references: [id])
 }
 
 model Venue {
-  id          String    @id @default(uuid())
-  name        String
-  type        VenueType
-  address     String
-  description String
-  latitude    Float?
-  longitude   Float?
-  ownerId     String?
-  createdAt   DateTime  @default(now())
+id String @id @default(uuid())
+name String
+type VenueType?
+address String
+description String
+latitude Float?
+longitude Float?
+isActive Boolean @default(false)
+createdAt DateTime @default(now())
+updatedAt DateTime @default(now()) @updatedAt
 
-  // Relations
-  owner    User?     @relation("OwnerVenues", fields: [ownerId], references: [id])
-  floors   Floor[]
-  tables   Table[]
-  menus    Menu[]
-  bookings Booking[]
+// Relations
+floors Floor[]
+tables Table[]
+menus Menu[]
+bookings Booking[]
+invitation InvitationKey?
+balance VenueBalance?
+transactions Transaction[]
+}
+
+model VenueBalance {
+id String @id @default(uuid())
+venueId String @unique
+balance Float @default(0)
+updatedAt DateTime @default(now()) @updatedAt
+
+venue Venue @relation(fields: [venueId], references: [id])
+}
+
+model InvitationKey {
+id String @id @default(uuid())
+venueId String @unique
+key String @unique
+expiresAt DateTime?
+usedAt DateTime?
+createdAt DateTime @default(now())
+updatedAt DateTime @default(now()) @updatedAt
+
+venue Venue @relation(fields: [venueId], references: [id])
 }
 
 model Floor {
-  id      String  @id @default(uuid())
-  name    String
-  level   Int?
-  venueId String
-  venue   Venue   @relation(fields: [venueId], references: [id])
-  tables  Table[]
+id String @id @default(uuid())
+name String
+level Int?
+venueId String
+venue Venue @relation(fields: [venueId], references: [id])
+tables Table[]
 }
 
 model Table {
-  id          String      @id @default(uuid())
-  tableNumber Int
-  floorId     String?
-  venueId     String
-  status      TableStatus @default(AVAILABLE)
-  createdAt   DateTime    @default(now())
+id String @id @default(uuid())
+tableNumber Int
+floorId String?
+venueId String
+status TableStatus @default(AVAILABLE)
+createdAt DateTime @default(now())
+updatedAt DateTime @default(now()) @updatedAt
 
-  // Relations
-  floor    Floor?    @relation(fields: [floorId], references: [id])
-  venue    Venue     @relation(fields: [venueId], references: [id])
-  bookings Booking[]
+floor Floor? @relation(fields: [floorId], references: [id])
+venue Venue @relation(fields: [venueId], references: [id])
+bookings Booking[]
 }
 
 model Booking {
-  id         String        @id @default(uuid())
-  userId     String
-  venueId    String
-  tableId    String
-  startTime  DateTime
-  endTime    DateTime
-  totalPrice Float
-  status     BookingStatus @default(PENDING)
-  paymentId  String?
-  createdAt  DateTime      @default(now())
+id String @id @default(uuid())
+userId String
+venueId String
+tableId String
+startTime DateTime
+endTime DateTime
+totalPrice Float
+status BookingStatus @default(PENDING)
+createdAt DateTime @default(now())
+updatedAt DateTime @default(now()) @updatedAt
 
-  // Relations
-  user       User        @relation(fields: [userId], references: [id])
-  venue      Venue       @relation(fields: [venueId], references: [id])
-  table      Table       @relation(fields: [tableId], references: [id])
-  payment    Payment?
-  orderItems OrderItem[]
-  review     Review?
-}
-
-model Payment {
-  id              String    @id @default(uuid())
-  orderId         String    @unique
-  userId          String
-  bookingId       String    @unique
-  amount          Float
-  status          String
-  paymentType     String?
-  bank            String?
-  transactionId   String?
-  transactionTime DateTime?
-  settlementTime  DateTime?
-  vaNumber        String?
-  fraudStatus     String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  booking Booking @relation(fields: [bookingId], references: [id])
+user User @relation(fields: [userId], references: [id])
+venue Venue @relation(fields: [venueId], references: [id])
+table Table @relation(fields: [tableId], references: [id])
+orderItems OrderItem[]
+review Review?
+invoice Invoice?
 }
 
 model Menu {
-  id          String   @id @default(uuid())
-  venueId     String
-  name        String
-  price       Float
-  category    String
-  isAvailable Boolean  @default(true)
-  createdAt   DateTime @default(now())
+id String @id @default(uuid())
+venueId String
+name String
+price Float
+category String
+isAvailable Boolean @default(true)
+createdAt DateTime @default(now())
+updatedAt DateTime @default(now()) @updatedAt
 
-  // Relations
-  venue      Venue       @relation(fields: [venueId], references: [id])
-  orderItems OrderItem[]
+venue Venue @relation(fields: [venueId], references: [id])
+orderItems OrderItem[]
 }
 
 model OrderItem {
-  id        String @id @default(uuid())
-  bookingId String
-  menuId    String
-  quantity  Int
-  subtotal  Float
+id String @id @default(uuid())
+bookingId String
+menuId String
+quantity Int
+subtotal Float
+createdAt DateTime @default(now())
+updatedAt DateTime @default(now()) @updatedAt
 
-  // Relations
-  booking Booking @relation(fields: [bookingId], references: [id])
-  menu    Menu    @relation(fields: [menuId], references: [id])
+booking Booking @relation(fields: [bookingId], references: [id])
+menu Menu @relation(fields: [menuId], references: [id])
 }
 
 model Review {
-  id        String   @id @default(uuid())
-  bookingId String   @unique
-  rating    Int
-  comment   String?
-  createdAt DateTime @default(now())
+id String @id @default(uuid())
+bookingId String @unique
+rating Int
+comment String?
+createdAt DateTime @default(now())
+updatedAt DateTime @default(now()) @updatedAt
 
-  // Relations
-  booking Booking @relation(fields: [bookingId], references: [id])
+booking Booking @relation(fields: [bookingId], references: [id])
+}
+
+model Point {
+id String @id @default(uuid())
+userId String
+activity PointActivityType
+points Int
+reference String? // id dari booking, transaction, dsb
+createdAt DateTime @default(now())
+
+user User @relation(fields: [userId], references: [id])
+}
+
+model Invoice {
+id String @id @default(uuid())
+bookingId String @unique
+invoiceNumber String @unique
+amount Float
+status InvoiceStatus @default(PENDING)
+paymentMethod String?
+issuedAt DateTime @default(now())
+paidAt DateTime?
+cancelledAt DateTime?
+createdAt DateTime @default(now())
+updatedAt DateTime @default(now()) @updatedAt
+
+booking Booking @relation(fields: [bookingId], references: [id])
 }
 
 model LocationTracking {
-  id        String   @id @default(uuid())
-  userId    String
-  latitude  Float
-  longitude Float
-  updatedAt DateTime @updatedAt
+id String @id @default(uuid())
+userId String
+latitude Float
+longitude Float
+updatedAt DateTime @default(now()) @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+user User @relation(fields: [userId], references: [id])
 }
 
 model Notification {
-  id        String   @id @default(uuid())
-  userId    String
-  title     String
-  message   String
-  type      String?
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
+id String @id @default(uuid())
+userId String
+title String
+message String
+type String?
+isRead Boolean @default(false)
+createdAt DateTime @default(now())
+updatedAt DateTime @default(now()) @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+user User @relation(fields: [userId], references: [id])
 }
 
 model Log {
-  id          String   @id @default(uuid())
-  userId      String?
-  action      String
-  description String?
-  createdAt   DateTime @default(now())
+id String @id @default(uuid())
+userId String?
+action String
+description String?
+createdAt DateTime @default(now())
+updatedAt DateTime @default(now()) @updatedAt
 
-  user User? @relation(fields: [userId], references: [id])
+user User? @relation(fields: [userId], references: [id])
+}
+
+model Transaction {
+id String @id @default(uuid())
+userId String?
+venueId String?
+amount Float
+type TransactionType
+reference String?
+vaNumber    String?         
+bankCode    String?  
+orderId String?        
+status      TransactionStatus? @default(PENDING)
+createdAt DateTime @default(now())
+updatedAt DateTime @default(now()) @updatedAt
+
+user User? @relation(fields: [userId], references: [id])
+venue Venue? @relation(fields: [venueId], references: [id])
 }
