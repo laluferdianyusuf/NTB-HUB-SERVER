@@ -1,9 +1,15 @@
 import bcrypt from "bcryptjs";
-import { UserRepository } from "../repositories/user.repo";
+import {
+  UserRepository,
+  PointsRepository,
+  UserBalanceRepository,
+} from "../repositories";
 import jwt from "jsonwebtoken";
-import { User } from "@prisma/client";
+import { Point, User } from "@prisma/client";
 
 const userRepository = new UserRepository();
+const pointRepository = new PointsRepository();
+const userBalanceRepository = new UserBalanceRepository();
 
 export class UserService {
   async getAllUsers() {
@@ -36,12 +42,12 @@ export class UserService {
           data: null,
         };
       }
-
+      const points = await pointRepository.getTotalPoints(id);
       return {
         status: true,
         status_code: 200,
         message: "User retrieved successfully",
-        data: user,
+        data: { ...user, points },
       };
     } catch (error) {
       return {
@@ -70,6 +76,14 @@ export class UserService {
         ...data,
         password: hashedPassword,
       });
+
+      await userBalanceRepository.generateInitialBalance(newUser.id);
+      await pointRepository.generatePoints({
+        userId: newUser.id,
+        points: 0,
+        activity: "REGISTER",
+        reference: newUser.id,
+      } as Point);
 
       return {
         status: true,
