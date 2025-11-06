@@ -1,9 +1,17 @@
-import { PrismaClient, OrderItem as PrismaOrder } from "@prisma/client";
+import {
+  Booking,
+  BookingStatus,
+  InvoiceStatus,
+  PointActivityType,
+  PrismaClient,
+  OrderItem as PrismaOrder,
+  TransactionStatus,
+  TransactionType,
+} from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 export class OrderRepository {
-  // find all order by booking
   async getOrders(bookingId: string) {
     return prisma.orderItem.findMany({
       where: { bookingId },
@@ -15,6 +23,51 @@ export class OrderRepository {
     return prisma.orderItem.findUnique({
       where: { id },
       include: { menu: true },
+    });
+  }
+
+  async createBulkOrders(
+    bookingId: string,
+    invoiceNumber: string,
+    items: { menuId: string; quantity: number; subtotal: number }[]
+  ) {
+    return await prisma.$transaction(async (tx) => {
+      const createdOrders = await tx.orderItem.createMany({
+        data: items.map((item) => ({
+          bookingId,
+          menuId: item.menuId,
+          quantity: item.quantity,
+          subtotal: item.subtotal,
+        })),
+      });
+
+      const totalIncrease = items.reduce((acc, cur) => acc + cur.subtotal, 0);
+
+      const updatedBooking = await tx.booking.update({
+        where: { id: bookingId },
+        data: {
+          totalPrice: { increment: totalIncrease },
+        },
+        include: { invoice: true },
+      });
+
+      if (!updatedBooking.invoice) {
+        await tx.invoice.create({
+          data: {
+            bookingId: updatedBooking.id,
+            invoiceNumber: invoiceNumber,
+            amount: updatedBooking.totalPrice,
+            paymentMethod: TransactionType.DEDUCTION,
+          },
+        });
+      } else {
+        await tx.invoice.update({
+          where: { bookingId },
+          data: { amount: { increment: totalIncrease } },
+        });
+      }
+
+      return createdOrders;
     });
   }
 
@@ -30,16 +83,10 @@ export class OrderRepository {
     quantity: number;
     subtotal: number;
   }): Promise<PrismaOrder> {
-    // const menu = await prisma.menu.findUnique({ where: { id: menuId } });
-    // if (!menu) throw new Error("Menu not found");
-
-    // const subtotal = menu.price * quantity;
-
     const order = await prisma.orderItem.create({
       data: { bookingId, menuId, quantity, subtotal },
     });
 
-    // update total booking
     const total = await prisma.orderItem.aggregate({
       where: { bookingId },
       _sum: { subtotal: true },
@@ -60,29 +107,24 @@ export class OrderRepository {
     quantity: number,
     subtotal: number
   ) {
-    // const item = await prisma.orderItem.findUnique({ where: { id } });
-    // if (!item) throw new Error("Order not found");
+    return await prisma.$transaction(async (tx) => {
+      const updated = await tx.orderItem.update({
+        where: { id },
+        data: { quantity, subtotal },
+      });
 
-    // const menu = await prisma.menu.findUnique({ where: { id: item.menuId } });
-    // const subtotal = (menu?.price || 0) * quantity;
+      const total = await tx.orderItem.aggregate({
+        where: { bookingId },
+        _sum: { subtotal: true },
+      });
 
-    const updated = await prisma.orderItem.update({
-      where: { id },
-      data: { quantity, subtotal },
+      await tx.booking.update({
+        where: { id: bookingId },
+        data: { totalPrice: total._sum.subtotal || 0 },
+      });
+
+      return updated;
     });
-
-    // update total booking
-    const total = await prisma.orderItem.aggregate({
-      where: { bookingId: bookingId },
-      _sum: { subtotal: true },
-    });
-
-    await prisma.booking.update({
-      where: { id: bookingId },
-      data: { totalPrice: total._sum.subtotal || 0 },
-    });
-
-    return updated;
   }
 
   // delete order
@@ -100,5 +142,92 @@ export class OrderRepository {
     });
 
     return order;
+  }
+
+  async findAllOrders(): Promise<PrismaOrder[]> {
+    return await prisma.orderItem.findMany({
+      include: {
+        booking: true,
+        menu: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+
+  async findByBookingId(bookingId: string): Promise<PrismaOrder[]> {
+    return await prisma.orderItem.findMany({
+      where: { bookingId },
+      include: {
+        menu: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+
+  async processOrdersPayment(
+    booking: Booking,
+    paymentId: string,
+    points: number
+  ) {
+    return await prisma.$transaction(async (tx) => {
+      const updateBalance = await tx.userBalance.update({
+        where: { userId: booking.userId },
+        data: { balance: { decrement: booking.totalPrice } },
+      });
+
+      const updatedBooking = await tx.booking.update({
+        where: { id: booking.id },
+        data: { status: BookingStatus.PAID },
+      });
+
+      await tx.invoice.update({
+        where: { bookingId: booking.id },
+        data: {
+          status: InvoiceStatus.PAID,
+          paidAt: new Date(),
+        },
+      });
+
+      const notification = await tx.notification.create({
+        data: {
+          userId: booking.userId,
+          title: "Payment Successful",
+          message: `Thank you! Your payment of ${booking.totalPrice} has been successfully received.`,
+        },
+      });
+
+      const createdPoint = await tx.point.create({
+        data: {
+          userId: booking.userId,
+          activity: PointActivityType.BOOKING,
+          points,
+          reference: booking.id,
+        },
+      });
+
+      const transaction = await tx.transaction.create({
+        data: {
+          userId: booking.userId,
+          venueId: booking.venueId,
+          amount: booking.totalPrice,
+          type: TransactionType.DEDUCTION,
+          status: TransactionStatus.SUCCESS,
+          reference: booking.id,
+          orderId: paymentId,
+        },
+      });
+
+      return {
+        updateBalance,
+        updatedBooking,
+        createdPoint,
+        transaction,
+        notification,
+      };
+    });
   }
 }

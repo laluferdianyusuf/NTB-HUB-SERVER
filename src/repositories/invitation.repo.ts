@@ -3,20 +3,37 @@ import { PrismaClient, InvitationKey } from "@prisma/client";
 const prisma = new PrismaClient();
 
 export class InvitationKeyRepository {
-  async generate(
-    venueId: string,
-    expiresAt?: Date,
-    key?: string
-  ): Promise<InvitationKey> {
-    const newKey = await prisma.invitationKey.create({
-      data: {
-        venueId,
-        key,
-        expiresAt: expiresAt ?? null,
-      },
-    });
+  async generate(email: string, expiresAt?: Date, key?: string) {
+    if (!email) {
+      throw new Error("Email is required to generate an invitation key");
+    }
 
-    return newKey;
+    return await prisma.$transaction(async (tx) => {
+      const venue = await tx.venue.create({
+        data: {
+          name: `Venue not set`,
+          type: "UNKNOWN",
+          address: "Not set",
+          description: "Auto-generated venue",
+          isActive: false,
+        },
+      });
+      const owners = await tx.owner.create({
+        data: { venueId: venue.id, email, name: "Not set" } as any,
+      });
+
+      const generatedKey = key ?? crypto.randomUUID();
+
+      const newKey = await tx.invitationKey.create({
+        data: {
+          venueId: venue.id,
+          key: generatedKey,
+          expiresAt: expiresAt ?? null,
+        },
+      });
+
+      return { invitation: newKey, venue, owners };
+    });
   }
 
   async findByKey(key: string): Promise<InvitationKey | null> {
@@ -62,6 +79,15 @@ export class InvitationKeyRepository {
       orderBy: {
         createdAt: "desc",
       },
+    });
+  }
+  async updateByVenueId(
+    venueId: string,
+    data: Partial<InvitationKey>
+  ): Promise<InvitationKey> {
+    return prisma.invitationKey.update({
+      where: { venueId },
+      data,
     });
   }
 }

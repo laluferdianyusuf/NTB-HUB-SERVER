@@ -1,21 +1,14 @@
 import crypto from "crypto";
-import {
-  Point,
-  Transaction,
-  TransactionStatus,
-  UserBalance,
-} from "@prisma/client";
+import { Point, Transaction } from "@prisma/client";
 import {
   TransactionRepository,
   PointsRepository,
-  UserBalanceRepository,
   UserRepository,
 } from "../repositories";
 import { midtrans } from "config/midtrans.config";
 
 const transactionRepository = new TransactionRepository();
 const pointRepository = new PointsRepository();
-const userBalanceRepository = new UserBalanceRepository();
 const userRepository = new UserRepository();
 
 export class TransactionServices {
@@ -79,13 +72,6 @@ export class TransactionServices {
         vaNumber: va_number,
       });
 
-      await pointRepository.generatePoints({
-        userId: data.userId,
-        points: Math.floor(data.amount / 100),
-        activity: "TOPUP",
-        reference: transaction.id,
-      } as Point);
-
       return {
         status: true,
         status_code: 201,
@@ -111,13 +97,12 @@ export class TransactionServices {
   async midtransCallback(payload: any) {
     try {
       const serverKey = process.env.MIDTRANS_SERVER_KEY!;
+      const grossAmount = Number(payload.gross_amount).toFixed(0);
+
       const hash = crypto
         .createHash("sha512")
         .update(
-          payload.order_id +
-            payload.status_code +
-            payload.gross_amount +
-            serverKey
+          payload.order_id + payload.status_code + grossAmount + serverKey
         )
         .digest("hex");
 
@@ -132,47 +117,30 @@ export class TransactionServices {
         return { status: false, message: "Transaction not found" };
       }
 
-      let newStatus: TransactionStatus = transaction.status;
-
-      if (payload.transaction_status === "settlement") {
-        newStatus = "SUCCESS";
-        await transactionRepository.updateTransaction(transaction.id, {
-          status: newStatus,
-        });
-
-        const existingBalance = await userBalanceRepository.getBalanceByUserId(
-          transaction.userId!
-        );
-
-        if (existingBalance) {
-          await userBalanceRepository.updateBalance(
-            transaction.userId!,
-            transaction.amount
-          );
-        } else {
-          await userBalanceRepository.createBalance({
-            userId: transaction.userId!,
-            balance: transaction.amount,
-          } as UserBalance);
-        }
-
-        await pointRepository.generatePoints({
-          userId: transaction.userId!,
-          points: Math.floor(transaction.amount / 100),
-          activity: "TOPUP",
-          reference: transaction.id,
-        } as Point);
-      } else if (
-        ["expire", "cancel", "deny"].includes(payload.transaction_status)
-      ) {
-        newStatus = "FAILED";
-        await transactionRepository.updateTransaction(transaction.id, {
-          status: newStatus,
-        });
+      if (transaction.status === "SUCCESS") {
+        return { status: true, message: "Already processed" };
       }
 
-      return { status: true, transaction };
+      const status = payload.transaction_status;
+
+      if (["capture", "settlement"].includes(status)) {
+        await transactionRepository.processSuccessfulTransaction(transaction);
+        return { status: true, message: "Transaction successful" };
+      }
+
+      if (["cancel", "deny", "expire"].includes(status)) {
+        await transactionRepository.processFailedTransaction(transaction);
+        return { status: true, message: "Transaction failed" };
+      }
+
+      if (status === "pending") {
+        await transactionRepository.updateStatus(transaction.id, "PENDING");
+        return { status: true, message: "Transaction pending" };
+      }
+
+      return { status: false, message: "Unknown status" };
     } catch (error: any) {
+      console.error(error);
       return { status: false, message: error.message };
     }
   }

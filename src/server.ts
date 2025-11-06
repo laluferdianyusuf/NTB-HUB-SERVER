@@ -1,4 +1,4 @@
-import { app, io, server } from "./app";
+import { app, io, server, Redis } from "./app";
 const port = process.env.PORT || 3100;
 const socketPort = process.env.PORT || 3101;
 
@@ -8,6 +8,19 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log(`Client disconnected: ${socket.id}`);
   });
+});
+
+const redis = new Redis({
+  host: "127.0.0.1",
+  port: 6379,
+});
+
+redis.on("connect", () => {
+  console.log(`Connected to Redis`);
+});
+
+redis.on("error", (err) => {
+  console.error("Redis connection error:", err);
 });
 
 app.listen(port, () => {

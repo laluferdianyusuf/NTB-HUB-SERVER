@@ -77,13 +77,27 @@ export class BookingControllers {
     }
   }
 
+  async processBookingPayment(req: Request, res: Response) {
+    try {
+      const id = req.params.id;
+      const result = await this.bookingService.updateBookingPayment(id);
+
+      if (this.io && result.data) {
+        this.io.emit("booking:payment", result.data);
+      }
+      res.status(result.status_code).json(result);
+    } catch (error) {
+      res.status(500).json("Internal server error");
+    }
+  }
+
   async cancelBooking(req: Request, res: Response) {
     try {
       const id = req.params.id;
-      const result = await this.bookingService.cancelBooking(id, "CANCELLED");
+      const result = await this.bookingService.cancelBooking(id);
 
       if (this.io && result.status_code === 200) {
-        this.io.emit("booking:update", { id, status: "CANCELLED" });
+        this.io.emit("booking:canceled", result.data);
       }
 
       res.status(result.status_code).json(result);
@@ -100,10 +114,10 @@ export class BookingControllers {
   async completeBooking(req: Request, res: Response) {
     try {
       const id = req.params.id;
-      const result = await this.bookingService.cancelBooking(id, "COMPLETED");
+      const result = await this.bookingService.cancelBooking(id);
 
       if (this.io && result.status_code === 200) {
-        this.io.emit("booking:update", { id, status: "COMPLETED" });
+        this.io.emit("booking:complete", result.data);
       }
 
       res.status(result.status_code).json(result);

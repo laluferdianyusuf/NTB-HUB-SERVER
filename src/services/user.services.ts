@@ -6,7 +6,9 @@ import {
 } from "../repositories";
 import jwt from "jsonwebtoken";
 import { Point, User } from "@prisma/client";
+import Redis from "ioredis";
 
+const redis = new Redis();
 const userRepository = new UserRepository();
 const pointRepository = new PointsRepository();
 const userBalanceRepository = new UserBalanceRepository();
@@ -116,7 +118,7 @@ export class UserService {
       if (data.email !== existing.email) {
         return {
           status: false,
-          status_code: 407,
+          status_code: 400,
           message: "Wrong email",
           data: null,
         };
@@ -130,32 +132,125 @@ export class UserService {
       if (!isPasswordCorrect) {
         return {
           status: false,
-          status_code: 407,
+          status_code: 400,
           message: "Password doesn't match",
           data: null,
         };
       }
 
-      const token = jwt.sign(
+      const accessToken = jwt.sign(
         {
           id: existing.id,
           name: existing.name,
           email: existing.email,
           createdAt: existing.createdAt,
         },
-        "jwt-secret"
+        process.env.ACCESS_SECRET,
+        { expiresIn: "15m" }
+      );
+
+      const refreshToken = jwt.sign(
+        {
+          id: existing.id,
+          name: existing.name,
+          email: existing.email,
+          createdAt: existing.createdAt,
+        },
+        process.env.REFRESH_SECRET,
+        { expiresIn: "7d" }
+      );
+
+      await redis.set(
+        `refresh:${existing.id}`,
+        refreshToken,
+        "EX",
+        7 * 24 * 60 * 60
       );
       return {
         status: true,
         status_code: 201,
         message: "Logged in successfully",
-        data: token,
+        data: { accessToken, refreshToken },
       };
     } catch (error) {
       return {
         status: false,
         status_code: 500,
         message: "Server error: " + error,
+        data: null,
+      };
+    }
+  }
+
+  async refreshToken(refreshToken: string) {
+    try {
+      if (!refreshToken) {
+        return {
+          status: false,
+          status_code: 400,
+          message: "Missing refresh token",
+          data: null,
+        };
+      }
+
+      const decoded = jwt.verify(
+        refreshToken,
+        process.env.REFRESH_SECRET
+      ) as any;
+
+      const storedToken = await redis.get(`refresh:${decoded.id}`);
+      if (!storedToken || storedToken !== refreshToken) {
+        return {
+          status: false,
+          status_code: 403,
+          message: "Invalid or expired refresh token",
+          data: null,
+        };
+      }
+
+      const user = await userRepository.findById(decoded.id);
+      if (!user) {
+        return {
+          status: false,
+          status_code: 404,
+          message: "User not found",
+          data: null,
+        };
+      }
+
+      const newAccessToken = jwt.sign(
+        {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+        "access-secret",
+        { expiresIn: "15m" }
+      );
+
+      return {
+        status: true,
+        status_code: 200,
+        message: "Access token refreshed successfully",
+        data: { accessToken: newAccessToken },
+      };
+    } catch (error: any) {
+      console.error("Refresh token error:", error);
+
+      if (error.name === "TokenExpiredError") {
+        return {
+          status: false,
+          status_code: 401,
+          message: "Refresh token expired, please login again",
+          data: null,
+        };
+      }
+
+      return {
+        status: false,
+        status_code: 500,
+        message: "Internal server error",
         data: null,
       };
     }

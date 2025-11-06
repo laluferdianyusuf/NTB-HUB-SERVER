@@ -62,10 +62,6 @@ export class UserController {
     try {
       const result = await this.userService.login(req.body);
 
-      if (result.status && result.data) {
-        this.io?.emit("user:created", result.data);
-      }
-
       res.status(result.status_code).json(result);
     } catch (error: any) {
       res.status(500).json({
@@ -75,6 +71,12 @@ export class UserController {
         data: null,
       });
     }
+  }
+  async refresh(req: Request, res: Response) {
+    const { refreshToken } = req.body;
+
+    const result = await this.userService.refreshToken(refreshToken);
+    return res.status(result.status_code).json(result);
   }
 
   async update(req: Request, res: Response) {
@@ -113,5 +115,18 @@ export class UserController {
         data: null,
       });
     }
+  }
+
+  async currentUser(req: Request, res: Response) {
+    const user = (req as any).user;
+
+    res
+      .status(200)
+      .json({
+        status: true,
+        status_code: 200,
+        message: "User retrieved",
+        data: user,
+      });
   }
 }

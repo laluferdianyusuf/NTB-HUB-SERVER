@@ -9,12 +9,11 @@ export class OrderControllers {
   }
 
   async createNewOrder(req: Request, res: Response) {
-    const { bookingId, menuId, quantity } = req.body;
+    const { bookingId, items } = req.body;
 
     const result = await this.orderService.createNewOrder({
       bookingId,
-      menuId,
-      quantity,
+      items,
     });
 
     res.status(result.status_code).json(result);
@@ -44,6 +43,26 @@ export class OrderControllers {
     const { id } = req.params;
 
     const result = await this.orderService.getOrderById(id);
+
+    res.status(result.status_code).json(result);
+  }
+
+  async findAllOrders(req: Request, res: Response) {
+    const result = await this.orderService.findAllOrder();
+
+    res.status(result.status_code).json(result);
+  }
+
+  async findByBookingId(req: Request, res: Response) {
+    const { bookingId } = req.params;
+
+    const result = await this.orderService.findByBookingId(bookingId);
+    res.status(result.status_code).json(result);
+  }
+
+  async processOrderPayment(req: Request, res: Response) {
+    const { bookingId } = req.params;
+    const result = await this.orderService.processOrderPayment(bookingId);
 
     res.status(result.status_code).json(result);
   }

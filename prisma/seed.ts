@@ -16,15 +16,6 @@ async function main() {
       role: "ADMIN",
     },
   });
-
-  await prisma.user.create({
-    data: {
-      name: "Ferdian",
-      email: "user@billiard.com",
-      password: userPassword,
-      role: "USER",
-    },
-  });
 }
 
 main()

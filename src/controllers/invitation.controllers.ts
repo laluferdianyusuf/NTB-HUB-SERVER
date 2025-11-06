@@ -9,7 +9,27 @@ export class InvitationController {
   }
 
   async generateInvitationKey(req: Request, res: Response) {
-    const result = await this.invitationServices.generateInvitationKey();
+    const { email } = req.body;
+    const result = await this.invitationServices.generateInvitationKey(email);
+    return res.status(result.status_code).json(result);
+  }
+
+  async findAllInvitationKeys(req: Request, res: Response) {
+    const result = await this.invitationServices.findAllInvitationKeys();
+    return res.status(result.status_code).json(result);
+  }
+
+  async findInvitationKey(req: Request, res: Response) {
+    const key = req.params.key;
+    const result = await this.invitationServices.findInvitationKey(key);
+    return res.status(result.status_code).json(result);
+  }
+
+  async findInvitationKeyByVenueId(req: Request, res: Response) {
+    const venueId = req.params.venueId;
+    const result = await this.invitationServices.findInvitationKeysByVenueId(
+      venueId
+    );
     return res.status(result.status_code).json(result);
   }
 }

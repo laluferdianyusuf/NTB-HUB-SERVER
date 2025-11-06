@@ -1,5 +1,4 @@
-import { PrismaClient, Floor as PrismaFloor } from "@prisma/client";
-import { Floor } from "../../models/floor.model";
+import { PrismaClient, Floor } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -15,25 +14,19 @@ export class FloorRepository {
   }
 
   //   create new floor at venue
-  async createNewFloorByVenueId(
-    data: Floor,
-    venueId: string
-  ): Promise<PrismaFloor> {
+  async createNewFloorByVenueId(data: Floor, venueId: string): Promise<Floor> {
     return prisma.floor.create({
       data: { ...data, venueId },
     });
   }
 
   // update floor
-  async updateFloor(
-    floorId: string,
-    data: Partial<Floor>
-  ): Promise<PrismaFloor> {
+  async updateFloor(floorId: string, data: Partial<Floor>): Promise<Floor> {
     return prisma.floor.update({ where: { id: floorId }, data });
   }
 
   // delete floor
-  async deleteFloor(floorId: string): Promise<PrismaFloor> {
+  async deleteFloor(floorId: string): Promise<Floor> {
     return prisma.floor.delete({ where: { id: floorId } });
   }
 }

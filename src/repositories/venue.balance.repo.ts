@@ -9,9 +9,11 @@ export class VenueBalanceRepository {
     return venueBalance ? venueBalance.balance : null;
   }
 
-  async generateInitialBalance(venueId: string): Promise<void> {
-    await prisma.venueBalance.create({
-      data: {
+  async ensureInitialBalance(venueId: string): Promise<void> {
+    await prisma.venueBalance.upsert({
+      where: { venueId },
+      update: {},
+      create: {
         venueId,
         balance: 0,
       },

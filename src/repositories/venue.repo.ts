@@ -32,7 +32,21 @@ export class VenueRepository {
     });
   }
 
-  async deleteVenue(id: string): Promise<Venue> {
-    return prisma.venue.delete({ where: { id } });
+  async deleteVenueWithRelations(id: string): Promise<Venue> {
+    return prisma.$transaction(async (tx) => {
+      await tx.invitationKey.deleteMany({
+        where: { venueId: id },
+      });
+
+      await tx.venueBalance.deleteMany({
+        where: { venueId: id },
+      });
+
+      const deletedVenue = await tx.venue.delete({
+        where: { id },
+      });
+
+      return deletedVenue;
+    });
   }
 }

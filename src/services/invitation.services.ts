@@ -1,24 +1,123 @@
 import { randomUUID } from "crypto";
-import { InvitationKeyRepository, VenueRepository } from "repositories";
+import { InvitationKeyRepository } from "repositories";
+import { sendEmail } from "utils/mail";
 const invitationKeyRepository = new InvitationKeyRepository();
-const venueRepository = new VenueRepository();
 
 export class InvitationServices {
-  async generateInvitationKey() {
+  async generateInvitationKey(email: string) {
     try {
-      const key = `INVITE-${randomUUID()}`;
+      const key = `INVITE-${randomUUID().slice(0, 8).toUpperCase()}`;
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-      const newVenue = await venueRepository.createVenue({} as any);
       const newKey = await invitationKeyRepository.generate(
-        newVenue.id,
+        email,
         expiresAt,
         key
       );
+
+      await sendEmail(
+        email,
+        "Your Invitation Key",
+        `
+      <h2>You're invited!</h2>
+      <p>You have been invited to create a venue account.</p>
+      <p>Use this invitation key:</p>
+      <h3>${key}</h3>
+      <p>Open NTB Hub to active your venue</p>
+      <p>This key will expire in 24 hours.</p>
+    `
+      );
+
       return {
         status: true,
         status_code: 201,
         message: "Invitation key generated successfully",
         data: newKey,
+      };
+    } catch (error) {
+      return {
+        status: false,
+        status_code: 500,
+        message: "Internal server error" + error.message,
+        data: null,
+      };
+    }
+  }
+
+  async findAllInvitationKeys() {
+    try {
+      const invitationKeys = await invitationKeyRepository.findAll();
+      if (!invitationKeys && invitationKeys.length === 0) {
+        return {
+          status: false,
+          status_code: 404,
+          message: "No invitation keys found",
+          data: null,
+        };
+      }
+      return {
+        status: true,
+        status_code: 200,
+        message: "Invitation keys retrieved successfully",
+        data: invitationKeys,
+      };
+    } catch (error) {
+      return {
+        status: false,
+        status_code: 500,
+        message: "Internal server error" + error.message,
+        data: null,
+      };
+    }
+  }
+
+  async findInvitationKey(key: string) {
+    try {
+      const invitationKey = await invitationKeyRepository.findByKey(key);
+      if (!invitationKey) {
+        return {
+          status: false,
+          status_code: 404,
+          message: "Invitation key not found",
+          data: null,
+        };
+      }
+
+      return {
+        status: true,
+        status_code: 200,
+        message: "Invitation key found",
+        data: invitationKey,
+      };
+    } catch (error) {
+      return {
+        status: false,
+        status_code: 500,
+        message: "Internal server error" + error.message,
+        data: null,
+      };
+    }
+  }
+
+  async findInvitationKeysByVenueId(venueId: string) {
+    try {
+      const invitationKeys = await invitationKeyRepository.findByVenueId(
+        venueId
+      );
+
+      if (!invitationKeys) {
+        return {
+          status: false,
+          status_code: 404,
+          message: "No invitation keys found for this venue",
+          data: null,
+        };
+      }
+
+      return {
+        status: true,
+        status_code: 200,
+        message: "Invitation keys retrieved successfully",
+        data: invitationKeys,
       };
     } catch (error) {
       return {
