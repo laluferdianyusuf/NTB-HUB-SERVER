@@ -2,11 +2,8 @@ import {
   PrismaClient,
   Booking,
   BookingStatus,
-  TransactionType,
-  TransactionStatus,
-  PointActivityType,
-  InvoiceStatus,
   TableStatus,
+  Prisma,
 } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -72,22 +69,12 @@ export class BookingRepository {
     });
   }
 
-  async createBooking(data: Booking, invoiceNumber: string): Promise<Booking> {
-    return await prisma.$transaction(async (tx) => {
-      const createdBooking = await tx.booking.create({
-        data,
-      });
-
-      const invoice = await tx.invoice.create({
-        data: {
-          bookingId: createdBooking.id,
-          invoiceNumber: invoiceNumber,
-          amount: createdBooking.totalPrice,
-          paymentMethod: TransactionType.DEDUCTION,
-        },
-      });
-
-      return { ...createdBooking, invoice };
+  async createBooking(
+    data: Booking,
+    tx: Prisma.TransactionClient
+  ): Promise<Booking> {
+    return await tx.booking.create({
+      data,
     });
   }
 
@@ -98,94 +85,61 @@ export class BookingRepository {
     return await prisma.booking.update({ where: { id }, data: { status } });
   }
 
-  async processBookingPayment(
-    booking: Booking,
-    paymentId: string,
-    points: number
-  ) {
-    return await prisma.$transaction(async (tx) => {
-      const updatedBalance = await tx.userBalance.update({
-        where: { userId: booking.userId },
-        data: { balance: { decrement: booking.totalPrice } },
-      });
-
-      await tx.invoice.update({
-        where: { bookingId: booking.id },
-        data: {
-          status: InvoiceStatus.PAID,
-          paidAt: new Date(),
-        },
-      });
-
-      const notification = await tx.notification.create({
-        data: {
-          userId: booking.userId,
-          title: "Payment Successful",
-          message: `Thank you! Your payment of ${booking.totalPrice} has been successfully received.`,
-        },
-      });
-
-      const createdPoint = await tx.point.create({
-        data: {
-          userId: booking.userId,
-          activity: PointActivityType.BOOKING,
-          points,
-          reference: booking.id,
-        },
-      });
-
-      const updatedBooking = await tx.booking.update({
-        where: { id: booking.id },
-        data: { status: BookingStatus.PAID },
-      });
-
-      await tx.table.update({
-        where: { id: booking.tableId },
-        data: { status: TableStatus.BOOKED },
-      });
-
-      const transaction = await tx.transaction.create({
-        data: {
-          userId: booking.userId,
-          venueId: booking.venueId,
-          amount: booking.totalPrice,
-          type: TransactionType.DEDUCTION,
-          status: TransactionStatus.SUCCESS,
-          reference: booking.id,
-          orderId: paymentId,
-        },
-      });
-
-      return {
-        updatedBooking,
-        updatedBalance,
-        createdPoint,
-        transaction,
-        notification,
-      };
+  async processBookingPayment(id: string, tx?: Prisma.TransactionClient) {
+    const db = tx ?? prisma;
+    const updatedBooking = await db.booking.update({
+      where: { id: id },
+      data: { status: BookingStatus.PAID },
     });
+
+    return {
+      updatedBooking,
+    };
   }
 
-  async cancelBooking(id: string) {
-    return await prisma.$transaction(async (tx) => {
-      const booking = await tx.booking.update({
-        where: { id },
-        data: { status: BookingStatus.CANCELLED },
-      });
-
-      const invoice = await tx.invoice.update({
-        where: { bookingId: id },
-        data: { status: InvoiceStatus.CANCELLED, cancelledAt: new Date() },
-      });
-
-      return { ...booking, invoice };
+  async cancelBooking(id: string, tx?: Prisma.TransactionClient) {
+    const db = tx ?? prisma;
+    const booking = await db.booking.update({
+      where: { id },
+      data: { status: BookingStatus.CANCELLED },
     });
+
+    return { booking };
   }
 
-  async completeBooking(id: string) {
-    return await prisma.booking.update({
+  async completeBooking(id: string, tx?: Prisma.TransactionClient) {
+    const db = tx ?? prisma;
+    return await db.booking.update({
       where: { id },
       data: { status: BookingStatus.COMPLETED },
+    });
+  }
+
+  async updateBookingTotal(
+    bookingId: string,
+    totalIncrease: number,
+    tx?: Prisma.TransactionClient
+  ) {
+    const db = tx ?? prisma;
+    return db.booking.update({
+      where: { id: bookingId },
+      data: { totalPrice: { increment: totalIncrease } },
+      include: { invoice: true },
+    });
+  }
+
+  async recalculateBookingTotal(
+    bookingId: string,
+    tx: Prisma.TransactionClient
+  ) {
+    const total = await tx.orderItem.aggregate({
+      where: { bookingId },
+      _sum: { subtotal: true },
+    });
+
+    return tx.booking.update({
+      where: { id: bookingId },
+      data: { totalPrice: total._sum.subtotal || 0 },
     });
   }
 }

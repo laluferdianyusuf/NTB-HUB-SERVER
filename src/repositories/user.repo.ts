@@ -1,4 +1,4 @@
-import { PrismaClient, User } from "@prisma/client";
+import { Prisma, PrismaClient, User } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -17,8 +17,9 @@ export class UserRepository {
     return prisma.user.findUnique({ where: { email } });
   }
 
-  async create(data: User): Promise<User> {
-    return prisma.user.create({ data });
+  async create(data: User, tx?: Prisma.TransactionClient): Promise<User> {
+    const db = tx ?? prisma;
+    return db.user.create({ data });
   }
 
   async update(id: string, data: Partial<User>): Promise<User> {
@@ -30,5 +31,12 @@ export class UserRepository {
 
   async delete(id: string): Promise<User> {
     return prisma.user.delete({ where: { id } });
+  }
+
+  async findManyUsers(tx?: Prisma.TransactionClient) {
+    const db = tx ?? prisma;
+    return db.user.findMany({
+      select: { id: true, name: true },
+    });
   }
 }

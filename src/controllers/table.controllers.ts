@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { TableServices } from "../services/table.services";
+import { TableServices } from "../services";
 const tableService = new TableServices();
 
 export class TableControllers {

@@ -1,14 +1,11 @@
 import { Request, Response } from "express";
-import { Server } from "socket.io";
 import { UserService } from "../services/user.services";
 
 export class UserController {
   private userService: UserService;
-  private io?: Server;
 
-  constructor(io?: Server) {
+  constructor() {
     this.userService = new UserService();
-    this.io = io;
   }
 
   async getAll(req: Request, res: Response) {
@@ -42,10 +39,6 @@ export class UserController {
   async create(req: Request, res: Response) {
     try {
       const result = await this.userService.createUser(req.body);
-
-      if (result.status && result.data) {
-        this.io?.emit("user:created", result.data);
-      }
 
       res.status(result.status_code).json(result);
     } catch (error: any) {
@@ -83,10 +76,6 @@ export class UserController {
     try {
       const result = await this.userService.updateUser(req.params.id, req.body);
 
-      if (result.status && result.data) {
-        this.io?.emit("user:updated", result.data);
-      }
-
       res.status(result.status_code).json(result);
     } catch (error: any) {
       res.status(500).json({
@@ -102,10 +91,6 @@ export class UserController {
     try {
       const result = await this.userService.deleteUser(req.params.id);
 
-      if (result.status) {
-        this.io?.emit("user:deleted", { id: req.params.id });
-      }
-
       res.status(result.status_code).json(result);
     } catch (error: any) {
       res.status(500).json({
@@ -120,13 +105,11 @@ export class UserController {
   async currentUser(req: Request, res: Response) {
     const user = (req as any).user;
 
-    res
-      .status(200)
-      .json({
-        status: true,
-        status_code: 200,
-        message: "User retrieved",
-        data: user,
-      });
+    res.status(200).json({
+      status: true,
+      status_code: 200,
+      message: "User retrieved",
+      data: user,
+    });
   }
 }

@@ -1,4 +1,5 @@
 import {
+  Prisma,
   PrismaClient,
   Notification as PrismaNotification,
 } from "@prisma/client";
@@ -32,5 +33,13 @@ export class NotificationRepository {
   // delete notification
   async deleteNotification(id: string): Promise<PrismaNotification> {
     return prisma.notification.delete({ where: { id: id } });
+  }
+
+  async createManyNotification(
+    data: Notification[],
+    tx?: Prisma.TransactionClient
+  ) {
+    const db = tx ?? prisma;
+    return await db.notification.createMany({ data });
   }
 }

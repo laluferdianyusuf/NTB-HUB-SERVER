@@ -16,6 +16,17 @@ export class UserBalanceRepository {
     });
   }
 
+  async decrementBalance(
+    userId: string,
+    amount: number,
+    tx: Prisma.TransactionClient
+  ): Promise<void> {
+    await tx.userBalance.update({
+      where: { userId },
+      data: { balance: { decrement: amount } },
+    });
+  }
+
   async createBalance(data: UserBalance): Promise<UserBalance> {
     return prisma.userBalance.upsert({
       where: { userId: data.userId },
@@ -24,8 +35,11 @@ export class UserBalanceRepository {
     });
   }
 
-  async generateInitialBalance(userId: string): Promise<void> {
-    await prisma.userBalance.create({
+  async generateInitialBalance(
+    userId: string,
+    tx: Prisma.TransactionClient
+  ): Promise<void> {
+    await tx.userBalance.create({
       data: {
         userId,
         balance: 0,

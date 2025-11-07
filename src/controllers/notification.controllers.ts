@@ -3,19 +3,14 @@ import { Server } from "socket.io";
 import { NotificationService } from "../services/notification.services";
 
 export class NotificationController {
-  private notificationService = new NotificationService();
-  private io?: Server;
+  private notificationService: NotificationService;
 
-  constructor(io?: Server) {
-    this.io = io;
+  constructor() {
+    this.notificationService = new NotificationService();
   }
 
   async createNotification(req: Request, res: Response) {
     const result = await this.notificationService.sendNotification(req.body);
-
-    if (this.io && result.status) {
-      this.io.emit("notification:new", result.data);
-    }
 
     res.status(result.status_code).json(result);
   }

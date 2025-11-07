@@ -1,4 +1,4 @@
-import { PrismaClient, Menu as PrismaMenus } from "@prisma/client";
+import { Prisma, PrismaClient, Menu as PrismaMenus } from "@prisma/client";
 import { Menu } from "../../models/menu.model";
 
 const prisma = new PrismaClient();
@@ -17,9 +17,11 @@ export class MenuRepository {
   //   create new menu at venue
   async createNewMenuByVenue(
     data: Menu,
-    venueId: string
-  ): Promise<PrismaMenus> {
-    return prisma.menu.create({
+    venueId: string,
+    tx?: Prisma.TransactionClient
+  ) {
+    const db = tx ?? prisma;
+    return await db.menu.create({
       data: { ...data, venueId },
     });
   }

@@ -1,14 +1,10 @@
 import crypto from "crypto";
-import { Point, Transaction } from "@prisma/client";
-import {
-  TransactionRepository,
-  PointsRepository,
-  UserRepository,
-} from "../repositories";
+import { Transaction } from "@prisma/client";
+import { TransactionRepository, UserRepository } from "../repositories";
 import { midtrans } from "config/midtrans.config";
+import { publisher } from "config/redis.config";
 
 const transactionRepository = new TransactionRepository();
-const pointRepository = new PointsRepository();
 const userRepository = new UserRepository();
 
 export class TransactionServices {
@@ -97,7 +93,7 @@ export class TransactionServices {
   async midtransCallback(payload: any) {
     try {
       const serverKey = process.env.MIDTRANS_SERVER_KEY!;
-      const grossAmount = Number(payload.gross_amount).toFixed(0);
+      const grossAmount = payload.gross_amount;
 
       const hash = crypto
         .createHash("sha512")
@@ -124,12 +120,50 @@ export class TransactionServices {
       const status = payload.transaction_status;
 
       if (["capture", "settlement"].includes(status)) {
-        await transactionRepository.processSuccessfulTransaction(transaction);
-        return { status: true, message: "Transaction successful" };
+        const settlement =
+          await transactionRepository.processSuccessfulTransaction(transaction);
+
+        await publisher.publish(
+          "transactions-events",
+          JSON.stringify({
+            event: "transaction:success",
+            payload: settlement.transactions,
+          })
+        );
+
+        await publisher.publish(
+          "notification-events",
+          JSON.stringify({
+            event: "notification:send",
+            payload: settlement.notification,
+          })
+        );
+
+        await publisher.publish(
+          "points-events",
+          JSON.stringify({
+            event: "points:updated",
+            payload: settlement.points,
+          })
+        );
+        return {
+          status: true,
+          message: "Transaction successful",
+        };
       }
 
       if (["cancel", "deny", "expire"].includes(status)) {
-        await transactionRepository.processFailedTransaction(transaction);
+        const cancel = await transactionRepository.processFailedTransaction(
+          transaction
+        );
+
+        await publisher.publish(
+          "transactions-events",
+          JSON.stringify({
+            event: "transaction:cancel",
+            payload: cancel,
+          })
+        );
         return { status: true, message: "Transaction failed" };
       }
 

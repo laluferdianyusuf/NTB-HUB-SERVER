@@ -1,4 +1,4 @@
-import { PrismaClient, Invoice } from "@prisma/client";
+import { PrismaClient, Invoice, Prisma, InvoiceStatus } from "@prisma/client";
 const prisma = new PrismaClient();
 
 export class InvoiceRepository {
@@ -15,7 +15,47 @@ export class InvoiceRepository {
     });
   }
 
-  async create(data: Invoice): Promise<Partial<Invoice>> {
-    return prisma.invoice.create({ data });
+  async create(
+    data: Prisma.InvoiceUncheckedCreateInput,
+    tx?: Prisma.TransactionClient
+  ): Promise<Invoice> {
+    const db = tx ?? prisma;
+    return db.invoice.create({ data });
+  }
+
+  async updateInvoicePaid(bookingId: string, tx?: Prisma.TransactionClient) {
+    const db = tx ?? prisma;
+    return db.invoice.update({
+      where: { bookingId },
+      data: {
+        status: InvoiceStatus.PAID,
+        paidAt: new Date(),
+      },
+    });
+  }
+
+  async updateInvoiceCanceled(
+    bookingId: string,
+    tx?: Prisma.TransactionClient
+  ) {
+    const db = tx ?? prisma;
+    return db.invoice.update({
+      where: { bookingId },
+      data: {
+        status: InvoiceStatus.CANCELLED,
+        cancelledAt: new Date(),
+      },
+    });
+  }
+
+  async updateInvoiceAmount(
+    bookingId: string,
+    totalIncrease: number,
+    tx: Prisma.TransactionClient
+  ) {
+    return tx.invoice.update({
+      where: { bookingId },
+      data: { amount: { increment: totalIncrease } },
+    });
   }
 }

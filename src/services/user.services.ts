@@ -5,8 +5,11 @@ import {
   UserBalanceRepository,
 } from "../repositories";
 import jwt from "jsonwebtoken";
-import { Point, User } from "@prisma/client";
+import { Point, User, PrismaClient } from "@prisma/client";
 import Redis from "ioredis";
+import { publisher } from "config/redis.config";
+
+const prisma = new PrismaClient();
 
 const redis = new Redis();
 const userRepository = new UserRepository();
@@ -72,26 +75,53 @@ export class UserService {
           data: null,
         };
       }
-
       const hashedPassword = await bcrypt.hash(data.password, 10);
-      const newUser = await userRepository.create({
-        ...data,
-        password: hashedPassword,
-      });
+      const result = await prisma.$transaction(async (tx) => {
+        const newUser = await userRepository.create(
+          {
+            ...data,
+            password: hashedPassword,
+          },
+          tx
+        );
+        const balance = await userBalanceRepository.generateInitialBalance(
+          newUser.id,
+          tx
+        );
 
-      await userBalanceRepository.generateInitialBalance(newUser.id);
-      await pointRepository.generatePoints({
-        userId: newUser.id,
-        points: 0,
-        activity: "REGISTER",
-        reference: newUser.id,
-      } as Point);
+        const point = await pointRepository.generatePoints(
+          {
+            userId: newUser.id,
+            points: 0,
+            activity: "REGISTER",
+            reference: newUser.id,
+          } as Point,
+          tx
+        );
+
+        return { newUser, balance, point };
+      });
+      await publisher.publish(
+        "point-events",
+        JSON.stringify({
+          event: "point:updated",
+          payload: result.point,
+        })
+      );
+
+      await publisher.publish(
+        "balance-events",
+        JSON.stringify({
+          event: "balance:updated",
+          payload: result.balance,
+        })
+      );
 
       return {
         status: true,
         status_code: 201,
         message: "User created successfully",
-        data: newUser,
+        data: result,
       };
     } catch (error) {
       return {

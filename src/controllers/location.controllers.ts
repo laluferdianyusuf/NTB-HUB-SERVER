@@ -3,19 +3,14 @@ import { Server } from "socket.io";
 import { LocationServices } from "../services/location.services";
 
 export class LocationController {
-  private locationService = new LocationServices();
-  private io?: Server;
+  private locationService: LocationServices;
 
-  constructor(io?: Server) {
-    this.io = io;
+  constructor() {
+    this.locationService = new LocationServices();
   }
 
   async track(req: Request, res: Response) {
     const result = await this.locationService.trackLocation(req.body);
-
-    if (this.io && result.status) {
-      this.io.emit("location:update", result.data);
-    }
 
     res.status(result.status_code).json(result);
   }

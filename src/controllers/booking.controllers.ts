@@ -1,23 +1,16 @@
 import { Request, Response } from "express";
 import { BookingServices } from "../services/booking.services";
-import { Server } from "socket.io";
 
 export class BookingControllers {
   private bookingService: BookingServices;
-  private io?: Server;
 
-  constructor(io?: Server) {
+  constructor() {
     this.bookingService = new BookingServices();
-    this.io = io;
   }
   async createBooking(req: Request, res: Response) {
     try {
       const data = req.body;
       const result = await this.bookingService.createBooking(data);
-
-      if (this.io && result.status_code == 201) {
-        this.io.emit("booking:new", result.data);
-      }
 
       res.status(result.status_code).json(result);
     } catch (error: any) {
@@ -82,9 +75,6 @@ export class BookingControllers {
       const id = req.params.id;
       const result = await this.bookingService.updateBookingPayment(id);
 
-      if (this.io && result.data) {
-        this.io.emit("booking:payment", result.data);
-      }
       res.status(result.status_code).json(result);
     } catch (error) {
       res.status(500).json("Internal server error");
@@ -95,10 +85,6 @@ export class BookingControllers {
     try {
       const id = req.params.id;
       const result = await this.bookingService.cancelBooking(id);
-
-      if (this.io && result.status_code === 200) {
-        this.io.emit("booking:canceled", result.data);
-      }
 
       res.status(result.status_code).json(result);
     } catch (error: any) {
@@ -115,10 +101,6 @@ export class BookingControllers {
     try {
       const id = req.params.id;
       const result = await this.bookingService.cancelBooking(id);
-
-      if (this.io && result.status_code === 200) {
-        this.io.emit("booking:complete", result.data);
-      }
 
       res.status(result.status_code).json(result);
     } catch (error: any) {

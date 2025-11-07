@@ -43,20 +43,20 @@ app.use(express.urlencoded({ extended: true }));
 
 const auth = new AuthMiddlewares();
 
-const userController = new UserController(io);
+const userController = new UserController();
 const venueController = new VenueControllers();
 const floorController = new FloorControllers();
 const tableController = new TableControllers();
 const menuController = new MenuControllers();
-const bookingController = new BookingControllers(io);
-const transactionController = new TransactionController(io);
+const bookingController = new BookingControllers();
+const transactionController = new TransactionController();
 const orderController = new OrderControllers();
-const locationController = new LocationController(io);
-const notificationController = new NotificationController(io);
+const locationController = new LocationController();
+const notificationController = new NotificationController();
 const invitationController = new InvitationController();
 const userBalanceController = new UserBalanceController();
 const venueBalanceController = new VenueBalanceController();
-const pointsController = new PointsController(io);
+const pointsController = new PointsController();
 const logsController = new LogController();
 const reviewController = new ReviewControllers();
 const invoiceController = new InvoiceController();
@@ -197,11 +197,8 @@ app.put(
   auth.authenticate.bind(auth),
   (req, res) => bookingController.processBookingPayment(req, res)
 );
-app.get(
-  "/api/v6/bookings",
-  auth.authenticate.bind(auth),
-  auth.isAdmin.bind(auth),
-  (req, res) => bookingController.getAllBookings(req, res)
+app.get("/api/v6/bookings", auth.authenticate.bind(auth), (req, res) =>
+  bookingController.getAllBookings(req, res)
 );
 app.get(
   "/api/v6/users/:userId/bookings",

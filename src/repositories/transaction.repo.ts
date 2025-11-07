@@ -1,9 +1,18 @@
-import { PrismaClient, Transaction, TransactionStatus } from "@prisma/client";
+import {
+  Prisma,
+  PrismaClient,
+  Transaction,
+  TransactionStatus,
+} from "@prisma/client";
 const prisma = new PrismaClient();
 
 export class TransactionRepository {
-  async create(data: Transaction): Promise<Transaction> {
-    return prisma.transaction.create({ data });
+  async create(
+    data: Prisma.TransactionUncheckedCreateInput,
+    tx?: Prisma.TransactionClient
+  ): Promise<Transaction> {
+    const db = tx ?? prisma;
+    return db.transaction.create({ data });
   }
 
   async findById(id: string): Promise<Transaction | null> {
@@ -36,7 +45,7 @@ export class TransactionRepository {
         where: { userId: transaction.userId },
       });
 
-      await tx.notification.create({
+      const notification = await tx.notification.create({
         data: {
           userId: transaction.userId,
           title: "TOP UP Balance",
@@ -44,15 +53,16 @@ export class TransactionRepository {
         },
       });
 
+      let balances = null;
       if (existingBalance) {
-        await tx.userBalance.update({
+        balances = await tx.userBalance.update({
           where: { userId: transaction.userId },
           data: {
             balance: { increment: transaction.amount },
           },
         });
       } else {
-        await tx.userBalance.create({
+        balances = await tx.userBalance.create({
           data: {
             userId: transaction.userId,
             balance: transaction.amount,
@@ -60,7 +70,7 @@ export class TransactionRepository {
         });
       }
 
-      await tx.point.create({
+      const points = await tx.point.create({
         data: {
           userId: transaction.userId,
           points: Math.floor(transaction.amount / 1000),
@@ -69,7 +79,7 @@ export class TransactionRepository {
         },
       });
 
-      await tx.log.create({
+      const logs = await tx.log.create({
         data: {
           userId: transaction.userId,
           action: "TOPUP_SUCCESS",
@@ -79,7 +89,7 @@ export class TransactionRepository {
         },
       });
 
-      return transactions;
+      return { transactions, balances, points, logs, notification };
     });
   }
 

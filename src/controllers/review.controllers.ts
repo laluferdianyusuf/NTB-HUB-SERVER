@@ -11,6 +11,7 @@ export class ReviewControllers {
   async createReview(req: Request, res: Response) {
     const data = req.body;
     const result = await this.reviewService.createReview(data);
+
     res.status(result.status_code).json(result);
   }
 

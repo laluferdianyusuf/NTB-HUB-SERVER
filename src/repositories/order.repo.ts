@@ -3,6 +3,7 @@ import {
   BookingStatus,
   InvoiceStatus,
   PointActivityType,
+  Prisma,
   PrismaClient,
   OrderItem as PrismaOrder,
   TransactionStatus,
@@ -28,46 +29,17 @@ export class OrderRepository {
 
   async createBulkOrders(
     bookingId: string,
-    invoiceNumber: string,
-    items: { menuId: string; quantity: number; subtotal: number }[]
+    items: { menuId: string; quantity: number; subtotal: number }[],
+    tx?: Prisma.TransactionClient
   ) {
-    return await prisma.$transaction(async (tx) => {
-      const createdOrders = await tx.orderItem.createMany({
-        data: items.map((item) => ({
-          bookingId,
-          menuId: item.menuId,
-          quantity: item.quantity,
-          subtotal: item.subtotal,
-        })),
-      });
-
-      const totalIncrease = items.reduce((acc, cur) => acc + cur.subtotal, 0);
-
-      const updatedBooking = await tx.booking.update({
-        where: { id: bookingId },
-        data: {
-          totalPrice: { increment: totalIncrease },
-        },
-        include: { invoice: true },
-      });
-
-      if (!updatedBooking.invoice) {
-        await tx.invoice.create({
-          data: {
-            bookingId: updatedBooking.id,
-            invoiceNumber: invoiceNumber,
-            amount: updatedBooking.totalPrice,
-            paymentMethod: TransactionType.DEDUCTION,
-          },
-        });
-      } else {
-        await tx.invoice.update({
-          where: { bookingId },
-          data: { amount: { increment: totalIncrease } },
-        });
-      }
-
-      return createdOrders;
+    const db = tx ?? prisma;
+    return await db.orderItem.createMany({
+      data: items.map((item) => ({
+        bookingId,
+        menuId: item.menuId,
+        quantity: item.quantity,
+        subtotal: item.subtotal,
+      })),
     });
   }
 
@@ -103,45 +75,20 @@ export class OrderRepository {
   // update order
   async updateOrder(
     id: string,
-    bookingId: string,
     quantity: number,
-    subtotal: number
+    subtotal: number,
+    tx: Prisma.TransactionClient
   ) {
-    return await prisma.$transaction(async (tx) => {
-      const updated = await tx.orderItem.update({
-        where: { id },
-        data: { quantity, subtotal },
-      });
-
-      const total = await tx.orderItem.aggregate({
-        where: { bookingId },
-        _sum: { subtotal: true },
-      });
-
-      await tx.booking.update({
-        where: { id: bookingId },
-        data: { totalPrice: total._sum.subtotal || 0 },
-      });
-
-      return updated;
+    return tx.orderItem.update({
+      where: { id },
+      data: { quantity, subtotal },
     });
   }
 
   // delete order
-  async deleteOrder(id: string) {
-    const order = await prisma.orderItem.delete({ where: { id } });
-
-    const total = await prisma.orderItem.aggregate({
-      where: { bookingId: order.bookingId },
-      _sum: { subtotal: true },
-    });
-
-    await prisma.booking.update({
-      where: { id: order.bookingId },
-      data: { totalPrice: total._sum.subtotal || 0 },
-    });
-
-    return order;
+  async deleteOrder(id: string, tx?: Prisma.TransactionClient) {
+    const db = tx ?? prisma;
+    return db.orderItem.delete({ where: { id } });
   }
 
   async findAllOrders(): Promise<PrismaOrder[]> {

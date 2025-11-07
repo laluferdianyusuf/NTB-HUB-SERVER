@@ -1,5 +1,6 @@
 import { Notification } from "@prisma/client";
 import { NotificationRepository } from "../repositories/notification.repo";
+import { publisher } from "config/redis.config";
 
 const notificationRepository = new NotificationRepository();
 
@@ -48,6 +49,14 @@ export class NotificationService {
       const notification = await notificationRepository.updateNotification(
         id,
         true
+      );
+
+      await publisher.publish(
+        "notification-events",
+        JSON.stringify({
+          event: "notification:read",
+          payload: notification.isRead,
+        })
       );
       return {
         status: true,

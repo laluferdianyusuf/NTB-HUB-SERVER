@@ -1,17 +1,67 @@
-import { Menu } from "@prisma/client";
-import { MenuRepository } from "./../repositories/menu.repo";
+import { Menu, PrismaClient } from "@prisma/client";
+import {
+  MenuRepository,
+  VenueRepository,
+  UserRepository,
+  NotificationRepository,
+} from "./../repositories";
+import { publisher } from "config/redis.config";
+const prisma = new PrismaClient();
 
 const menuRepository = new MenuRepository();
+const venueRepository = new VenueRepository();
+const userRepository = new UserRepository();
+const notificationRepository = new NotificationRepository();
 
 export class MenuServices {
   async createMenu(data: Menu, venueId: string) {
     try {
-      const created = await menuRepository.createNewMenuByVenue(data, venueId);
+      const venue = await venueRepository.findVenueById(venueId);
+
+      if (!venue) {
+        return {
+          status: false,
+          status_code: 404,
+          message: "Venue not found",
+          data: null,
+        };
+      }
+
+      const result = await prisma.$transaction(async (tx) => {
+        const menu = await menuRepository.createNewMenuByVenue(
+          data,
+          venueId,
+          tx
+        );
+        const users = await userRepository.findManyUsers(tx);
+
+        const notifications = users.map((user) => ({
+          userId: user.id,
+          title: "New Menu Release!",
+          message: `${menu.name} has been added to ${venue.name}`,
+        }));
+
+        const notification =
+          await notificationRepository.createManyNotification(
+            notifications,
+            tx
+          );
+
+        return { notification };
+      });
+
+      await publisher.publish(
+        "notification-events",
+        JSON.stringify({
+          event: "notification:updated",
+          payload: result.notification,
+        })
+      );
       return {
         status: true,
         status_code: 201,
         message: "Menu created successfully",
-        data: created,
+        data: result,
       };
     } catch (error) {
       return {

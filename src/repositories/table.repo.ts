@@ -1,4 +1,4 @@
-import { PrismaClient, Table } from "@prisma/client";
+import { Prisma, PrismaClient, Table, TableStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -23,6 +23,14 @@ export class TableRepository {
   // update table
   async updateTable(id: string, data: Partial<Table>): Promise<Table> {
     return prisma.table.update({ where: { id: id }, data });
+  }
+
+  async updateTableStatus(
+    id: string,
+    status: TableStatus,
+    tx: Prisma.TransactionClient
+  ): Promise<Table> {
+    return tx.table.update({ where: { id: id }, data: { status } });
   }
 
   // delete table
