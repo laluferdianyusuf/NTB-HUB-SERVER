@@ -25,6 +25,7 @@ import cors from "cors";
 import http from "http";
 import Redis from "ioredis";
 import { Server } from "socket.io";
+import { upload } from "middlewares/upload";
 
 const app = express();
 app.use(cors());
@@ -66,15 +67,18 @@ app.get("/", (req, res) => res.send({ message: "Successful" }));
 // user & auth
 app.get("/api/v1/users", (req, res) => userController.getAll(req, res));
 app.get("/api/v1/get-user/:id", (req, res) => userController.getById(req, res));
-app.post("/api/v1/auth/register", (req, res) =>
+app.post("/api/v1/auth/register", upload.single("image"), (req, res) =>
   userController.create(req, res)
 );
 app.post("/api/v1/auth/login", (req, res) => userController.login(req, res));
 app.post("/api/v1/auth/refresh", (req, res) =>
   userController.refresh(req, res)
 );
-app.put("/api/v1/update-user/:id", auth.authenticate.bind(auth), (req, res) =>
-  userController.update(req, res)
+app.put(
+  "/api/v1/update-user/:id",
+  upload.single("image"),
+  auth.authenticate.bind(auth),
+  (req, res) => userController.update(req, res)
 );
 app.delete(
   "/api/v1/delete-user/:id",
@@ -100,8 +104,13 @@ app.get("/api/v2/venues", (req, res) => venueController.getVenues(req, res));
 app.get("/api/v2/venue/:id", (req, res) =>
   venueController.getVenueById(req, res)
 );
-app.put("/api/v2/venue/:id", (req, res) =>
-  venueController.updateVenue(req, res)
+app.put(
+  "/api/v2/venue/:id",
+  upload.fields([
+    { name: "image", maxCount: 1 },
+    { name: "gallery", maxCount: 5 },
+  ]),
+  (req, res) => venueController.updateVenue(req, res)
 );
 app.delete("/api/v2/venue/:id", (req, res) =>
   venueController.deleteVenue(req, res)
@@ -142,6 +151,7 @@ app.delete(
 app.post(
   "/api/v4/floors/:floorId/tables",
   auth.venueAuth.bind(auth),
+  upload.single("image"),
   (req, res) => tableController.createTable(req, res) // venue
 );
 app.get(
@@ -155,6 +165,7 @@ app.get("/api/v4/table/:id", (req, res) =>
 app.put(
   "/api/v4/table/:id",
   auth.venueAuth.bind(auth),
+  upload.single("image"),
   (req, res) => tableController.updateTable(req, res) // venue
 );
 app.delete(
@@ -167,6 +178,7 @@ app.delete(
 app.post(
   "/api/v5/venues/:venueId/menus",
   auth.venueAuth.bind(auth),
+  upload.single("image"),
   (req, res) => menuController.createMenu(req, res) // venue
 );
 app.get(
@@ -179,8 +191,11 @@ app.get(
   auth.venueAuth.bind(auth),
   (req, res) => menuController.getMenuById(req, res) // venue
 );
-app.put("/api/v5/menus/:id", auth.venueAuth.bind(auth), (req, res) =>
-  menuController.updateMenu(req, res)
+app.put(
+  "/api/v5/menus/:id",
+  auth.venueAuth.bind(auth),
+  upload.single("image"),
+  (req, res) => menuController.updateMenu(req, res)
 ); // venue
 app.delete(
   "/api/v5/menus/:id",
@@ -267,7 +282,7 @@ app.get("/api/v9/user/:userId/location", (req, res) =>
 );
 
 // notification
-app.post("/api/v10/users/notifications", (req, res) =>
+app.post("/api/v10/users/notifications", upload.single("image"), (req, res) =>
   notificationController.createNotification(req, res)
 );
 app.get("/api/v10/users/:userId/notifications", (req, res) =>
@@ -321,8 +336,11 @@ app.get("/api/v15/logs/user/:userId", (req, res) =>
 );
 
 // review
-app.post("/api/v16/review", auth.authenticate.bind(auth), (req, res) =>
-  reviewController.createReview(req, res)
+app.post(
+  "/api/v16/review",
+  auth.authenticate.bind(auth),
+  upload.single("image"),
+  (req, res) => reviewController.createReview(req, res)
 );
 app.get("/api/v16/review/:venueId", (req, res) =>
   reviewController.getVenueRating(req, res)

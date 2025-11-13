@@ -65,6 +65,7 @@ model User {
     password  String
     role      Role     @default(CUSTOMER)
     phone     String?
+    photo     String?
     createdAt DateTime @default(now())
     updatedAt DateTime @default(now()) @updatedAt
 
@@ -95,6 +96,8 @@ model Venue {
     description String
     latitude    Float?
     longitude   Float?
+    image       String?
+    gallery     String[]   @default([])
     isActive    Boolean    @default(false)
     createdAt   DateTime   @default(now())
     updatedAt   DateTime   @default(now()) @updatedAt
@@ -118,6 +121,7 @@ model Owner {
     address        String?
     identityNumber String?
     taxNumber      String?
+    image          String?
     createdAt      DateTime @default(now())
     updatedAt      DateTime @default(now()) @updatedAt
 
@@ -160,6 +164,7 @@ model Table {
     floorId     String?
     venueId     String
     status      TableStatus @default(AVAILABLE)
+    image       String?
     createdAt   DateTime    @default(now())
     updatedAt   DateTime    @default(now()) @updatedAt
 
@@ -194,6 +199,7 @@ model Menu {
     name        String
     price       Float
     category    String
+    image       String?
     isAvailable Boolean  @default(true)
     createdAt   DateTime @default(now())
     updatedAt   DateTime @default(now()) @updatedAt
@@ -220,6 +226,7 @@ model Review {
     bookingId String   @unique
     rating    Float
     comment   String?
+    image     String?
     createdAt DateTime @default(now())
     updatedAt DateTime @default(now()) @updatedAt
 
@@ -269,6 +276,7 @@ model Notification {
     title     String
     message   String
     type      String?
+    image     String?
     isRead    Boolean  @default(false)
     createdAt DateTime @default(now())
     updatedAt DateTime @default(now()) @updatedAt

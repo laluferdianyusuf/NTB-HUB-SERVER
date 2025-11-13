@@ -1,13 +1,22 @@
 import { Notification } from "@prisma/client";
 import { NotificationRepository } from "../repositories/notification.repo";
 import { publisher } from "config/redis.config";
+import { uploadToCloudinary } from "utils/image";
 
 const notificationRepository = new NotificationRepository();
 
 export class NotificationService {
-  async sendNotification(data: Notification) {
+  async sendNotification(data: Notification, file?: Express.Multer.File) {
     try {
-      const created = await notificationRepository.createNewNotification(data);
+      let imageUrl: string | null = null;
+
+      if (file && file.path) {
+        imageUrl = await uploadToCloudinary(file.path, "notifications");
+      }
+      const created = await notificationRepository.createNewNotification({
+        ...data,
+        image: imageUrl,
+      });
       return {
         status: true,
         status_code: 201,

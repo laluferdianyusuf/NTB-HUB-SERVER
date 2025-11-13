@@ -1,13 +1,20 @@
 import { Table } from "@prisma/client";
 import { TableRepository } from "./../repositories/table.repo";
+import { uploadToCloudinary } from "utils/image";
 
 const tableRepository = new TableRepository();
 
 export class TableServices {
-  async createTable(data: Table, floorId: string) {
+  async createTable(data: Table, floorId: string, file?: Express.Multer.File) {
     try {
+      let imageUrl: string | null = null;
+
+      if (file && file.path) {
+        imageUrl = await uploadToCloudinary(file.path, "tables");
+      }
+
       const createdTable = await tableRepository.createNewTableByFloor(
-        data,
+        { ...data, image: imageUrl },
         floorId
       );
       return {
@@ -74,8 +81,14 @@ export class TableServices {
     }
   }
 
-  async updateTable(id: string, data: Table) {
+  async updateTable(id: string, data: Table, file: Express.Multer.File) {
     try {
+      let imageUrl: string | null = null;
+
+      if (file && file.path) {
+        imageUrl = await uploadToCloudinary(file.path, "tables");
+      }
+
       const existing = await tableRepository.findTablesById(id);
 
       if (!existing) {
@@ -87,7 +100,14 @@ export class TableServices {
         };
       }
 
-      const updated = await tableRepository.updateTable(id, data);
+      if (imageUrl) {
+        data.image = imageUrl;
+      }
+
+      const updated = await tableRepository.updateTable(id, {
+        ...data,
+        image: imageUrl,
+      });
 
       return {
         status: true,

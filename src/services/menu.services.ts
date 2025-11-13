@@ -6,6 +6,7 @@ import {
   NotificationRepository,
 } from "./../repositories";
 import { publisher } from "config/redis.config";
+import { uploadToCloudinary } from "utils/image";
 const prisma = new PrismaClient();
 
 const menuRepository = new MenuRepository();
@@ -14,8 +15,14 @@ const userRepository = new UserRepository();
 const notificationRepository = new NotificationRepository();
 
 export class MenuServices {
-  async createMenu(data: Menu, venueId: string) {
+  async createMenu(data: Menu, venueId: string, file: Express.Multer.File) {
     try {
+      let imageUrl: string | null = null;
+
+      if (file && file.path) {
+        imageUrl = await uploadToCloudinary(file.path, "menus");
+      }
+
       const venue = await venueRepository.findVenueById(venueId);
 
       if (!venue) {
@@ -29,7 +36,7 @@ export class MenuServices {
 
       const result = await prisma.$transaction(async (tx) => {
         const menu = await menuRepository.createNewMenuByVenue(
-          data,
+          { ...data, image: imageUrl },
           venueId,
           tx
         );
@@ -121,8 +128,13 @@ export class MenuServices {
     }
   }
 
-  async updateMenu(id: string, data: Menu) {
+  async updateMenu(id: string, data: Menu, file: Express.Multer.File) {
     try {
+      let imageUrl: string | null = null;
+
+      if (file && file.path) {
+        imageUrl = await uploadToCloudinary(file.path, "menus");
+      }
       const existing = await menuRepository.findMenuById(id);
 
       if (!existing) {
@@ -134,7 +146,14 @@ export class MenuServices {
         };
       }
 
-      const updated = await menuRepository.updateMenu(id, data);
+      if (imageUrl) {
+        data.image = imageUrl;
+      }
+
+      const updated = await menuRepository.updateMenu(id, {
+        ...data,
+        image: imageUrl,
+      });
 
       return {
         status: true,

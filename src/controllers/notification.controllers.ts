@@ -10,7 +10,10 @@ export class NotificationController {
   }
 
   async createNotification(req: Request, res: Response) {
-    const result = await this.notificationService.sendNotification(req.body);
+    const result = await this.notificationService.sendNotification(
+      req.body,
+      req.file
+    );
 
     res.status(result.status_code).json(result);
   }

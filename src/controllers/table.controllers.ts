@@ -7,7 +7,7 @@ export class TableControllers {
     try {
       const data = req.body;
       const floorId = req.params.floorId;
-      const result = await tableService.createTable(data, floorId);
+      const result = await tableService.createTable(data, floorId, req.file);
 
       res.status(result.status_code).json(result);
     } catch (error: any) {
@@ -56,7 +56,7 @@ export class TableControllers {
     try {
       const id = req.params.id;
       const data = req.body;
-      const result = await tableService.updateTable(id, data);
+      const result = await tableService.updateTable(id, data, req.file);
 
       res.status(result.status_code).json(result);
     } catch (error: any) {

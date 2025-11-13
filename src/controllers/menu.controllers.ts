@@ -12,7 +12,7 @@ export class MenuControllers {
     try {
       const data = req.body;
       const venueId = req.params.venueId;
-      const result = await this.menuService.createMenu(data, venueId);
+      const result = await this.menuService.createMenu(data, venueId, req.file);
 
       res.status(result.status_code).json(result);
     } catch (error: any) {
@@ -61,7 +61,7 @@ export class MenuControllers {
     try {
       const id = req.params.id;
       const data = req.body;
-      const result = await this.menuService.updateMenu(id, data);
+      const result = await this.menuService.updateMenu(id, data, req.file);
 
       res.status(result.status_code).json(result);
     } catch (error: any) {

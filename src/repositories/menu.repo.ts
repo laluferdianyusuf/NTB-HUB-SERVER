@@ -1,16 +1,15 @@
-import { Prisma, PrismaClient, Menu as PrismaMenus } from "@prisma/client";
-import { Menu } from "../../models/menu.model";
+import { Prisma, PrismaClient, Menu } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 export class MenuRepository {
   // find all menus at venue
-  async findMenuByVenueId(venueId: string): Promise<PrismaMenus[]> {
+  async findMenuByVenueId(venueId: string): Promise<Menu[]> {
     return prisma.menu.findMany({ where: { venueId } });
   }
 
   // find detail menu
-  async findMenuById(id: string): Promise<PrismaMenus | null> {
+  async findMenuById(id: string): Promise<Menu | null> {
     return prisma.menu.findUnique({ where: { id } });
   }
 
@@ -27,12 +26,12 @@ export class MenuRepository {
   }
 
   // update menu
-  async updateMenu(id: string, data: Partial<Menu>): Promise<PrismaMenus> {
+  async updateMenu(id: string, data: Partial<Menu>): Promise<Menu> {
     return prisma.menu.update({ where: { id: id }, data });
   }
 
   // delete menu
-  async deleteMenu(id: string): Promise<PrismaMenus> {
+  async deleteMenu(id: string): Promise<Menu> {
     return prisma.menu.delete({ where: { id: id } });
   }
 }

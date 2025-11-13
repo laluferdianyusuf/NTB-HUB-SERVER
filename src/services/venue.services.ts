@@ -9,6 +9,7 @@ import { randomUUID } from "crypto";
 import jwt from "jsonwebtoken";
 import { sendEmail } from "utils/mail";
 import Redis from "ioredis";
+import { uploadToCloudinary } from "utils/image";
 const redis = new Redis();
 
 const venueRepository = new VenueRepository();
@@ -65,8 +66,25 @@ export class VenueServices {
     }
   }
 
-  async updateVenue(id: string, data: Partial<Venue>) {
+  async updateVenue(
+    id: string,
+    data: Partial<Venue>,
+    files?: { image?: Express.Multer.File[]; gallery?: Express.Multer.File[] }
+  ) {
     try {
+      let imageUrl: string | undefined;
+      let galleryUrls: string[] | undefined;
+
+      if (files?.image && files.image.length > 0) {
+        imageUrl = await uploadToCloudinary(files.image[0].path, "venues");
+      }
+
+      if (files?.gallery && files.gallery.length > 0) {
+        galleryUrls = await Promise.all(
+          files.gallery.map((file) => uploadToCloudinary(file.path, "venues"))
+        );
+      }
+
       const existing = await venueRepository.findVenueById(id);
       if (!existing) {
         return {
@@ -109,6 +127,8 @@ export class VenueServices {
       const updated = await venueRepository.updateVenue(id, {
         ...data,
         isActive: true,
+        ...(imageUrl && { image: imageUrl }),
+        ...(galleryUrls && { gallery: galleryUrls }),
       });
 
       return {

@@ -4,13 +4,20 @@ import {
   VenueRepository,
   BookingRepository,
 } from "repositories";
+import { uploadToCloudinary } from "utils/image";
 const reviewRepository = new ReviewRepository();
 const venueRepository = new VenueRepository();
 const bookingRepository = new BookingRepository();
 
 export class ReviewServices {
-  async createReview(data: Review) {
+  async createReview(data: Review, file?: Express.Multer.File) {
     try {
+      let imageUrl: string | null = null;
+
+      if (file && file.path) {
+        imageUrl = await uploadToCloudinary(file.path, "reviews");
+      }
+
       const booking = await bookingRepository.findBookingById(data.bookingId);
 
       if (!booking) {
@@ -34,7 +41,10 @@ export class ReviewServices {
         };
       }
 
-      const review = await reviewRepository.create(data, booking);
+      const review = await reviewRepository.create(
+        { ...data, image: imageUrl },
+        booking
+      );
 
       return {
         status: true,

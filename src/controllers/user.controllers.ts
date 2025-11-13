@@ -38,7 +38,7 @@ export class UserController {
 
   async create(req: Request, res: Response) {
     try {
-      const result = await this.userService.createUser(req.body);
+      const result = await this.userService.createUser(req.body, req.file);
 
       res.status(result.status_code).json(result);
     } catch (error: any) {
@@ -74,7 +74,11 @@ export class UserController {
 
   async update(req: Request, res: Response) {
     try {
-      const result = await this.userService.updateUser(req.params.id, req.body);
+      const result = await this.userService.updateUser(
+        req.params.id,
+        req.body,
+        req.file
+      );
 
       res.status(result.status_code).json(result);
     } catch (error: any) {

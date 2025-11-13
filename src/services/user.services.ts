@@ -8,6 +8,9 @@ import jwt from "jsonwebtoken";
 import { Point, User, PrismaClient } from "@prisma/client";
 import Redis from "ioredis";
 import { publisher } from "config/redis.config";
+import cloudinary from "config/cloudinary";
+import streamifier from "streamifier";
+import { uploadToCloudinary } from "utils/image";
 
 const prisma = new PrismaClient();
 
@@ -64,8 +67,14 @@ export class UserService {
     }
   }
 
-  async createUser(data: User) {
+  async createUser(data: User, file?: Express.Multer.File) {
     try {
+      let imageUrl = null;
+
+      if (file && file.path) {
+        imageUrl = await uploadToCloudinary(file.path, "users");
+      }
+
       const existing = await userRepository.findByEmail(data.email);
       if (existing) {
         return {
@@ -81,6 +90,7 @@ export class UserService {
           {
             ...data,
             password: hashedPassword,
+            photo: imageUrl,
           },
           tx
         );
@@ -266,8 +276,6 @@ export class UserService {
         data: { accessToken: newAccessToken },
       };
     } catch (error: any) {
-      console.error("Refresh token error:", error);
-
       if (error.name === "TokenExpiredError") {
         return {
           status: false,
@@ -286,8 +294,18 @@ export class UserService {
     }
   }
 
-  async updateUser(id: string, data: Partial<User>) {
+  async updateUser(
+    id: string,
+    data: Partial<User>,
+    file?: Express.Multer.File
+  ) {
     try {
+      let imageUrl: string | null = null;
+
+      if (file && file.path) {
+        imageUrl = await uploadToCloudinary(file.path, "users");
+      }
+
       const user = await userRepository.findById(id);
       if (!user) {
         return {
@@ -300,6 +318,10 @@ export class UserService {
 
       if (data.password) {
         data.password = await bcrypt.hash(data.password, 10);
+      }
+
+      if (imageUrl) {
+        data.photo = imageUrl;
       }
 
       const updatedUser = await userRepository.update(id, data);

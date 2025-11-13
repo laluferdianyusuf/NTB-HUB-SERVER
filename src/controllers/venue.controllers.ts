@@ -42,7 +42,11 @@ export class VenueControllers {
     try {
       const id = req.params.id;
       const data = req.body;
-      const result = await this.venueServices.updateVenue(id, data);
+      const files = req.files as {
+        image?: Express.Multer.File[];
+        gallery?: Express.Multer.File[];
+      };
+      const result = await this.venueServices.updateVenue(id, data, files);
 
       res.status(result.status_code).json(result);
     } catch (error: any) {
