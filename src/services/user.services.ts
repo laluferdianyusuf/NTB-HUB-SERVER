@@ -8,13 +8,14 @@ import jwt from "jsonwebtoken";
 import { Point, User, PrismaClient } from "@prisma/client";
 import Redis from "ioredis";
 import { publisher } from "config/redis.config";
-import cloudinary from "config/cloudinary";
-import streamifier from "streamifier";
 import { uploadToCloudinary } from "utils/image";
+import { OAuth2Client } from "google-auth-library";
 
 const prisma = new PrismaClient();
 
 const redis = new Redis();
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
 const userRepository = new UserRepository();
 const pointRepository = new PointsRepository();
 const userBalanceRepository = new UserBalanceRepository();
@@ -367,6 +368,81 @@ export class UserService {
         status: false,
         status_code: 500,
         message: "Server error: " + error,
+        data: null,
+      };
+    }
+  }
+
+  async googleLogin(idToken: string) {
+    try {
+      const ticket = await client.verifyIdToken({
+        idToken,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+
+      const payload = ticket.getPayload();
+      console.log(payload);
+
+      if (!payload) {
+        return {
+          status: false,
+          status_code: 400,
+          message: "Invalid Google token",
+          data: null,
+        };
+      }
+
+      const { email, name, picture, sub: googleId } = payload;
+
+      let user = await userRepository.findByEmail(email);
+
+      if (!user) {
+        user = await userRepository.create({
+          name: name || "Google User",
+          email,
+          password: "",
+          photo: picture,
+          googleId,
+          role: "CUSTOMER",
+        });
+      }
+
+      const accessToken = jwt.sign(
+        { id: user.id, email: user.email },
+        process.env.ACCESS_SECRET!,
+        { expiresIn: "15m" }
+      );
+
+      const refreshToken = jwt.sign(
+        { id: user.id, email: user.email },
+        process.env.REFRESH_SECRET!,
+        { expiresIn: "7d" }
+      );
+
+      await redis.set(
+        `refresh:${user.id}`,
+        refreshToken,
+        "EX",
+        7 * 24 * 60 * 60
+      );
+
+      return {
+        status: true,
+        status_code: 200,
+        message: "Login with Google successful",
+        data: {
+          accessToken,
+          refreshToken,
+          user,
+        },
+      };
+    } catch (error) {
+      console.log(error);
+
+      return {
+        status: false,
+        status_code: 500,
+        message: "Google login failed: " + error.message,
         data: null,
       };
     }

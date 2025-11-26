@@ -116,4 +116,11 @@ export class UserController {
       data: user,
     });
   }
+
+  async googleLogin(req: Request, res: Response) {
+    const { token } = req.body;
+    const result = await this.userService.googleLogin(token);
+
+    res.status(result.status_code).json(result);
+  }
 }
