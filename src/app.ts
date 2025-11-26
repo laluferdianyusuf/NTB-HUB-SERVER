@@ -89,10 +89,10 @@ app.delete(
 app.post("/api/v1/auth/logout", auth.authenticate.bind(auth), (req, res) =>
   auth.logout(req, res)
 );
-app.get("/api/v1/auth/current", auth.authenticate.bind(auth), (req, res) =>
+app.get("/api/v1/auth/me", auth.authenticate.bind(auth), (req, res) =>
   userController.currentUser(req, res)
 );
-app.post("/api/v1/google/auth", (req, res) =>
+app.post("/api/v1/auth/google", (req, res) =>
   userController.googleLogin(req, res)
 );
 
