@@ -1,7 +1,7 @@
 import { setupRedisSubscriber } from "events/redis.subscriber";
 import { app, io, server } from "./app";
 const port = process.env.PORT || 3100;
-const socketPort = process.env.PORT || 3101;
+const socketPort = process.env.SOCKET_PORT || 3101;
 
 io.on("connection", (socket) => {
   console.log(`Client connected: ${socket.id}`);
