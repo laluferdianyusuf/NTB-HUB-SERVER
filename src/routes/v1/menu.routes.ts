@@ -8,24 +8,24 @@ const auth = new AuthMiddlewares();
 const menuController = new MenuControllers();
 
 router.post(
-  "/venues/:venueId/menus",
+  "/menu/venues/:venueId",
   auth.venueAuth.bind(auth),
   upload.single("image"),
   (req, res) => menuController.createMenu(req, res)
 );
-router.get("/venues/:venueId/menus", auth.authenticate.bind(auth), (req, res) =>
+router.get("/menu/venues/:venueId", auth.authenticate.bind(auth), (req, res) =>
   menuController.getMenuByVenueId(req, res)
 );
-router.get("/:id", auth.venueAuth.bind(auth), (req, res) =>
+router.get("/menu/:id", auth.venueAuth.bind(auth), (req, res) =>
   menuController.getMenuById(req, res)
 );
 router.put(
-  "/:id",
+  "/menu/:id",
   auth.venueAuth.bind(auth),
   upload.single("image"),
   (req, res) => menuController.updateMenu(req, res)
 );
-router.delete("/:id", auth.venueAuth.bind(auth), (req, res) =>
+router.delete("/menu/:id", auth.venueAuth.bind(auth), (req, res) =>
   menuController.deleteMenu(req, res)
 );
 
