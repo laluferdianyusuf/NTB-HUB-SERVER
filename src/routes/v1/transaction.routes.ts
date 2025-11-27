@@ -9,6 +9,16 @@ const transactionController = new TransactionController();
 router.post("/transaction/topUp", auth.authenticate.bind(auth), (req, res) =>
   transactionController.topUp(req, res)
 );
+router.post(
+  "/transaction/topUpQris",
+  auth.authenticate.bind(auth),
+  (req, res) => transactionController.topUpQris(req, res)
+);
+router.post(
+  "/transaction/topUpRetail",
+  auth.authenticate.bind(auth),
+  (req, res) => transactionController.topUpRetail(req, res)
+);
 router.post("/transaction/callback", (req, res) =>
   transactionController.midtransCallback(req, res)
 );

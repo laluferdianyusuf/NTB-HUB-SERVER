@@ -18,6 +18,25 @@ export class TransactionController {
 
     return res.status(result.status_code).json(result);
   }
+  async topUpQris(req: Request, res: Response) {
+    const { userId, amount } = req.body;
+    const result = await this.transactionServices.TopUpQris({
+      userId,
+      amount,
+    });
+
+    return res.status(result.status_code).json(result);
+  }
+  async topUpRetail(req: Request, res: Response) {
+    const { userId, amount, store } = req.body;
+    const result = await this.transactionServices.TopUpRetail({
+      userId,
+      amount,
+      store,
+    });
+
+    return res.status(result.status_code).json(result);
+  }
 
   async midtransCallback(req: Request, res: Response) {
     res.status(200).send("OK");

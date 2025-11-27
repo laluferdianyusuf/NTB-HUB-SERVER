@@ -304,6 +304,8 @@ model Transaction {
     type      TransactionType
     reference String?
     vaNumber  String?
+    qrisUrl  String?
+    paymentCode  String?
     bankCode  String?
     orderId   String?
     status    TransactionStatus? @default(PENDING)

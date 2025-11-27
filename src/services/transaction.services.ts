@@ -90,6 +90,178 @@ export class TransactionServices {
     }
   }
 
+  async TopUpQris(data: { userId: string; amount: number }) {
+    try {
+      const user = await userRepository.findById(data.userId);
+      if (!user) {
+        return {
+          status: false,
+          status_code: 404,
+          message: "User not found",
+          data: null,
+        };
+      }
+
+      const topUpId = `TOPUP-QRIS-${Date.now()}-${crypto
+        .randomUUID()
+        .slice(0, 8)}`;
+
+      const transactionData: Partial<Transaction> = {
+        userId: data.userId,
+        amount: data.amount,
+        type: "TOPUP",
+        status: "PENDING",
+        bankCode: "QRIS",
+        orderId: topUpId,
+      };
+
+      const transaction = await transactionRepository.create(
+        transactionData as Transaction
+      );
+
+      const parameter = {
+        payment_type: "qris",
+        transaction_details: {
+          order_id: topUpId,
+          gross_amount: transaction.amount,
+        },
+        qris: {
+          acquirer: "gopay",
+        },
+        customer_details: {
+          first_name: user.name,
+          email: user.email,
+        },
+        item_details: [
+          {
+            id: transaction.id,
+            price: transaction.amount,
+            quantity: 1,
+            name: "Top Up via QRIS",
+          },
+        ],
+      };
+
+      const charge = await midtrans.charge(parameter);
+
+      const qrUrl =
+        charge.actions?.find((a: any) => a.name === "generate-qr-code")?.url ||
+        null;
+
+      await transactionRepository.updateTransaction(transaction.id, {
+        qrisUrl: qrUrl,
+      });
+
+      return {
+        status: true,
+        status_code: 201,
+        message: "QRIS generated successfully",
+        data: {
+          transactionId: transaction.id,
+          amount: transaction.amount,
+          qrUrl,
+          status: transaction.status,
+          bank: "QRIS",
+        },
+      };
+    } catch (error: any) {
+      return {
+        status: false,
+        status_code: 500,
+        message: "Internal server error: " + error.message,
+        data: null,
+      };
+    }
+  }
+
+  async TopUpRetail(data: {
+    userId: string;
+    amount: number;
+    store: "alfamart" | "indomaret";
+  }) {
+    try {
+      const user = await userRepository.findById(data.userId);
+      if (!user) {
+        return {
+          status: false,
+          status_code: 404,
+          message: "User not found",
+          data: null,
+        };
+      }
+
+      const topUpId = `TOPUP-RETAIL-${Date.now()}-${crypto
+        .randomUUID()
+        .slice(0, 8)}`;
+
+      const transactionData: Partial<Transaction> = {
+        userId: data.userId,
+        amount: data.amount,
+        type: "TOPUP",
+        status: "PENDING",
+        bankCode: data.store.toUpperCase(),
+        orderId: topUpId,
+      };
+
+      const transaction = await transactionRepository.create(
+        transactionData as Transaction
+      );
+
+      const parameter = {
+        payment_type: "cstore",
+        transaction_details: {
+          order_id: topUpId,
+          gross_amount: transaction.amount,
+        },
+        cstore: {
+          store: data.store,
+          message: "Pembayaran Top Up Saldo",
+          customer_name: user.name,
+        },
+        customer_details: {
+          first_name: user.name,
+          email: user.email,
+        },
+        item_details: [
+          {
+            id: transaction.id,
+            price: transaction.amount,
+            quantity: 1,
+            name: `Top Up via ${data.store}`,
+          },
+        ],
+      };
+
+      const charge = await midtrans.charge(parameter);
+
+      const paymentCode = charge.payment_code || null;
+
+      await transactionRepository.updateTransaction(transaction.id, {
+        paymentCode,
+      });
+
+      return {
+        status: true,
+        status_code: 201,
+        message: `${data.store} payment code generated successfully`,
+        data: {
+          transactionId: transaction.id,
+          amount: transaction.amount,
+          paymentCode,
+          status: transaction.status,
+          store: data.store,
+        },
+      };
+    } catch (error: any) {
+      return {
+        status: false,
+        status_code: 500,
+        message: "Internal server error: " + error.message,
+        data: null,
+      };
+    }
+  }
+
   async midtransCallback(payload: any) {
     try {
       const serverKey = process.env.MIDTRANS_SERVER_KEY!;
