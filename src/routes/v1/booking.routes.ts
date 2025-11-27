@@ -6,13 +6,13 @@ const router = Router();
 const auth = new AuthMiddlewares();
 const bookingController = new BookingControllers();
 
-router.post("/booking", auth.authenticate.bind(auth), (req, res) =>
+router.post("/booking/create", auth.authenticate.bind(auth), (req, res) =>
   bookingController.createBooking(req, res)
 );
-router.put("/payment/:id", auth.authenticate.bind(auth), (req, res) =>
+router.put("/booking/payment/:id", auth.authenticate.bind(auth), (req, res) =>
   bookingController.processBookingPayment(req, res)
 );
-router.get("/bookings", auth.authenticate.bind(auth), (req, res) =>
+router.get("/booking/bookings", auth.authenticate.bind(auth), (req, res) =>
   bookingController.getAllBookings(req, res)
 );
 router.get("/booking/users/:userId", auth.authenticate.bind(auth), (req, res) =>

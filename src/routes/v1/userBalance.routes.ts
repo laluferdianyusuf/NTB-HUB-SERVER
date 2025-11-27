@@ -6,7 +6,7 @@ const router = Router();
 const auth = new AuthMiddlewares();
 const userBalanceController = new UserBalanceController();
 
-router.get("/user/:userId/balance", auth.authenticate.bind(auth), (req, res) =>
+router.get("/balance/user/:userId", auth.authenticate.bind(auth), (req, res) =>
   userBalanceController.getUserBalance(req, res)
 );
 

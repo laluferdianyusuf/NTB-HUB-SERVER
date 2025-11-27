@@ -3,7 +3,7 @@ import { Router } from "express";
 const router = Router();
 const venueBalanceController = new VenueBalanceController();
 
-router.get("/venue/:venueId/balance", (req, res) =>
+router.get("/balance/venue/:venueId", (req, res) =>
   venueBalanceController.getVenueBalance(req, res)
 );
 
