@@ -10,6 +10,7 @@ import jwt from "jsonwebtoken";
 import { sendEmail } from "utils/mail";
 import Redis from "ioredis";
 import { uploadToCloudinary } from "utils/image";
+import { publisher } from "config/redis.config";
 const redis = new Redis();
 
 const venueRepository = new VenueRepository();
@@ -131,6 +132,13 @@ export class VenueServices {
         ...(galleryUrls && { gallery: galleryUrls }),
       });
 
+      await publisher.publish(
+        "venue-events",
+        JSON.stringify({
+          event: "venue:updated",
+          payload: updated,
+        })
+      );
       return {
         status: true,
         status_code: 200,
