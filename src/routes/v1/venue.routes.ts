@@ -30,5 +30,8 @@ router.post("/venue/logout", auth.venueAuth.bind(auth), (req, res) =>
 router.get("/venue/me", auth.venueAuth.bind(auth), (req, res) =>
   venueController.currentVenue(req, res)
 );
+router.get("/venue/current/venue", auth.venueAuth.bind(auth), (req, res) =>
+  venueController.currentVenue(req, res)
+);
 
 export default router;

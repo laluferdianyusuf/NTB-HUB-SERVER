@@ -377,7 +377,7 @@ app.use(bodyParser.json());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use("/api/v1", v1Router);
+app.use("/", v1Router);
 
 app.get("/", (req, res) => res.send({ message: "Server is running" }));
 

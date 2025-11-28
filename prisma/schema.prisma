@@ -154,7 +154,7 @@ model Floor {
     id      String  @id @default(uuid())
     name    String
     level   Int?
-    venueId String
+    venueId String @unique
     venue   Venue   @relation(fields: [venueId], references: [id])
     tables  Table[]
 }

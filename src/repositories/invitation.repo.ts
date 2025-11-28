@@ -3,7 +3,12 @@ import { PrismaClient, InvitationKey } from "@prisma/client";
 const prisma = new PrismaClient();
 
 export class InvitationKeyRepository {
-  async generate(email: string, expiresAt?: Date, key?: string) {
+  async generate(
+    email: string,
+    venueName: string,
+    expiresAt?: Date,
+    key?: string
+  ) {
     if (!email) {
       throw new Error("Email is required to generate an invitation key");
     }
@@ -11,7 +16,7 @@ export class InvitationKeyRepository {
     return await prisma.$transaction(async (tx) => {
       const venue = await tx.venue.create({
         data: {
-          name: `Venue not set`,
+          name: venueName,
           type: "UNKNOWN",
           address: "Not set",
           description: "Auto-generated venue",

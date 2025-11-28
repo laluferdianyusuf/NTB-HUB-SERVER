@@ -26,9 +26,34 @@ export class VenueRepository {
   }
 
   async updateVenue(id: string, data: Partial<Venue>): Promise<Venue> {
-    return prisma.venue.update({
-      where: { id },
-      data,
+    return prisma.$transaction(async (tx) => {
+      const existingFloor = await tx.floor.findFirst({
+        where: { venueId: id },
+      });
+
+      let updatedVenue: Venue;
+
+      if (existingFloor) {
+        updatedVenue = await tx.venue.update({
+          where: { id },
+          data,
+        });
+      } else {
+        updatedVenue = await tx.venue.update({
+          where: { id },
+          data,
+        });
+
+        await tx.floor.create({
+          data: {
+            name: "Floor 1",
+            venueId: id,
+            level: 1,
+          },
+        });
+      }
+
+      return updatedVenue;
     });
   }
 
