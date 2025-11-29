@@ -5,9 +5,8 @@
   "main": "dist/server.js",
   "type": "module",
   "scripts": {
-    "start:redis": "redis-server",
     "start:server": "nodemon --legacy-watch --watch src --ext ts,tsx,json --exec npx tsx src/server.ts --verbose",
-    "dev": "npm-run-all --parallel start:redis start:server",
+    "dev": "npm run start:server",
     "build": "tsc",
     "start": "node dist/server.js",
     "seed": "tsx prisma/seed.ts",

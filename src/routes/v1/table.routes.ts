@@ -13,7 +13,7 @@ router.post(
   upload.single("image"),
   (req, res) => tableController.createTable(req, res)
 );
-router.get("/table/floors/:floorId", auth.authenticate.bind(auth), (req, res) =>
+router.get("/table/floors/:floorId", (req, res) =>
   tableController.getTableByFloorId(req, res)
 );
 router.get("/table/:id", (req, res) => tableController.getTableById(req, res));

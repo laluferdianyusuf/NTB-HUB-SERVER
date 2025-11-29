@@ -9,7 +9,7 @@ const floorController = new FloorControllers();
 router.post("/floor/venues/:venueId", auth.venueAuth.bind(auth), (req, res) =>
   floorController.createFloor(req, res)
 );
-router.get("/floor/venues/:venueId", auth.authenticate.bind(auth), (req, res) =>
+router.get("/floor/venues/:venueId", (req, res) =>
   floorController.getFloorByVenueId(req, res)
 );
 router.get("/floor/:id", (req, res) => floorController.getFloorById(req, res));

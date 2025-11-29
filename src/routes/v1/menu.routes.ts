@@ -13,7 +13,7 @@ router.post(
   upload.single("image"),
   (req, res) => menuController.createMenu(req, res)
 );
-router.get("/menu/venues/:venueId", auth.authenticate.bind(auth), (req, res) =>
+router.get("/menu/venues/:venueId", (req, res) =>
   menuController.getMenuByVenueId(req, res)
 );
 router.get("/menu/:id", auth.venueAuth.bind(auth), (req, res) =>
