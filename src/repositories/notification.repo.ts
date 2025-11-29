@@ -26,7 +26,7 @@ export class NotificationRepository {
   }
 
   async createManyNotification(
-    data: Notification[],
+    data: Omit<Notification, "id" | "createdAt" | "updatedAt" | "isRead">[],
     tx?: Prisma.TransactionClient
   ) {
     const db = tx ?? prisma;

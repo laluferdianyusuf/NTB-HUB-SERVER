@@ -8,7 +8,7 @@ const auth = new AuthMiddlewares();
 const reviewController = new ReviewControllers();
 
 router.post(
-  "/review",
+  "/review/create",
   auth.authenticate.bind(auth),
   upload.single("image"),
   (req, res) => reviewController.createReview(req, res)

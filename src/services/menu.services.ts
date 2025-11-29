@@ -36,16 +36,17 @@ export class MenuServices {
 
       const result = await prisma.$transaction(async (tx) => {
         const menu = await menuRepository.createNewMenuByVenue(
-          { ...data, image: imageUrl },
+          { ...data, price: parseFloat(data.price as any), image: imageUrl },
           venueId,
           tx
         );
         const users = await userRepository.findManyUsers(tx);
-
         const notifications = users.map((user) => ({
           userId: user.id,
           title: "New Menu Release!",
           message: `${menu.name} has been added to ${venue.name}`,
+          type: "menu",
+          image: imageUrl || "",
         }));
 
         const notification =
@@ -71,6 +72,8 @@ export class MenuServices {
         data: result,
       };
     } catch (error) {
+      console.log(error);
+
       return {
         status: false,
         status_code: 500,

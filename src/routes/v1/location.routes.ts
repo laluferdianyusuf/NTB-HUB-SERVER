@@ -4,8 +4,8 @@ import { Router } from "express";
 const router = Router();
 const locationController = new LocationController();
 
-router.post("/user/location", (req, res) => locationController.track(req, res));
-router.get("/user/:userId/location", (req, res) =>
+router.post("/location/user", (req, res) => locationController.track(req, res));
+router.get("/location/:userId", (req, res) =>
   locationController.getLocations(req, res)
 );
 

@@ -4,12 +4,13 @@ import { sendEmail } from "utils/mail";
 const invitationKeyRepository = new InvitationKeyRepository();
 
 export class InvitationServices {
-  async generateInvitationKey(email: string) {
+  async generateInvitationKey(email: string, venueName: string) {
     try {
       const key = `INVITE-${randomUUID().slice(0, 8).toUpperCase()}`;
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
       const newKey = await invitationKeyRepository.generate(
         email,
+        venueName,
         expiresAt,
         key
       );

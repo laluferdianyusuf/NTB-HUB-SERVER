@@ -14,7 +14,7 @@ export class TableServices {
       }
 
       const createdTable = await tableRepository.createNewTableByFloor(
-        { ...data, image: imageUrl },
+        { ...data, tableNumber: Number(data.tableNumber), image: imageUrl },
         floorId
       );
       return {
@@ -24,6 +24,8 @@ export class TableServices {
         data: createdTable,
       };
     } catch (error) {
+      console.log(error);
+
       return {
         status: false,
         status_code: 500,

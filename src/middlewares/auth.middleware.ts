@@ -111,6 +111,7 @@ export class AuthMiddlewares {
         message: "Token has been revoked",
       });
     }
+
     try {
       const decode = jwt.verify(token, process.env.ACCESS_SECRET as string);
 

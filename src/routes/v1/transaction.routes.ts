@@ -6,14 +6,24 @@ const router = Router();
 const auth = new AuthMiddlewares();
 const transactionController = new TransactionController();
 
-router.post("/topUp", auth.authenticate.bind(auth), (req, res) =>
+router.post("/transaction/topUp", auth.authenticate.bind(auth), (req, res) =>
   transactionController.topUp(req, res)
 );
-router.post("/callback", (req, res) =>
+router.post(
+  "/transaction/topUpQris",
+  auth.authenticate.bind(auth),
+  (req, res) => transactionController.topUpQris(req, res)
+);
+router.post(
+  "/transaction/topUpRetail",
+  auth.authenticate.bind(auth),
+  (req, res) => transactionController.topUpRetail(req, res)
+);
+router.post("/transaction/callback", (req, res) =>
   transactionController.midtransCallback(req, res)
 );
 router.get(
-  "/transactions",
+  "/transaction/transactions",
   auth.authenticate.bind(auth),
   auth.isAdmin.bind(auth),
   (req, res) => transactionController.findAllTransactions(req, res)

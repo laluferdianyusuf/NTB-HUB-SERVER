@@ -154,7 +154,7 @@ model Floor {
     id      String  @id @default(uuid())
     name    String
     level   Int?
-    venueId String
+    venueId String @unique
     venue   Venue   @relation(fields: [venueId], references: [id])
     tables  Table[]
 }
@@ -304,6 +304,8 @@ model Transaction {
     type      TransactionType
     reference String?
     vaNumber  String?
+    qrisUrl  String?
+    paymentCode  String?
     bankCode  String?
     orderId   String?
     status    TransactionStatus? @default(PENDING)

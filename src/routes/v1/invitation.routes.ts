@@ -7,18 +7,18 @@ const auth = new AuthMiddlewares();
 const invitationController = new InvitationController();
 
 router.post(
-  "/venue/invitation",
+  "/invitation/create",
   auth.authenticate.bind(auth),
   auth.isAdmin.bind(auth),
   (req, res) => invitationController.generateInvitationKey(req, res)
 );
-router.get("/venue/invitations", (req, res) =>
+router.get("/invitation/invitations", (req, res) =>
   invitationController.findAllInvitationKeys(req, res)
 );
-router.get("/venue/invitation/:key", (req, res) =>
+router.get("/invitation/:key", (req, res) =>
   invitationController.findInvitationKey(req, res)
 );
-router.get("/venue/:venueId/invitations", (req, res) =>
+router.get("/invitation/:venueId", (req, res) =>
   invitationController.findInvitationKeyByVenueId(req, res)
 );
 

@@ -11,7 +11,7 @@ router.post("/venue/sign", (req, res) =>
   venueController.signInWithInvitationKey(req, res)
 );
 router.post("/venue/refresh", (req, res) => venueController.refresh(req, res));
-router.get("/venues", (req, res) => venueController.getVenues(req, res));
+router.get("/venue/venues", (req, res) => venueController.getVenues(req, res));
 router.get("/venue/:id", (req, res) => venueController.getVenueById(req, res));
 router.put(
   "/venue/update/:id",
@@ -28,6 +28,9 @@ router.post("/venue/logout", auth.venueAuth.bind(auth), (req, res) =>
   auth.logoutVenue(req, res)
 );
 router.get("/venue/me", auth.venueAuth.bind(auth), (req, res) =>
+  venueController.currentVenue(req, res)
+);
+router.get("/venue/current/venue", auth.venueAuth.bind(auth), (req, res) =>
   venueController.currentVenue(req, res)
 );
 
