@@ -17,10 +17,7 @@ export class UserRepository {
     return prisma.user.findUnique({ where: { email } });
   }
 
-  async create(
-    data: Prisma.UserCreateInput,
-    tx?: Prisma.TransactionClient
-  ): Promise<User> {
+  async create(data: User, tx?: Prisma.TransactionClient): Promise<User> {
     const db = tx ?? prisma;
     return db.user.create({ data });
   }

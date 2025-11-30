@@ -89,6 +89,7 @@ export class UserService {
       const result = await prisma.$transaction(async (tx) => {
         const newUser = await userRepository.create(
           {
+            name: "Set your name",
             ...data,
             password: hashedPassword,
             photo: imageUrl,
@@ -381,7 +382,6 @@ export class UserService {
       });
 
       const payload = ticket.getPayload();
-      console.log(payload);
 
       if (!payload) {
         return {
@@ -404,7 +404,7 @@ export class UserService {
           photo: picture,
           googleId,
           role: "CUSTOMER",
-        });
+        } as User);
       }
 
       const accessToken = jwt.sign(
