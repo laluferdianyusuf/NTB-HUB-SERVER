@@ -75,7 +75,7 @@ export class TransactionServices {
         data: {
           transactionId: transaction.id,
           amount: transaction.amount,
-          VA: va_number,
+          vaNumber: va_number,
           status: transaction.status,
           bank: data.bankCode,
         },
@@ -159,7 +159,7 @@ export class TransactionServices {
         data: {
           transactionId: transaction.id,
           amount: transaction.amount,
-          qrUrl,
+          qrisUrl: qrUrl,
           status: transaction.status,
           bank: "QRIS",
         },
@@ -354,6 +354,25 @@ export class TransactionServices {
   async findAllTransactions() {
     try {
       const transactions = await transactionRepository.findAll();
+      return {
+        status: true,
+        status_code: 200,
+        message: "Transactions retrieved successfully",
+        data: transactions,
+      };
+    } catch (error) {
+      return {
+        status: false,
+        status_code: 500,
+        message: "Internal server error" + error.message,
+        data: null,
+      };
+    }
+  }
+
+  async findAllTransactionsByUserId(id) {
+    try {
+      const transactions = await transactionRepository.findByUserId(id);
       return {
         status: true,
         status_code: 200,

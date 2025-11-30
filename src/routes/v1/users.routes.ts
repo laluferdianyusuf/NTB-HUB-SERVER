@@ -7,7 +7,7 @@ const router = Router();
 const auth = new AuthMiddlewares();
 const userController = new UserController();
 
-router.get("/users", (req, res) => userController.getAll(req, res));
+router.get("/user/users", (req, res) => userController.getAll(req, res));
 router.get("/user/:id", (req, res) => userController.getById(req, res));
 router.put(
   "/user/update/:id",

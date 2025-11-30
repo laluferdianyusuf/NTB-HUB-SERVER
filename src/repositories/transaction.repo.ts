@@ -19,6 +19,10 @@ export class TransactionRepository {
     return prisma.transaction.findUnique({ where: { id } });
   }
 
+  async findByUserId(id: string): Promise<Transaction[] | null> {
+    return prisma.transaction.findMany({ where: { userId: id } });
+  }
+
   async findByOrderId(orderId: string): Promise<Transaction> {
     return prisma.transaction.findFirst({ where: { orderId } });
   }

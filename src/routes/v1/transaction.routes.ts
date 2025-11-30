@@ -29,4 +29,10 @@ router.get(
   (req, res) => transactionController.findAllTransactions(req, res)
 );
 
+router.get(
+  "/transaction/transactions/:id",
+  auth.authenticate.bind(auth),
+  (req, res) => transactionController.findAllTransactionsByUserId(req, res)
+);
+
 export default router;

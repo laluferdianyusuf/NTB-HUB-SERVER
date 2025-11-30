@@ -52,4 +52,12 @@ export class TransactionController {
     const result = await this.transactionServices.findAllTransactions();
     return res.status(result.status_code).json(result);
   }
+
+  async findAllTransactionsByUserId(req: Request, res: Response) {
+    const { id } = req.params;
+    const result = await this.transactionServices.findAllTransactionsByUserId(
+      id
+    );
+    return res.status(result.status_code).json(result);
+  }
 }

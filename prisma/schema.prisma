@@ -37,6 +37,7 @@ enum TransactionStatus {
     SUCCESS
     FAILED
     REFUNDED
+    EXPIRED
 }
 
 enum TransactionType {
