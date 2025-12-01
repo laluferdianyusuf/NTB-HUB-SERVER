@@ -5,7 +5,7 @@ import { upload } from "middlewares/upload";
 const router = Router();
 const notificationController = new NotificationController();
 
-router.post("/notification/user", upload.single("image"), (req, res) =>
+router.post("/notification/user", (req, res) =>
   notificationController.createNotification(req, res)
 );
 router.get("/notification/:userId/user", (req, res) =>
