@@ -18,6 +18,7 @@ import pointsRouter from "./v1/points.routes";
 import logsRouter from "./v1/logs.routes";
 import reviewRouter from "./v1/review.routes";
 import invoiceRouter from "./v1/invoice.routes";
+import deviceRouter from "./v1/device.routes";
 
 import { deprecatedRouters } from "./deprecated";
 
@@ -44,6 +45,7 @@ v1.use("/points", pointsRouter);
 v1.use("/logs", logsRouter);
 v1.use("/reviews", reviewRouter);
 v1.use("/invoice", invoiceRouter);
+v1.use("/devices", deviceRouter);
 
 // mount v1 API
 router.use("/api/v1", v1);

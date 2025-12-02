@@ -16,3 +16,4 @@ export * from "./log.repo";
 export * from "./review.repo";
 export * from "./transaction.repo";
 export * from "./owner.repo";
+export * from "./device.repo";

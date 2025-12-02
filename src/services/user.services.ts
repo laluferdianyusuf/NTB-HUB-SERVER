@@ -69,6 +69,8 @@ export class UserService {
   }
 
   async createUser(data: User, file?: Express.Multer.File) {
+    console.log("data", data);
+
     try {
       let imageUrl = null;
 
@@ -89,8 +91,8 @@ export class UserService {
       const result = await prisma.$transaction(async (tx) => {
         const newUser = await userRepository.create(
           {
-            name: "Set your name",
             ...data,
+            name: "Set your name",
             password: hashedPassword,
             photo: imageUrl,
           },
@@ -136,6 +138,8 @@ export class UserService {
         data: result,
       };
     } catch (error) {
+      console.log(error);
+
       return {
         status: false,
         status_code: 500,
