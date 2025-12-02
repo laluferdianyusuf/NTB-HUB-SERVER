@@ -38,6 +38,7 @@ export class NotificationService {
         priority: "high",
         notification: {
           channelId: "default",
+          sound: "custom_sound.wav",
         },
       },
       apns: {
@@ -45,6 +46,7 @@ export class NotificationService {
           aps: {
             category: "OPEN_VENUE",
             contentAvailable: true,
+            sound: "custom_sound.wav",
           },
         },
       },
