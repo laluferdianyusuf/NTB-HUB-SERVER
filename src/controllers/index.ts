@@ -15,3 +15,4 @@ export * from "./log.controllers";
 export * from "./transaction.controllers";
 export * from "./review.controllers";
 export * from "./invoice.controllers";
+export * from "./device.controllers";

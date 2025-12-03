@@ -7,12 +7,14 @@ import {
 } from "./../repositories";
 import { publisher } from "config/redis.config";
 import { uploadToCloudinary } from "utils/image";
+import { NotificationService } from "./notification.services";
 const prisma = new PrismaClient();
 
 const menuRepository = new MenuRepository();
 const venueRepository = new VenueRepository();
 const userRepository = new UserRepository();
 const notificationRepository = new NotificationRepository();
+const notificationService = new NotificationService();
 
 export class MenuServices {
   async createMenu(data: Menu, venueId: string, file: Express.Multer.File) {
@@ -41,6 +43,7 @@ export class MenuServices {
           tx
         );
         const users = await userRepository.findManyUsers(tx);
+
         const notifications = users.map((user) => ({
           userId: user.id,
           title: "New Menu Release!",
@@ -54,7 +57,19 @@ export class MenuServices {
             notifications,
             tx
           );
+        console.log(imageUrl);
 
+        await Promise.all(
+          users.map((user) =>
+            notificationService.sendToUser(
+              venueId,
+              user.id,
+              "New Menu Release!",
+              `${menu.name} has been added to ${venue.name}`,
+              imageUrl
+            )
+          )
+        );
         return { notification };
       });
 

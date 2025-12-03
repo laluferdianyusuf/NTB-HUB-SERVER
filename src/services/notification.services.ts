@@ -1,11 +1,78 @@
+import firebase from "../utils/firebase";
 import { Notification } from "@prisma/client";
 import { NotificationRepository } from "../repositories/notification.repo";
 import { publisher } from "config/redis.config";
 import { uploadToCloudinary } from "utils/image";
+import { DeviceRepository } from "repositories";
 
 const notificationRepository = new NotificationRepository();
 
 export class NotificationService {
+  private deviceRepo = new DeviceRepository();
+
+  async sendToUser(
+    venueId: string,
+    userId: string,
+    title: string,
+    body: string,
+    image?: string
+  ) {
+    const devices = await this.deviceRepo.findByUserId(userId);
+
+    if (!devices.length) return;
+
+    const tokens = devices.map((d) => d.token);
+
+    const message: firebase.messaging.MulticastMessage = {
+      tokens,
+      notification: {
+        title,
+        body,
+        imageUrl: image || undefined,
+      },
+      data: {
+        action: "OPEN_VENUE",
+        venueId,
+      },
+      android: {
+        priority: "high",
+        notification: {
+          channelId: "default",
+          sound: "custom_sound.wav",
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            category: "OPEN_VENUE",
+            contentAvailable: true,
+            sound: "custom_sound.wav",
+          },
+        },
+      },
+    };
+
+    const response = await firebase.messaging().sendEachForMulticast(message);
+
+    console.log(`FCM sent → ${response.successCount}/${tokens.length}`);
+
+    response.responses.forEach((res, i) => {
+      if (!res.success) {
+        const error = res.error?.message || "";
+        if (
+          error.includes("registration-token-not-registered") ||
+          error.includes("invalid-registration-token")
+        ) {
+          const invalid = tokens[i];
+          this.deviceRepo.deleteByToken(invalid);
+          console.log("Deleted invalid token:", invalid);
+        }
+      }
+    });
+
+    return response;
+  }
+
   async sendNotification(data: Notification, file?: Express.Multer.File) {
     try {
       let imageUrl: string | null = null;

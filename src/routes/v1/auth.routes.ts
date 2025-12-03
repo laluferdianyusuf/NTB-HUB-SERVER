@@ -7,7 +7,9 @@ const router = Router();
 const auth = new AuthMiddlewares();
 const userController = new UserController();
 
-router.post("/register", (req, res) => userController.create(req, res));
+router.post("/register", upload.single("image"), (req, res) =>
+  userController.create(req, res)
+);
 router.post("/login", (req, res) => userController.login(req, res));
 router.post("/refresh", (req, res) => userController.refresh(req, res));
 router.post("/logout", auth.authenticate.bind(auth), (req, res) =>
