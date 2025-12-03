@@ -69,8 +69,6 @@ export class UserService {
   }
 
   async createUser(data: User, file?: Express.Multer.File) {
-    console.log("data", data);
-
     try {
       let imageUrl = null;
 
@@ -216,7 +214,7 @@ export class UserService {
         status: true,
         status_code: 201,
         message: "Logged in successfully",
-        data: { accessToken, refreshToken },
+        data: { accessToken, refreshToken, user: existing },
       };
     } catch (error) {
       return {

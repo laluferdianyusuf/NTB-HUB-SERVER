@@ -46,10 +46,16 @@ export class AuthMiddlewares {
       next();
     } catch (error) {
       console.error("Auth error:", error);
+
+      const isExpired = error.name === "TokenExpiredError";
+
       return res.status(401).json({
         status: false,
         status_code: 401,
-        message: "Unauthorized or invalid token",
+        message: isExpired
+          ? "Unauthorized: Token expired. Please refresh."
+          : "Unauthorized: Invalid token.",
+        isExpired: isExpired,
       });
     }
   }
@@ -129,13 +135,16 @@ export class AuthMiddlewares {
       next();
     } catch (error: any) {
       console.error("Auth error:", error);
+
+      const isExpired = error.name === "TokenExpiredError";
+
       return res.status(401).json({
         status: false,
         status_code: 401,
-        message:
-          error.name === "TokenExpiredError"
-            ? "Token expired"
-            : "Unauthorized or invalid token",
+        message: isExpired
+          ? "Unauthorized: Token expired. Please refresh."
+          : "Unauthorized or invalid token",
+        isExpired: isExpired,
       });
     }
   }
