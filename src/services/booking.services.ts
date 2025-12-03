@@ -1,5 +1,6 @@
 import {
-  Booking,
+  Notification,
+  OrderItem,
   PointActivityType,
   PrismaClient,
   TableStatus,
@@ -16,6 +17,8 @@ import {
   PointsRepository,
 } from "../repositories";
 import { publisher } from "config/redis.config";
+import { error, success } from "helpers/return";
+import { normalizeDate } from "helpers/formatIsoDate";
 const bookingRepository = new BookingRepository();
 const userBalanceRepository = new UserBalanceRepository();
 const tableRepository = new TableRepository();
@@ -24,86 +27,106 @@ const transactionRepository = new TransactionRepository();
 const notificationRepository = new NotificationRepository();
 const pointRepository = new PointsRepository();
 const prisma = new PrismaClient();
+
+interface Props {
+  userId: string;
+  venueId: string;
+  tableId: string;
+  startTime: Date;
+  endTime: Date;
+  totalPrice: number;
+  orders: OrderItem[];
+}
+
 export class BookingServices {
-  async createBooking(data: Booking) {
+  async createBooking(data: Props) {
+    const startTime = normalizeDate(String(data.startTime));
+    const endTime = normalizeDate(String(data.endTime));
+
     const invoiceNumber = `INV-${Date.now()}-${crypto
       .randomUUID()
       .slice(0, 8)}`;
+
     try {
-      const tables = await tableRepository.findTablesById(data.tableId);
+      const table = await tableRepository.findTablesById(data.tableId);
 
-      if (!tables) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "Table not found",
-          data: null,
-        };
-      } else if (tables.status === "BOOKED") {
-        return {
-          status: false,
-          status_code: 400,
-          message: "This table is booked",
-          data: null,
-        };
-      } else if (tables.status === "MAINTENANCE") {
-        return {
-          status: false,
-          status_code: 400,
-          message: "This table is under maintenance",
-          data: null,
-        };
-      }
-      const existingBooking = await bookingRepository.existingBooking(
+      if (!table) return error.error404("Table not found");
+      if (table.status === "BOOKED")
+        return error.error400("This table is booked");
+      if (table.status === "MAINTENANCE")
+        return error.error400("This table is under maintenance");
+
+      const overlapping = await bookingRepository.existingBooking(
         data.tableId,
-        data.startTime,
-        data.endTime
+        startTime,
+        endTime
       );
+      if (overlapping) return error.error400("Booking exist");
 
-      if (existingBooking) {
-        return {
-          status: false,
-          status_code: 400,
-          message: "Booking exist",
-          data: null,
-        };
-      }
       const result = await prisma.$transaction(async (tx) => {
-        const createdBooking = await bookingRepository.createBooking(data, tx);
-        const invoice = await invoiceRepository.create(
-          {
-            bookingId: createdBooking.id,
-            invoiceNumber: invoiceNumber,
-            amount: createdBooking.totalPrice,
-            paymentMethod: TransactionType.DEDUCTION,
+        const booking = await tx.booking.create({
+          data: {
+            userId: data.userId,
+            venueId: data.venueId,
+            tableId: data.tableId,
+            startTime: startTime,
+            endTime: endTime,
+            totalPrice: data.totalPrice,
           },
-          tx
-        );
+        });
 
-        return { createdBooking, invoice };
+        let totalOrderAmount = 0;
+        let orderItems: any[] = [];
+
+        if (data.orders && data.orders.length > 0) {
+          const menuIds = data.orders.map((o) => o.menuId);
+          const menus = await tx.menu.findMany({
+            where: { id: { in: menuIds } },
+          });
+
+          for (const o of data.orders) {
+            const menu = menus.find((m) => m.id === o.menuId);
+            if (!menu) throw new Error(`Menu not found: ${o.menuId}`);
+
+            const subtotal = menu.price * o.quantity;
+            totalOrderAmount += subtotal;
+
+            orderItems.push(
+              await tx.orderItem.create({
+                data: {
+                  bookingId: booking.id,
+                  menuId: o.menuId,
+                  quantity: o.quantity,
+                  subtotal,
+                },
+              })
+            );
+          }
+        }
+
+        const totalInvoiceAmount = booking.totalPrice + totalOrderAmount;
+
+        const invoice = await tx.invoice.create({
+          data: {
+            bookingId: booking.id,
+            invoiceNumber,
+            amount: totalInvoiceAmount,
+            paymentMethod: "DEDUCTION",
+          },
+        });
+
+        await tx.table.update({
+          where: { id: booking.tableId },
+          data: { status: "BOOKED" },
+        });
+
+        return { booking, orderItems, invoice };
       });
 
-      await publisher.publish(
-        "booking-events",
-        JSON.stringify({
-          event: "booking:created",
-          payload: result.createdBooking,
-        })
-      );
-
-      return {
-        status: true,
-        status_code: 201,
-        message: "Booking created successfully",
-        data: result,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
+      return success.success201("Booking created successfully", result);
+    } catch (err) {
+      console.log(err);
+      return error.error500("Internal server error" + err);
     }
   }
 
@@ -184,8 +207,7 @@ export class BookingServices {
             userId: booking.userId,
             title: "Payment Successful",
             message: `Thank you! Your payment of ${booking.totalPrice} has been successfully received.`,
-          },
-          tx
+          } as Notification
         );
 
         const tables = await tableRepository.updateTableStatus(
