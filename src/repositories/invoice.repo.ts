@@ -9,6 +9,7 @@ export class InvoiceRepository {
           select: {
             id: true,
             startTime: true,
+            totalPrice: true,
             venue: {
               select: {
                 name: true,
@@ -44,6 +45,7 @@ export class InvoiceRepository {
           select: {
             id: true,
             startTime: true,
+            totalPrice: true,
             venue: {
               select: {
                 name: true,
@@ -51,7 +53,15 @@ export class InvoiceRepository {
             },
             orderItems: {
               select: {
+                quantity: true,
                 menu: true,
+              },
+            },
+            table: {
+              select: {
+                image: true,
+                floor: true,
+                tableNumber: true,
               },
             },
           },

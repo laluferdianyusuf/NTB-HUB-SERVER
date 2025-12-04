@@ -269,7 +269,7 @@ export class UserService {
           email: user.email,
           role: user.role,
         },
-        "access-secret",
+        process.env.ACCESS_SECRET,
         { expiresIn: "15m" }
       );
 

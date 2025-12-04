@@ -44,9 +44,10 @@ export class BookingServices {
     const startTime = normalizeDate(String(data.startTime));
     const endTime = normalizeDate(String(data.endTime));
 
-    const invoiceNumber = `INV-${Date.now()}-${crypto
+    const invoiceNumber = `INV-${crypto
       .randomUUID()
-      .slice(0, 8)}`;
+      .slice(0, 8)
+      .toUpperCase()}`;
 
     try {
       const table = await tableRepository.findTablesById(data.tableId);
