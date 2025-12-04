@@ -1,4 +1,5 @@
 import {
+  Booking,
   Notification,
   OrderItem,
   PointActivityType,
@@ -64,16 +65,17 @@ export class BookingServices {
       if (overlapping) return error.error400("Booking exist");
 
       const result = await prisma.$transaction(async (tx) => {
-        const booking = await tx.booking.create({
-          data: {
+        const booking = await bookingRepository.createBooking(
+          {
             userId: data.userId,
             venueId: data.venueId,
             tableId: data.tableId,
             startTime: startTime,
             endTime: endTime,
             totalPrice: data.totalPrice,
-          },
-        });
+          } as Booking,
+          tx
+        );
 
         let totalOrderAmount = 0;
         let orderItems: any[] = [];

@@ -30,8 +30,8 @@ export const error = {
 export const success = {
   success201(message: string, data: any) {
     return {
-      status: false,
-      status_code: 400,
+      status: true,
+      status_code: 201,
       message: message,
       data: data,
     };

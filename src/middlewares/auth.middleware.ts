@@ -47,8 +47,7 @@ export class AuthMiddlewares {
     } catch (error) {
       console.error("Auth error:", error);
 
-      const isExpired = error.name === "TokenExpiredError";
-
+      const isExpired = error instanceof jwt.TokenExpiredError;
       return res.status(401).json({
         status: false,
         status_code: 401,

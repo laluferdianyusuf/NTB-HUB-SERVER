@@ -3,7 +3,34 @@ const prisma = new PrismaClient();
 
 export class InvoiceRepository {
   async findAll(): Promise<Invoice[]> {
-    return prisma.invoice.findMany();
+    return prisma.invoice.findMany({
+      include: {
+        booking: {
+          select: {
+            id: true,
+            startTime: true,
+            venue: {
+              select: {
+                name: true,
+              },
+            },
+            table: {
+              select: {
+                image: true,
+                floor: true,
+                tableNumber: true,
+              },
+            },
+            orderItems: {
+              select: {
+                quantity: true,
+                menu: true,
+              },
+            },
+          },
+        },
+      },
+    });
   }
   async findById(id: string): Promise<Invoice | null> {
     return prisma.invoice.findUnique({ where: { id } });
@@ -12,6 +39,24 @@ export class InvoiceRepository {
   async findByBookingId(bookingId: string): Promise<Invoice | null> {
     return prisma.invoice.findFirst({
       where: { bookingId },
+      include: {
+        booking: {
+          select: {
+            id: true,
+            startTime: true,
+            venue: {
+              select: {
+                name: true,
+              },
+            },
+            orderItems: {
+              select: {
+                menu: true,
+              },
+            },
+          },
+        },
+      },
     });
   }
 
