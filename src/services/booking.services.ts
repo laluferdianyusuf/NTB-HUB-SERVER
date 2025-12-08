@@ -135,6 +135,16 @@ export class BookingServices {
 
   async updateBookingPayment(id: string) {
     try {
+      const invoice = await invoiceRepository.findByBookingId(id);
+      if (!invoice) {
+        return {
+          status: false,
+          status_code: 404,
+          message: "Invoice not found",
+          data: null,
+        };
+      }
+
       const booking = await bookingRepository.findBookingById(id);
       if (!booking) {
         return {
@@ -145,22 +155,20 @@ export class BookingServices {
         };
       }
 
-      if (booking.status === "PAID") {
+      if (invoice.status === "PAID") {
         return {
           status: false,
           status_code: 400,
-          message: `This book already paid`,
+          message: "This booking is already paid",
           data: null,
         };
       }
 
-      const balance = await userBalanceRepository.getBalanceByUserId(
+      const userBalance = await userBalanceRepository.getBalanceByUserId(
         booking.userId
       );
 
-      const paymentId = `PAY-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
-
-      if (!balance || balance < booking.totalPrice) {
+      if (!userBalance || userBalance < invoice.amount) {
         return {
           status: false,
           status_code: 400,
@@ -169,8 +177,10 @@ export class BookingServices {
         };
       }
 
+      const paymentId = `PAY-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+
       const result = await prisma.$transaction(async (tx) => {
-        const bookings = await bookingRepository.processBookingPayment(
+        const processedBooking = await bookingRepository.processBookingPayment(
           booking.id,
           tx
         );
@@ -179,7 +189,7 @@ export class BookingServices {
           {
             userId: booking.userId,
             venueId: booking.venueId,
-            amount: booking.totalPrice,
+            amount: invoice.amount,
             type: TransactionType.DEDUCTION,
             status: TransactionStatus.SUCCESS,
             reference: booking.id,
@@ -198,68 +208,53 @@ export class BookingServices {
           tx
         );
 
-        const balance = await userBalanceRepository.decrementBalance(
+        const updatedBalance = await userBalanceRepository.decrementBalance(
           booking.userId,
-          booking.totalPrice,
+          invoice.amount,
           tx
         );
-        await invoiceRepository.updateInvoicePaid(id, tx);
+
+        const updatedInvoice = await invoiceRepository.updateInvoicePaid(
+          booking.id,
+          tx
+        );
 
         const notification = await notificationRepository.createNewNotification(
           {
             userId: booking.userId,
             title: "Payment Successful",
-            message: `Thank you! Your payment of ${booking.totalPrice} has been successfully received.`,
+            message: `Thank you! Your payment of ${invoice.amount} has been successfully received.`,
           } as Notification
         );
 
-        const tables = await tableRepository.updateTableStatus(
+        const updatedTable = await tableRepository.updateTableStatus(
           booking.tableId,
           TableStatus.BOOKED,
           tx
         );
 
         return {
-          bookings,
+          booking: processedBooking,
           transaction,
           points,
-          balance,
+          balance: updatedBalance,
+          invoice: updatedInvoice,
           notification,
-          tables,
+          table: updatedTable,
         };
       });
 
-      await publisher.publish(
-        "booking-events",
-        JSON.stringify({
-          event: "booking:paid",
-          payload: result.transaction,
-        })
-      );
+      const publishEvent = (channel: string, event: string, payload: any) =>
+        publisher.publish(channel, JSON.stringify({ event, payload }));
 
-      await publisher.publish(
-        "points-events",
-        JSON.stringify({
-          event: "point:updated",
-          payload: result.points,
-        })
-      );
-
-      await publisher.publish(
+      await publishEvent("booking-events", "booking:paid", result.transaction);
+      await publishEvent("points-events", "point:updated", result.points);
+      await publishEvent(
         "notification-events",
-        JSON.stringify({
-          event: "notification:send",
-          payload: result.notification,
-        })
+        "notification:send",
+        result.notification
       );
-
-      await publisher.publish(
-        "tables-events",
-        JSON.stringify({
-          event: "tables:updated",
-          payload: result.tables,
-        })
-      );
+      await publishEvent("tables-events", "tables:updated", result.table);
 
       return {
         status: true,
@@ -268,6 +263,7 @@ export class BookingServices {
         data: result,
       };
     } catch (error) {
+      console.error("updateBookingPayment error:", error);
       return {
         status: false,
         status_code: 500,
@@ -369,18 +365,24 @@ export class BookingServices {
       }
 
       const result = await prisma.$transaction(async (tx) => {
-        const booking = await bookingRepository.cancelBooking(id, tx);
+        const bookings = await bookingRepository.cancelBooking(id, tx);
 
         const invoice = await invoiceRepository.updateInvoiceCanceled(id, tx);
 
-        return { booking, invoice };
+        await tableRepository.updateTableStatus(
+          booking.tableId,
+          TableStatus.AVAILABLE,
+          tx
+        );
+
+        return { bookings, invoice };
       });
 
       await publisher.publish(
         "booking-events",
         JSON.stringify({
           event: "booking:updated",
-          payload: result.booking,
+          payload: result.bookings,
         })
       );
 

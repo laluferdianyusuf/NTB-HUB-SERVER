@@ -226,9 +226,9 @@ export class UserService {
     }
   }
 
-  async refreshToken(refreshToken: string) {
+  async refreshToken(token: string) {
     try {
-      if (!refreshToken) {
+      if (!token) {
         return {
           status: false,
           status_code: 400,
@@ -237,13 +237,10 @@ export class UserService {
         };
       }
 
-      const decoded = jwt.verify(
-        refreshToken,
-        process.env.REFRESH_SECRET
-      ) as any;
+      const decoded = jwt.verify(token, process.env.REFRESH_SECRET) as any;
 
       const storedToken = await redis.get(`refresh:${decoded.id}`);
-      if (!storedToken || storedToken !== refreshToken) {
+      if (!storedToken || storedToken !== token) {
         return {
           status: false,
           status_code: 403,
@@ -273,11 +270,29 @@ export class UserService {
         { expiresIn: "15m" }
       );
 
+      const newRefreshToken = jwt.sign(
+        {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          createdAt: user.createdAt,
+        },
+        process.env.REFRESH_SECRET,
+        { expiresIn: "7d" }
+      );
+
+      await redis.set(
+        `refresh:${user.id}`,
+        newRefreshToken,
+        "EX",
+        7 * 24 * 60 * 60
+      );
+
       return {
         status: true,
         status_code: 200,
         message: "Access token refreshed successfully",
-        data: { accessToken: newAccessToken },
+        data: { accessToken: newAccessToken, refreshToken: newRefreshToken },
       };
     } catch (error: any) {
       if (error.name === "TokenExpiredError") {
