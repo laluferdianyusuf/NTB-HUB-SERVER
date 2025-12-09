@@ -5,5 +5,12 @@ declare global {
     export interface Request {
       venue?: JwtPayload | string | any;
     }
+    interface Request {
+      user?: {
+        id: string;
+        email: string;
+        role: string;
+      };
+    }
   }
 }

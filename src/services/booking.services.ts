@@ -224,6 +224,8 @@ export class BookingServices {
             userId: booking.userId,
             title: "Payment Successful",
             message: `Thank you! Your payment of ${invoice.amount} has been successfully received.`,
+            type: "Booking",
+            isGlobal: false,
           } as Notification
         );
 

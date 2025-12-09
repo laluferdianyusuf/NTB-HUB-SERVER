@@ -54,6 +54,8 @@ export class TransactionRepository {
           userId: transaction.userId,
           title: "TOP UP Balance",
           message: "Top up balance successful",
+          type: "Payment",
+          isGlobal: false,
         },
       });
 

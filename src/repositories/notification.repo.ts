@@ -16,8 +16,24 @@ export class NotificationRepository {
   }
 
   // update notification as read
-  async updateNotification(id: string, isRead: boolean): Promise<Notification> {
-    return prisma.notification.update({ where: { id: id }, data: { isRead } });
+  async markAllAsRead(userId: string) {
+    return prisma.notification.updateMany({
+      where: {
+        OR: [{ isGlobal: true }, { userId }],
+        isRead: false,
+      },
+      data: { isRead: true },
+    });
+  }
+
+  async markAllAsUnread(userId: string) {
+    return prisma.notification.updateMany({
+      where: {
+        OR: [{ isGlobal: true }, { userId }],
+        isRead: true,
+      },
+      data: { isRead: false },
+    });
   }
 
   // delete notification
@@ -31,5 +47,51 @@ export class NotificationRepository {
   ) {
     const db = tx ?? prisma;
     return await db.notification.createMany({ data });
+  }
+
+  async findManyByUserId(userId: string): Promise<Notification[]> {
+    return prisma.notification.findMany({
+      where: {
+        OR: [{ isGlobal: true }, { userId: userId }],
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async findNotificationsForUser(userId: string, page = 1, limit = 20) {
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await prisma.$transaction([
+      prisma.notification.findMany({
+        where: {
+          OR: [{ isGlobal: true }, { userId }],
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+
+      prisma.notification.count({
+        where: {
+          OR: [{ isGlobal: true }, { userId }],
+        },
+      }),
+    ]);
+
+    return { items, total, page, limit };
+  }
+
+  async findGlobal() {
+    return prisma.notification.findMany({
+      where: { isGlobal: true },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async findPersonal(userId: string) {
+    return prisma.notification.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+    });
   }
 }

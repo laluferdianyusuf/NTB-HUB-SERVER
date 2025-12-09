@@ -100,51 +100,98 @@ export class NotificationService {
     }
   }
 
-  async getUserNotifications(userId: string) {
+  async markAllAsRead(userId: string) {
     try {
-      const notifications =
-        await notificationRepository.findNotificationByUserId(userId);
+      const notification = await notificationRepository.markAllAsRead(userId);
+
       return {
         status: true,
         status_code: 200,
-        message: "Notifications retrieved",
-        data: notifications,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Failed to get notifications",
-        data: null,
-      };
-    }
-  }
-
-  async markAsRead(id: string) {
-    try {
-      const notification = await notificationRepository.updateNotification(
-        id,
-        true
-      );
-
-      await publisher.publish(
-        "notification-events",
-        JSON.stringify({
-          event: "notification:read",
-          payload: notification.isRead,
-        })
-      );
-      return {
-        status: true,
-        status_code: 200,
-        message: "Notification marked as read",
+        message: "All notifications marked as read",
         data: notification,
       };
     } catch (error) {
       return {
         status: false,
         status_code: 500,
-        message: "Failed to mark as read",
+        message: "Failed to read notification",
+        data: null,
+      };
+    }
+  }
+
+  async markAllAsUnread(userId: string) {
+    try {
+      const notification = await notificationRepository.markAllAsUnread(userId);
+
+      return {
+        status: true,
+        status_code: 200,
+        message: "All notifications marked as unread",
+        data: notification,
+      };
+    } catch (error) {
+      return {
+        status: false,
+        status_code: 500,
+        message: "Failed to unread notification",
+        data: null,
+      };
+    }
+  }
+
+  async getUserNotifications(userId: string, page?: number, limit?: number) {
+    try {
+      const result = await notificationRepository.findNotificationsForUser(
+        userId,
+        page,
+        limit
+      );
+
+      return {
+        status: true,
+        status_code: 200,
+        message: "Notifications fetched successfully",
+        data: {
+          items: result.items,
+          pagination: {
+            page: result.page,
+            limit: result.limit,
+            total: result.total,
+          },
+        },
+      };
+    } catch (error) {
+      return {
+        status: false,
+        status_code: 500,
+        message: "Failed to get notification",
+        data: null,
+      };
+    }
+  }
+
+  async getGroupedNotifications(userId: string) {
+    try {
+      const [global, personal] = await Promise.all([
+        notificationRepository.findGlobal(),
+        notificationRepository.findPersonal(userId),
+      ]);
+
+      return {
+        status: true,
+        status_code: 200,
+        message: "Notifications fetched successfully",
+        data: {
+          forYou: global,
+          personal: personal,
+        },
+      };
+    } catch (error) {
+      return {
+        status: false,
+        status_code: 500,
+        message: "Failed to get notification",
         data: null,
       };
     }

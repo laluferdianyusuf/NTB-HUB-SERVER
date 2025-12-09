@@ -282,6 +282,7 @@ model Notification {
     type      String?
     image     String?
     isRead    Boolean  @default(false)
+    isGlobal    Boolean  @default(false)
     createdAt DateTime @default(now())
     updatedAt DateTime @default(now()) @updatedAt
 

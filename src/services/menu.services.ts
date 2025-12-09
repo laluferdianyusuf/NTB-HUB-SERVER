@@ -1,4 +1,4 @@
-import { Menu, PrismaClient } from "@prisma/client";
+import { Menu, Notification, PrismaClient } from "@prisma/client";
 import {
   MenuRepository,
   VenueRepository,
@@ -42,22 +42,18 @@ export class MenuServices {
           venueId,
           tx
         );
+
+        const notification = await notificationRepository.createNewNotification(
+          {
+            title: "New Menu Release!",
+            message: `${menu.name} has been added to ${venue.name}`,
+            type: "Information",
+            image: imageUrl || "",
+            isGlobal: true,
+          } as Notification
+        );
+
         const users = await userRepository.findManyUsers(tx);
-
-        const notifications = users.map((user) => ({
-          userId: user.id,
-          title: "New Menu Release!",
-          message: `${menu.name} has been added to ${venue.name}`,
-          type: "menu",
-          image: imageUrl || "",
-        }));
-
-        const notification =
-          await notificationRepository.createManyNotification(
-            notifications,
-            tx
-          );
-        console.log(imageUrl);
 
         await Promise.all(
           users.map((user) =>
@@ -70,7 +66,8 @@ export class MenuServices {
             )
           )
         );
-        return { notification };
+
+        return { menu, notification };
       });
 
       await publisher.publish(
@@ -87,8 +84,6 @@ export class MenuServices {
         data: result,
       };
     } catch (error) {
-      console.log(error);
-
       return {
         status: false,
         status_code: 500,
