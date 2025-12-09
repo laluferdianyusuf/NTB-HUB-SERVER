@@ -42,7 +42,7 @@ export class ReviewServices {
       }
 
       const review = await reviewRepository.create(
-        { ...data, image: imageUrl },
+        { ...data, rating: Number(data.rating), image: imageUrl },
         booking
       );
 
@@ -105,6 +105,8 @@ export class ReviewServices {
         data: rating,
       };
     } catch (error) {
+      console.log(error);
+
       return {
         status: false,
         status_code: 500,

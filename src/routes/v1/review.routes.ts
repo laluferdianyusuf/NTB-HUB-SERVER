@@ -13,6 +13,7 @@ router.post(
   upload.single("image"),
   (req, res) => reviewController.createReview(req, res)
 );
+
 router.get("/review/:venueId", (req, res) =>
   reviewController.getVenueRating(req, res)
 );

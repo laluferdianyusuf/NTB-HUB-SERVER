@@ -39,14 +39,35 @@ export class ReviewRepository {
           venueId,
         },
       },
-      select: { rating: true },
+      include: {
+        booking: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                photo: true,
+              },
+            },
+          },
+        },
+      },
     });
 
-    if (reviews.length === 0) return 0;
+    if (reviews.length === 0) {
+      return {
+        rating: 0,
+        reviewers: [],
+      };
+    }
 
     const average =
       reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
 
-    return parseFloat(average.toFixed(2));
+    return {
+      rating: parseFloat(average.toFixed(2)),
+      reviewers: reviews,
+    };
   }
 }
