@@ -20,4 +20,12 @@ export class InvoiceController {
 
     res.status(result.status_code).json(result);
   }
+
+  async findAllInvoiceByUserId(req: Request, res: Response) {
+    const userId = req.user?.id;
+
+    const result = await this.invoiceService.findAllInvoiceByUserId(userId);
+
+    res.status(result.status_code).json(result);
+  }
 }

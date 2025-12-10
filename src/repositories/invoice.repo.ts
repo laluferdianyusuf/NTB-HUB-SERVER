@@ -10,6 +10,11 @@ export class InvoiceRepository {
             id: true,
             startTime: true,
             totalPrice: true,
+            review: {
+              select: {
+                rating: true,
+              },
+            },
             venue: {
               select: {
                 name: true,
@@ -33,6 +38,49 @@ export class InvoiceRepository {
       },
     });
   }
+
+  async findAllByUserId(userId: string): Promise<Invoice[]> {
+    return prisma.invoice.findMany({
+      where: {
+        booking: {
+          userId,
+        },
+      },
+      include: {
+        booking: {
+          select: {
+            id: true,
+            startTime: true,
+            totalPrice: true,
+            review: {
+              select: {
+                rating: true,
+              },
+            },
+            venue: {
+              select: {
+                name: true,
+              },
+            },
+            table: {
+              select: {
+                image: true,
+                floor: true,
+                tableNumber: true,
+              },
+            },
+            orderItems: {
+              select: {
+                quantity: true,
+                menu: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   async findById(id: string): Promise<Invoice | null> {
     return prisma.invoice.findUnique({ where: { id } });
   }

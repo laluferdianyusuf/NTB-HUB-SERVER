@@ -65,10 +65,12 @@ model User {
     username  String?
     email     String   @unique
     password  String
+    address  String?
     role      Role     @default(CUSTOMER)
     phone     String?
     photo     String?
     googleId  String?  @unique
+    isVerified  Boolean @default(false)
     devices   Device[]
     createdAt DateTime @default(now())
     updatedAt DateTime @default(now()) @updatedAt
@@ -277,6 +279,8 @@ model LocationTracking {
 model Notification {
     id        String   @id @default(uuid())
     userId    String
+    venueId   String?           
+    adminOnly Boolean? @default(false)
     title     String
     message   String
     type      String?
