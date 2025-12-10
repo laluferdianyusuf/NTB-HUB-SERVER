@@ -113,10 +113,21 @@ model Venue {
     tables       Table[]
     menus        Menu[]
     bookings     Booking[]
+    operationalHours OperationalHour[]
     invitation   InvitationKey?
     balance      VenueBalance?
     transactions Transaction[]
     owner        Owner?
+}
+
+model OperationalHour {
+    id        String   @id @default(uuid())
+    venueId   String
+    dayOfWeek Int      
+    opensAt   DateTime
+    closesAt  DateTime
+
+    venue Venue @relation(fields: [venueId], references: [id])
 }
 
 model Owner {
