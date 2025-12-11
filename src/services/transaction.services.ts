@@ -28,6 +28,7 @@ export class TransactionServices {
         status: "PENDING",
         bankCode: data.bankCode.toUpperCase(),
         orderId: topUpId,
+        expiredAt: new Date(Date.now() + 5 * 60 * 60 * 1000),
       };
       const transaction = await transactionRepository.create(
         transactionData as Transaction
@@ -41,6 +42,10 @@ export class TransactionServices {
         },
         bank_transfer: {
           bank: data.bankCode.toLowerCase(),
+        },
+        custom_expiry: {
+          expiry_duration: 5,
+          unit: "minute",
         },
         customer_details: {
           first_name: user.name,
@@ -66,6 +71,7 @@ export class TransactionServices {
 
       await transactionRepository.updateTransaction(transaction.id, {
         vaNumber: va_number,
+        expiredAt: new Date(charge.expired_time),
       });
 
       return {
@@ -128,6 +134,10 @@ export class TransactionServices {
         qris: {
           acquirer: "gopay",
         },
+        custom_expiry: {
+          expiry_duration: 5,
+          unit: "minute",
+        },
         customer_details: {
           first_name: user.name,
           email: user.email,
@@ -150,6 +160,7 @@ export class TransactionServices {
 
       await transactionRepository.updateTransaction(transaction.id, {
         qrisUrl: qrUrl,
+        expiredAt: new Date(charge.expired_time),
       });
 
       return {
@@ -292,6 +303,10 @@ export class TransactionServices {
       const status = payload.transaction_status;
 
       if (["capture", "settlement"].includes(status)) {
+        if (transaction.status !== "PENDING") {
+          return { status: true, message: "Transaction not pending, skipping" };
+        }
+
         const settlement =
           await transactionRepository.processSuccessfulTransaction(transaction);
 
@@ -303,28 +318,55 @@ export class TransactionServices {
           })
         );
 
-        await publisher.publish(
-          "notification-events",
-          JSON.stringify({
-            event: "notification:send",
-            payload: settlement.notification,
-          })
-        );
+        if (settlement.notification) {
+          await publisher.publish(
+            "notification-events",
+            JSON.stringify({
+              event: "notification:send",
+              payload: settlement.notification,
+            })
+          );
+        }
 
-        await publisher.publish(
-          "points-events",
-          JSON.stringify({
-            event: "points:updated",
-            payload: settlement.points,
-          })
-        );
+        if (settlement.points) {
+          await publisher.publish(
+            "points-events",
+            JSON.stringify({
+              event: "points:updated",
+              payload: settlement.points,
+            })
+          );
+        }
         return {
           status: true,
           message: "Transaction successful",
         };
       }
 
-      if (["cancel", "deny", "expire"].includes(status)) {
+      if (["expire"].includes(status)) {
+        if (transaction.status !== "PENDING") {
+          return { status: true, message: "Transaction not pending, skipping" };
+        }
+
+        const expired = await transactionRepository.markTransactionExpired(
+          transaction.id
+        );
+
+        await publisher.publish(
+          "transactions-events",
+          JSON.stringify({
+            event: "transaction:expired",
+            payload: expired,
+          })
+        );
+        return { status: true, message: "Transaction failed/expired" };
+      }
+
+      if (["cancel", "deny"].includes(status)) {
+        if (transaction.status !== "PENDING") {
+          return { status: true, message: "Transaction not pending, skipping" };
+        }
+
         const cancel = await transactionRepository.processFailedTransaction(
           transaction
         );
@@ -336,7 +378,7 @@ export class TransactionServices {
             payload: cancel,
           })
         );
-        return { status: true, message: "Transaction failed" };
+        return { status: true, message: "Transaction failed/expired" };
       }
 
       if (status === "pending") {

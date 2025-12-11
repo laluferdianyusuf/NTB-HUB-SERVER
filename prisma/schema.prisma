@@ -57,6 +57,7 @@ enum InvoiceStatus {
     PAID
     CANCELLED
     REFUNDED
+    EXPIRED
 }
 
 model User {
@@ -182,6 +183,7 @@ model Table {
     venueId     String
     status      TableStatus @default(AVAILABLE)
     image       String?
+     bookingAt   DateTime?
     createdAt   DateTime    @default(now())
     updatedAt   DateTime    @default(now()) @updatedAt
 
@@ -271,6 +273,7 @@ model Invoice {
     issuedAt      DateTime      @default(now())
     paidAt        DateTime?
     cancelledAt   DateTime?
+    expiredAt     DateTime?
     createdAt     DateTime      @default(now())
     updatedAt     DateTime      @default(now()) @updatedAt
 
@@ -327,6 +330,7 @@ model Transaction {
     paymentCode String?
     bankCode    String?
     orderId     String?
+    expiredAt     DateTime?
     status      TransactionStatus? @default(PENDING)
     createdAt   DateTime           @default(now())
     updatedAt   DateTime           @default(now()) @updatedAt

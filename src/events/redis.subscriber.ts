@@ -15,6 +15,7 @@ export const setupRedisSubscriber = (io: Server) => {
     "notification-events",
     "tables-events",
     "balance-events",
+    "invoice-events",
   ];
 
   subscriber.subscribe(...channels);

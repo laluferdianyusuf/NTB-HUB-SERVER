@@ -371,13 +371,14 @@ import Redis from "ioredis";
 import { swaggerSpec, swaggerUiMiddleware } from "./config/swagger";
 
 import v1Router from "./routes/index";
+import { startExpireJob } from "cron/expireJob";
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
+startExpireJob();
 app.use(
   "/api-docs",
   swaggerUiMiddleware.serve,

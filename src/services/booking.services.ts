@@ -39,6 +39,9 @@ interface Props {
   orders: OrderItem[];
 }
 
+const publishEvent = (channel: string, event: string, payload: any) =>
+  publisher.publish(channel, JSON.stringify({ event, payload }));
+
 export class BookingServices {
   async createBooking(data: Props) {
     const startTime = normalizeDate(String(data.startTime));
@@ -109,22 +112,22 @@ export class BookingServices {
 
         const totalInvoiceAmount = booking.totalPrice + totalOrderAmount;
 
-        const invoice = await tx.invoice.create({
-          data: {
+        const invoice = await invoiceRepository.create(
+          {
             bookingId: booking.id,
             invoiceNumber,
             amount: totalInvoiceAmount,
             paymentMethod: "DEDUCTION",
+            expiredAt: new Date(Date.now() + 5 * 60 * 1000),
           },
-        });
-
-        await tx.table.update({
-          where: { id: booking.tableId },
-          data: { status: "BOOKED" },
-        });
+          tx
+        );
 
         return { booking, orderItems, invoice };
       });
+      const fullInvoice = await invoiceRepository.findById(result.invoice.id);
+
+      await publishEvent("invoice-events", "invoice:created", fullInvoice);
 
       return success.success201("Booking created successfully", result);
     } catch (err) {
@@ -160,6 +163,15 @@ export class BookingServices {
           status: false,
           status_code: 400,
           message: "This booking is already paid",
+          data: null,
+        };
+      }
+
+      if (invoice.expiredAt && invoice.expiredAt < new Date()) {
+        return {
+          status: false,
+          status_code: 400,
+          message: "Invoice expired",
           data: null,
         };
       }
@@ -245,9 +257,6 @@ export class BookingServices {
           table: updatedTable,
         };
       });
-
-      const publishEvent = (channel: string, event: string, payload: any) =>
-        publisher.publish(channel, JSON.stringify({ event, payload }));
 
       await publishEvent("booking-events", "booking:paid", result.transaction);
       await publishEvent("points-events", "point:updated", result.points);

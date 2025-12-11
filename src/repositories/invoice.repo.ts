@@ -78,11 +78,42 @@ export class InvoiceRepository {
           },
         },
       },
+      orderBy: { updatedAt: "desc" },
     });
   }
 
   async findById(id: string): Promise<Invoice | null> {
-    return prisma.invoice.findUnique({ where: { id } });
+    return prisma.invoice.findUnique({
+      where: { id },
+      include: {
+        booking: {
+          select: {
+            id: true,
+            startTime: true,
+            totalPrice: true,
+            review: {
+              select: { rating: true },
+            },
+            venue: {
+              select: { name: true },
+            },
+            table: {
+              select: {
+                image: true,
+                tableNumber: true,
+                floor: true,
+              },
+            },
+            orderItems: {
+              select: {
+                quantity: true,
+                menu: true,
+              },
+            },
+          },
+        },
+      },
+    });
   }
 
   async findByBookingId(bookingId: string): Promise<Invoice | null> {
@@ -132,6 +163,7 @@ export class InvoiceRepository {
       where: { bookingId },
       data: {
         status: InvoiceStatus.PAID,
+        expiredAt: null,
         paidAt: new Date(),
       },
     });
@@ -159,6 +191,29 @@ export class InvoiceRepository {
     return tx.invoice.update({
       where: { bookingId },
       data: { amount: { increment: totalIncrease } },
+    });
+  }
+
+  async findExpiredInvoices(now: Date, tx?: PrismaClient) {
+    const db = tx ?? prisma;
+
+    return db.invoice.findMany({
+      where: {
+        status: "PENDING",
+        expiredAt: { lt: now },
+      },
+      include: {
+        booking: true,
+      },
+    });
+  }
+
+  async markInvoiceExpired(invoiceId: string, tx?: PrismaClient) {
+    const db = tx ?? prisma;
+
+    return db.invoice.update({
+      where: { id: invoiceId },
+      data: { status: "EXPIRED" },
     });
   }
 }

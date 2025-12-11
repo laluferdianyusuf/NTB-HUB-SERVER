@@ -115,4 +115,20 @@ export class TransactionRepository {
       data,
     });
   }
+
+  async findExpiredPendingTransactions(now: Date) {
+    return await prisma.transaction.findMany({
+      where: {
+        status: "PENDING",
+        expiredAt: { lt: now },
+      },
+    });
+  }
+
+  async markTransactionExpired(id: string) {
+    return await prisma.transaction.update({
+      where: { id },
+      data: { status: "EXPIRED" },
+    });
+  }
 }

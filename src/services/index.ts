@@ -17,4 +17,4 @@ export * from "./log.services";
 export * from "./transaction.services";
 export * from "./owner.services";
 export * from "./device.services";
-export * from "./Operational.services";
+export * from "./operational.services";
