@@ -5,7 +5,10 @@ const prisma = new PrismaClient();
 export class FloorRepository {
   // find all floor at venue
   async findFloorByVenueId(venueId: string): Promise<Floor[]> {
-    return prisma.floor.findMany({ where: { venueId } });
+    return prisma.floor.findMany({
+      where: { venueId },
+      orderBy: { level: "asc" },
+    });
   }
 
   // find detail of floor
