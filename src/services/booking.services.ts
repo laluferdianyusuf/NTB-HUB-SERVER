@@ -56,8 +56,6 @@ export class BookingServices {
       const table = await tableRepository.findTablesById(data.tableId);
 
       if (!table) return error.error404("Table not found");
-      if (table.status === "BOOKED")
-        return error.error400("This table is booked");
       if (table.status === "MAINTENANCE")
         return error.error400("This table is under maintenance");
 
@@ -241,12 +239,6 @@ export class BookingServices {
           } as Notification
         );
 
-        const updatedTable = await tableRepository.updateTableStatus(
-          booking.tableId,
-          TableStatus.BOOKED,
-          tx
-        );
-
         return {
           booking: processedBooking,
           transaction,
@@ -254,7 +246,6 @@ export class BookingServices {
           balance: updatedBalance,
           invoice: updatedInvoice,
           notification,
-          table: updatedTable,
         };
       });
 
@@ -265,14 +256,8 @@ export class BookingServices {
         "notification:send",
         result.notification
       );
-      await publishEvent("tables-events", "tables:updated", result.table);
 
-      return {
-        status: true,
-        status_code: 200,
-        message: "Booking payment processed successfully",
-        data: result,
-      };
+      return success.success200("Booking payment processed", result);
     } catch (error) {
       console.error("updateBookingPayment error:", error);
       return {

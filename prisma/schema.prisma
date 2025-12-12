@@ -183,6 +183,7 @@ model Table {
     venueId     String
     status      TableStatus @default(AVAILABLE)
     image       String?
+    price       Float  @default(0)
      bookingAt   DateTime?
     createdAt   DateTime    @default(now())
     updatedAt   DateTime    @default(now()) @updatedAt

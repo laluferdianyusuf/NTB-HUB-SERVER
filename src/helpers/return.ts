@@ -36,4 +36,12 @@ export const success = {
       data: data,
     };
   },
+  success200(message: string, data: any) {
+    return {
+      status: true,
+      status_code: 200,
+      message: message,
+      data: data,
+    };
+  },
 };

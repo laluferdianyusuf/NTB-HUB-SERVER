@@ -1,11 +1,17 @@
-import { Prisma, PrismaClient, Table, TableStatus } from "@prisma/client";
+import {
+  BookingStatus,
+  Prisma,
+  PrismaClient,
+  Table,
+  TableStatus,
+} from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 export class TableRepository {
   // find all tables at floor
-  async findTablesByFloor(floorId: string): Promise<Table[]> {
-    return prisma.table.findMany({ where: { floorId } });
+  async findTablesByFloor(floorId: string, venueId: string): Promise<Table[]> {
+    return prisma.table.findMany({ where: { floorId, venueId } });
   }
 
   // find detail tables
@@ -36,5 +42,60 @@ export class TableRepository {
   // delete table
   async deleteTable(id: string): Promise<Table> {
     return prisma.table.delete({ where: { id: id } });
+  }
+
+  async isTableBookedNow(tableId: string, now = new Date()) {
+    const active = await prisma.booking.findFirst({
+      where: {
+        tableId,
+        status: BookingStatus.PAID,
+        startTime: { lte: now },
+        endTime: { gt: now },
+      },
+      select: { id: true },
+    });
+
+    return !!active;
+  }
+
+  async getTableStatus(tableId: string, now = new Date()) {
+    const table = await prisma.table.findUnique({
+      where: { id: tableId },
+      select: { status: true },
+    });
+
+    if (!table) throw new Error("Table not found");
+
+    if (table.status === TableStatus.MAINTENANCE)
+      return TableStatus.MAINTENANCE;
+
+    const booked = await this.isTableBookedNow(tableId, now);
+    return booked ? "BOOKED" : "AVAILABLE";
+  }
+
+  async findAvailableTables(venueId: string, startTime: Date, endTime: Date) {
+    const tables = await prisma.table.findMany({
+      where: {
+        venueId,
+        status: { not: "MAINTENANCE" },
+      },
+    });
+
+    const availableTables: any[] = [];
+
+    for (const table of tables) {
+      const overlapping = await prisma.booking.findFirst({
+        where: {
+          tableId: table.id,
+          status: { in: ["PAID", "PENDING"] },
+          startTime: { lt: endTime },
+          endTime: { gt: startTime },
+        },
+      });
+
+      if (!overlapping) availableTables.push(table);
+    }
+
+    return availableTables;
   }
 }

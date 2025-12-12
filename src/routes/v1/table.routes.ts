@@ -13,7 +13,7 @@ router.post(
   upload.single("image"),
   (req, res) => tableController.createTable(req, res)
 );
-router.get("/table/floors/:floorId", (req, res) =>
+router.get("/table/floors/:floorId/venue/:venueId", (req, res) =>
   tableController.getTableByFloorId(req, res)
 );
 router.get("/table/:id", (req, res) => tableController.getTableById(req, res));
@@ -25,6 +25,12 @@ router.put(
 );
 router.delete("/table/delete/:id", auth.venueAuth.bind(auth), (req, res) =>
   tableController.deleteTable(req, res)
+);
+router.get("/table/:id/status", (req, res) =>
+  tableController.getTableStatus(req, res)
+);
+router.get("/table/available", (req, res) =>
+  tableController.getAvailableTables(req, res)
 );
 
 export default router;

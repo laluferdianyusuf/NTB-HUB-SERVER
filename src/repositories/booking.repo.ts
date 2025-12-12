@@ -39,11 +39,6 @@ export class BookingRepository {
           where: { id: booking.id },
           data: { status: BookingStatus.COMPLETED },
         });
-
-        await tx.table.update({
-          where: { id: booking.tableId },
-          data: { status: TableStatus.AVAILABLE },
-        });
       }
     });
 
@@ -63,8 +58,8 @@ export class BookingRepository {
       where: {
         tableId,
         status: { in: [BookingStatus.PENDING, BookingStatus.PAID] },
-        startTime: { lte: endTime },
-        endTime: { gte: startTime },
+        startTime: { lt: endTime },
+        endTime: { gt: startTime },
       },
     });
   }

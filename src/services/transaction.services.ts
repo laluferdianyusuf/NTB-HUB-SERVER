@@ -34,6 +34,8 @@ export class TransactionServices {
         transactionData as Transaction
       );
 
+      const expiredAt = new Date(Date.now() + 5 * 60 * 1000);
+
       const parameter = {
         payment_type: "bank_transfer",
         transaction_details: {
@@ -71,7 +73,7 @@ export class TransactionServices {
 
       await transactionRepository.updateTransaction(transaction.id, {
         vaNumber: va_number,
-        expiredAt: new Date(charge.expired_time),
+        expiredAt: expiredAt,
       });
 
       return {
@@ -84,6 +86,7 @@ export class TransactionServices {
           vaNumber: va_number,
           status: transaction.status,
           bank: data.bankCode,
+          expiredAt: expiredAt,
         },
       };
     } catch (error: any) {
@@ -160,7 +163,7 @@ export class TransactionServices {
 
       await transactionRepository.updateTransaction(transaction.id, {
         qrisUrl: qrUrl,
-        expiredAt: new Date(charge.expired_time),
+        expiredAt: charge.expired_time,
       });
 
       return {
