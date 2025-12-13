@@ -112,4 +112,24 @@ export class BookingControllers {
       });
     }
   }
+
+  async getExistingBooking(req: Request, res: Response) {
+    try {
+      const { tableId, startTime, endTime } = req.query;
+      const result = await this.bookingService.getExistingBooking(
+        String(tableId),
+        new Date(String(startTime)),
+        new Date(String(endTime))
+      );
+
+      res.status(result.status_code).json(result);
+    } catch (error: any) {
+      res.status(500).json({
+        status: false,
+        status_code: 500,
+        message: error.message || "Internal Server Error",
+        data: null,
+      });
+    }
+  }
 }

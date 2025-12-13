@@ -29,7 +29,7 @@ router.delete("/table/delete/:id", auth.venueAuth.bind(auth), (req, res) =>
 router.get("/table/:id/status", (req, res) =>
   tableController.getTableStatus(req, res)
 );
-router.get("/table/available", (req, res) =>
+router.get("/available/tables", (req, res) =>
   tableController.getAvailableTables(req, res)
 );
 

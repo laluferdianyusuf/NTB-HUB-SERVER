@@ -116,10 +116,11 @@ export class TableControllers {
 
   async getAvailableTables(req: Request, res: Response) {
     try {
-      const { venueId, date, start, end } = req.query;
+      const { venueId, floorId, date, start, end } = req.query;
 
       const result = await this.tableService.findAvailableTables(
         String(venueId),
+        String(floorId),
         String(date),
         String(start),
         String(end)

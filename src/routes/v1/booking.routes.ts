@@ -27,5 +27,8 @@ router.put("/booking/:id/cancel", auth.authenticate.bind(auth), (req, res) =>
 router.put("/booking/:id/complete", auth.authenticate.bind(auth), (req, res) =>
   bookingController.completeBooking(req, res)
 );
+router.get("/existing/bookings", (req, res) =>
+  bookingController.getExistingBooking(req, res)
+);
 
 export default router;

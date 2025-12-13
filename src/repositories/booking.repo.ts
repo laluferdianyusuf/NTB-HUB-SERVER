@@ -53,8 +53,8 @@ export class BookingRepository {
     tableId: string,
     startTime: Date,
     endTime: Date
-  ): Promise<Booking> {
-    return await prisma.booking.findFirst({
+  ): Promise<Booking[]> {
+    return await prisma.booking.findMany({
       where: {
         tableId,
         status: { in: [BookingStatus.PENDING, BookingStatus.PAID] },

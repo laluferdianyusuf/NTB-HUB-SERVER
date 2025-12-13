@@ -19,7 +19,7 @@ import {
 } from "../repositories";
 import { publisher } from "config/redis.config";
 import { error, success } from "helpers/return";
-import { normalizeDate } from "helpers/formatIsoDate";
+import { normalizeDate, toLocalDBTime } from "helpers/formatIsoDate";
 const bookingRepository = new BookingRepository();
 const userBalanceRepository = new UserBalanceRepository();
 const tableRepository = new TableRepository();
@@ -51,6 +51,7 @@ export class BookingServices {
       .randomUUID()
       .slice(0, 8)
       .toUpperCase()}`;
+    console.log(data);
 
     try {
       const table = await tableRepository.findTablesById(data.tableId);
@@ -64,7 +65,8 @@ export class BookingServices {
         startTime,
         endTime
       );
-      if (overlapping) return error.error400("Booking exist");
+
+      if (overlapping.length > 0) return error.error400("Booking exist");
 
       const result = await prisma.$transaction(async (tx) => {
         const booking = await bookingRepository.createBooking(
@@ -426,6 +428,23 @@ export class BookingServices {
         message: "Internal server error",
         data: null,
       };
+    }
+  }
+
+  async getExistingBooking(tableId: string, startTime: Date, endTime: Date) {
+    const startTimeDB = toLocalDBTime(new Date(startTime));
+    const endTimeDB = toLocalDBTime(new Date(endTime));
+
+    try {
+      const existing = await bookingRepository.existingBooking(
+        tableId,
+        startTimeDB,
+        endTimeDB
+      );
+
+      return success.success200("Booking fetch successfully", existing);
+    } catch (err) {
+      return error.error500("Internal server error" + err);
     }
   }
 }

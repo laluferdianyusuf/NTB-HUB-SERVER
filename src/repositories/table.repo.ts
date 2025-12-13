@@ -11,7 +11,12 @@ const prisma = new PrismaClient();
 export class TableRepository {
   // find all tables at floor
   async findTablesByFloor(floorId: string, venueId: string): Promise<Table[]> {
-    return prisma.table.findMany({ where: { floorId, venueId } });
+    return prisma.table.findMany({
+      where: { floorId, venueId },
+      include: {
+        bookings: true,
+      },
+    });
   }
 
   // find detail tables
@@ -73,29 +78,27 @@ export class TableRepository {
     return booked ? "BOOKED" : "AVAILABLE";
   }
 
-  async findAvailableTables(venueId: string, startTime: Date, endTime: Date) {
-    const tables = await prisma.table.findMany({
+  async findAvailableTables(
+    venueId: string,
+    floorId: string,
+    startTime: Date,
+    endTime: Date
+  ) {
+    return prisma.table.findMany({
       where: {
         venueId,
+        floorId,
         status: { not: "MAINTENANCE" },
       },
-    });
-
-    const availableTables: any[] = [];
-
-    for (const table of tables) {
-      const overlapping = await prisma.booking.findFirst({
-        where: {
-          tableId: table.id,
-          status: { in: ["PAID", "PENDING"] },
-          startTime: { lt: endTime },
-          endTime: { gt: startTime },
+      include: {
+        bookings: {
+          where: {
+            status: { in: ["PAID", "PENDING"] },
+            startTime: { lt: endTime },
+            endTime: { gt: startTime },
+          },
         },
-      });
-
-      if (!overlapping) availableTables.push(table);
-    }
-
-    return availableTables;
+      },
+    });
   }
 }

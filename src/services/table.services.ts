@@ -3,6 +3,7 @@ import { TableRepository } from "./../repositories/table.repo";
 import { uploadToCloudinary } from "utils/image";
 import { error, success } from "helpers/return";
 import { VenueRepository } from "repositories";
+import { parseLocalToUTC, toLocalDBTime } from "helpers/formatIsoDate";
 
 const tableRepository = new TableRepository();
 const venueRepository = new VenueRepository();
@@ -20,19 +21,10 @@ export class TableServices {
         { ...data, tableNumber: Number(data.tableNumber), image: imageUrl },
         floorId
       );
-      return {
-        status: true,
-        status_code: 201,
-        message: "Table created successfully",
-        data: createdTable,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
+
+      return success.success201("Table created successful", createdTable);
+    } catch (err) {
+      return error.error500("Internal server error: " + err);
     }
   }
 
@@ -40,19 +32,9 @@ export class TableServices {
     try {
       const tables = await tableRepository.findTablesByFloor(floorId, venueId);
 
-      return {
-        status: true,
-        status_code: 200,
-        message: "tables retrieved",
-        data: tables,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
+      return success.success200("Tables retrieved", tables);
+    } catch (err) {
+      return error.error500("Internal server error: " + err);
     }
   }
 
@@ -61,27 +43,12 @@ export class TableServices {
       const existing = await tableRepository.findTablesById(id);
 
       if (!existing) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "Floor not found",
-          data: null,
-        };
+        return error.error404("Table not found");
       }
 
-      return {
-        status: true,
-        status_code: 200,
-        message: "Floor founded",
-        data: existing,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
+      return success.success200("Table retrieved", existing);
+    } catch (err) {
+      return error.error500("Internal server error: " + err);
     }
   }
 
@@ -96,12 +63,7 @@ export class TableServices {
       const existing = await tableRepository.findTablesById(id);
 
       if (!existing) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "Table not found",
-          data: null,
-        };
+        return error.error404("Table not found");
       }
 
       if (imageUrl) {
@@ -113,19 +75,9 @@ export class TableServices {
         image: imageUrl,
       });
 
-      return {
-        status: true,
-        status_code: 200,
-        message: "Table updated",
-        data: updated,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
+      return success.success200("Tables updated", updated);
+    } catch (err) {
+      return error.error500("Internal server error: " + err);
     }
   }
 
@@ -134,29 +86,14 @@ export class TableServices {
       const existing = await tableRepository.findTablesById(id);
 
       if (!existing) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "Table not found",
-          data: null,
-        };
+        return error.error404("Table not found");
       }
 
       const deleted = await tableRepository.deleteTable(id);
 
-      return {
-        status: true,
-        status_code: 200,
-        message: "Table deleted",
-        data: deleted,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
+      return success.success200("Tables deleted", deleted);
+    } catch (err) {
+      return error.error500("Internal server error: " + err);
     }
   }
 
@@ -176,6 +113,7 @@ export class TableServices {
 
   async findAvailableTables(
     venueId: string,
+    floorId: string,
     date: string,
     start: string,
     end: string
@@ -185,22 +123,32 @@ export class TableServices {
         return error.error400("Missing required query parameters");
       }
 
-      const startTime = new Date(`${date}T${start}`);
-      const endTime = new Date(`${date}T${end}`);
+      const userStartLocal = new Date(`${date}T${start}:00`);
+      const userEndLocal = new Date(`${date}T${end}:00`);
 
-      if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
-        return error.error400("Invalid date or time format");
-      }
-
-      const result = await tableRepository.findAvailableTables(
-        venueId,
-        startTime,
-        endTime
+      const userStartUTC = new Date(
+        userStartLocal.getTime() - userStartLocal.getTimezoneOffset() * 60000
       );
+      const userEndUTC = new Date(
+        userEndLocal.getTime() - userEndLocal.getTimezoneOffset() * 60000
+      );
+
+      const tables = await tableRepository.findTablesByFloor(floorId, venueId);
+
+      const result = tables.map((table) => {
+        const isBooked = table.bookings?.some((b: any) => {
+          const bookingStart = new Date(b.startTime);
+          const bookingEnd = new Date(b.endTime);
+
+          return userStartUTC < bookingEnd && userEndUTC > bookingStart;
+        });
+
+        return { ...table, isBooked: !!isBooked };
+      });
 
       return success.success200("Tables available", result);
     } catch (err) {
-      return error.error500("Internal server error" + err);
+      return error.error500("Internal server error: " + err);
     }
   }
 }
