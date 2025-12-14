@@ -61,20 +61,20 @@ enum InvoiceStatus {
 }
 
 model User {
-    id        String   @id @default(uuid())
-    name      String
-    username  String?
-    email     String   @unique
-    password  String
-    address  String?
-    role      Role     @default(CUSTOMER)
-    phone     String?
-    photo     String?
-    googleId  String?  @unique
-    isVerified  Boolean @default(false)
-    devices   Device[]
-    createdAt DateTime @default(now())
-    updatedAt DateTime @default(now()) @updatedAt
+    id         String   @id @default(uuid())
+    name       String
+    username   String?
+    email      String   @unique
+    password   String
+    address    String?
+    role       Role     @default(CUSTOMER)
+    phone      String?
+    photo      String?
+    googleId   String?  @unique
+    isVerified Boolean  @default(false)
+    devices    Device[]
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @default(now()) @updatedAt
 
     // Relations
     bookings      Booking[]
@@ -110,21 +110,21 @@ model Venue {
     updatedAt   DateTime   @default(now()) @updatedAt
 
     // Relations
-    floors       Floor[]
-    tables       Table[]
-    menus        Menu[]
-    bookings     Booking[]
+    floors           Floor[]
+    tables           Table[]
+    menus            Menu[]
+    bookings         Booking[]
     operationalHours OperationalHour[]
-    invitation   InvitationKey?
-    balance      VenueBalance?
-    transactions Transaction[]
-    owner        Owner?
+    invitation       InvitationKey?
+    balance          VenueBalance?
+    transactions     Transaction[]
+    owner            Owner?
 }
 
 model OperationalHour {
     id        String   @id @default(uuid())
     venueId   String
-    dayOfWeek Int      
+    dayOfWeek Int
     opensAt   DateTime
     closesAt  DateTime
 
@@ -183,8 +183,8 @@ model Table {
     venueId     String
     status      TableStatus @default(AVAILABLE)
     image       String?
-    price       Float  @default(0)
-     bookingAt   DateTime?
+    price       Float       @default(0)
+    bookingAt   DateTime?
     createdAt   DateTime    @default(now())
     updatedAt   DateTime    @default(now()) @updatedAt
 
@@ -294,14 +294,14 @@ model LocationTracking {
 model Notification {
     id        String   @id @default(uuid())
     userId    String
-    venueId   String?           
+    venueId   String?
     adminOnly Boolean? @default(false)
     title     String
     message   String
     type      String?
     image     String?
     isRead    Boolean  @default(false)
-    isGlobal    Boolean  @default(false)
+    isGlobal  Boolean  @default(false)
     createdAt DateTime @default(now())
     updatedAt DateTime @default(now()) @updatedAt
 
@@ -331,7 +331,7 @@ model Transaction {
     paymentCode String?
     bankCode    String?
     orderId     String?
-    expiredAt     DateTime?
+    expiredAt   DateTime?
     status      TransactionStatus? @default(PENDING)
     createdAt   DateTime           @default(now())
     updatedAt   DateTime           @default(now()) @updatedAt

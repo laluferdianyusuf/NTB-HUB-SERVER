@@ -20,12 +20,14 @@ import {
 import { publisher } from "config/redis.config";
 import { error, success } from "helpers/return";
 import { normalizeDate, toLocalDBTime } from "helpers/formatIsoDate";
+import { NotificationService } from "./notification.services";
 const bookingRepository = new BookingRepository();
 const userBalanceRepository = new UserBalanceRepository();
 const tableRepository = new TableRepository();
 const invoiceRepository = new InvoiceRepository();
 const transactionRepository = new TransactionRepository();
 const notificationRepository = new NotificationRepository();
+const notificationService = new NotificationService();
 const pointRepository = new PointsRepository();
 const prisma = new PrismaClient();
 
@@ -51,7 +53,6 @@ export class BookingServices {
       .randomUUID()
       .slice(0, 8)
       .toUpperCase()}`;
-    console.log(data);
 
     try {
       const table = await tableRepository.findTablesById(data.tableId);
@@ -127,11 +128,18 @@ export class BookingServices {
       });
       const fullInvoice = await invoiceRepository.findById(result.invoice.id);
 
+      await notificationService.sendToUser(
+        data.venueId,
+        data.userId,
+        "Booking Created",
+        `Your booking has been created with invoice ${fullInvoice.invoiceNumber}`,
+        null
+      );
+
       await publishEvent("invoice-events", "invoice:created", fullInvoice);
 
       return success.success201("Booking created successfully", result);
     } catch (err) {
-      console.log(err);
       return error.error500("Internal server error" + err);
     }
   }
@@ -140,40 +148,20 @@ export class BookingServices {
     try {
       const invoice = await invoiceRepository.findByBookingId(id);
       if (!invoice) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "Invoice not found",
-          data: null,
-        };
+        return error.error404("Invoice not found");
       }
 
       const booking = await bookingRepository.findBookingById(id);
       if (!booking) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "Booking not found",
-          data: null,
-        };
+        return error.error404("Book not found");
       }
 
       if (invoice.status === "PAID") {
-        return {
-          status: false,
-          status_code: 400,
-          message: "This booking is already paid",
-          data: null,
-        };
+        return error.error400("This book is already paid");
       }
 
       if (invoice.expiredAt && invoice.expiredAt < new Date()) {
-        return {
-          status: false,
-          status_code: 400,
-          message: "Invoice expired",
-          data: null,
-        };
+        return error.error400("Invoice expired");
       }
 
       const userBalance = await userBalanceRepository.getBalanceByUserId(
@@ -181,12 +169,7 @@ export class BookingServices {
       );
 
       if (!userBalance || userBalance < invoice.amount) {
-        return {
-          status: false,
-          status_code: 400,
-          message: "Insufficient balance",
-          data: null,
-        };
+        return error.error400("Insufficient balance");
       }
 
       const paymentId = `PAY-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
@@ -251,6 +234,14 @@ export class BookingServices {
         };
       });
 
+      await notificationService.sendToUser(
+        booking.venueId,
+        booking.userId,
+        result.notification.title,
+        result.notification.message,
+        null
+      );
+
       await publishEvent("booking-events", "booking:paid", result.transaction);
       await publishEvent("points-events", "point:updated", result.points);
       await publishEvent(
@@ -260,14 +251,8 @@ export class BookingServices {
       );
 
       return success.success200("Booking payment processed", result);
-    } catch (error) {
-      console.error("updateBookingPayment error:", error);
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
+    } catch (err) {
+      return error.error500("Internal server error" + err);
     }
   }
 
@@ -275,19 +260,9 @@ export class BookingServices {
     try {
       await bookingRepository.resetExpiredBookings();
       const booking = await bookingRepository.findAllBooking();
-      return {
-        status: true,
-        status_code: 200,
-        message: "Booking retrieved",
-        data: booking,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
+      return success.success200("Book retrieved", booking);
+    } catch (err) {
+      return error.error500("Internal server error" + err);
     }
   }
 
@@ -296,27 +271,12 @@ export class BookingServices {
       const booking = await bookingRepository.findBookingById(id);
 
       if (!booking) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "booking not found",
-          data: null,
-        };
+        return error.error404("Book not found");
       }
 
-      return {
-        status: true,
-        status_code: 200,
-        message: "Booking founded",
-        data: booking,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
+      return success.success200("Book retrieved", booking);
+    } catch (err) {
+      return error.error500;
     }
   }
 
