@@ -28,4 +28,12 @@ export class InvoiceController {
 
     res.status(result.status_code).json(result);
   }
+
+  async findAllInvoiceByVenueId(req: Request, res: Response) {
+    const venueId = req.venue?.id;
+
+    const result = await this.invoiceService.findAllInvoiceByVenueId(venueId);
+
+    res.status(result.status_code).json(result);
+  }
 }

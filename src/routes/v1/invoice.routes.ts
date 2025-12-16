@@ -15,5 +15,8 @@ router.get("/invoice/:bookingId", auth.authenticate.bind(auth), (req, res) =>
 router.get("/user/invoices", auth.authenticate.bind(auth), (req, res) =>
   invoiceController.findAllInvoiceByUserId(req, res)
 );
+router.get("/venue/invoices", auth.venueAuth.bind(auth), (req, res) =>
+  invoiceController.findAllInvoiceByVenueId(req, res)
+);
 
 export default router;

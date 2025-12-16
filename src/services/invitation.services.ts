@@ -8,6 +8,7 @@ export class InvitationServices {
     try {
       const key = `INVITE-${randomUUID().slice(0, 8).toUpperCase()}`;
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
       const newKey = await invitationKeyRepository.generate(
         email,
         venueName,
@@ -17,28 +18,49 @@ export class InvitationServices {
 
       await sendEmail(
         email,
-        "Your Invitation Key",
+        "Undangan Pendaftaran Venue – NTB Hub Apps",
         `
-      <h2>You're invited!</h2>
-      <p>You have been invited to create a venue account.</p>
-      <p>Use this invitation key:</p>
-      <h3>${key}</h3>
-      <p>Open NTB Hub to active your venue</p>
-      <p>This key will expire in 24 hours.</p>
-    `
+        <p>Halo,</p>
+        <p>Anda diundang untuk mendaftarkan venue <b>${venueName}</b>.</p>
+
+        <a
+          href="https://dev.ntbhubapps.com/venue-invite?key=${key}"
+          style="
+            display:inline-block;
+            padding:12px 20px;
+            background:#2563eb;
+            color:#fff;
+            border-radius:6px;
+            text-decoration:none;
+            font-weight:600;
+          "
+        >
+          Buka Aplikasi
+        </a>
+
+        <p>Kode undangan: <b>${key}</b></p>
+        <p>Kode berlaku hingga ${expiresAt.toLocaleString("id-ID")}.</p>
+      `
       );
 
       return {
         status: true,
         status_code: 201,
         message: "Invitation key generated successfully",
-        data: newKey,
+        data: {
+          id: newKey.invitation.id,
+          email: email,
+          venueName: newKey.venue.name,
+          expiresAt: newKey.invitation.expiresAt,
+        },
       };
     } catch (error) {
       return {
         status: false,
         status_code: 500,
-        message: "Internal server error" + error.message,
+        message:
+          "Internal server error: " +
+          (error instanceof Error ? error.message : String(error)),
         data: null,
       };
     }
@@ -47,7 +69,7 @@ export class InvitationServices {
   async findAllInvitationKeys() {
     try {
       const invitationKeys = await invitationKeyRepository.findAll();
-      if (!invitationKeys && invitationKeys.length === 0) {
+      if (!invitationKeys || invitationKeys.length === 0) {
         return {
           status: false,
           status_code: 404,
@@ -65,7 +87,9 @@ export class InvitationServices {
       return {
         status: false,
         status_code: 500,
-        message: "Internal server error" + error.message,
+        message:
+          "Internal server error: " +
+          (error instanceof Error ? error.message : String(error)),
         data: null,
       };
     }

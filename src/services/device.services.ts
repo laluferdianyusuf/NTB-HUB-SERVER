@@ -1,33 +1,68 @@
-import { DeviceRepository, UserRepository } from "repositories";
+import { error, success } from "helpers/return";
+import {
+  DeviceRepository,
+  UserRepository,
+  VenueRepository,
+} from "repositories";
 
 export class DeviceService {
   private deviceRepo = new DeviceRepository();
   private userRepo = new UserRepository();
+  private venueRepo = new VenueRepository();
 
   async registerDevice(data: {
-    userId: string;
+    venueId?: string;
+    userId?: string;
     token: string;
     platform?: string;
     osName?: string;
     osVersion?: string;
     deviceModel?: string;
   }) {
-    const user = await this.userRepo.findById(data.userId);
-    if (!user) {
-      return {
-        status: false,
-        message: "User not found",
-        data: null,
-      };
+    console.log(data);
+
+    try {
+      if (data.userId) {
+        const user = await this.userRepo.findById(data.userId);
+        if (!user) {
+          return error.error404("User not found");
+        }
+
+        const device = await this.deviceRepo.registerDevice({
+          token: data.token,
+          userId: data.userId,
+          venueId: null,
+          platform: data.platform,
+          osName: data.osName,
+          osVersion: data.osVersion,
+          deviceModel: data.deviceModel,
+        } as any);
+
+        return success.success201("User device registered", device);
+      }
+
+      if (data.venueId) {
+        const venue = await this.venueRepo.findVenueById(data.venueId);
+
+        if (!venue) {
+          return error.error404("Venue not found");
+        }
+
+        const device = await this.deviceRepo.create({
+          token: data.token,
+          userId: null,
+          venueId: data.venueId,
+          platform: data.platform,
+          osName: data.osName,
+          osVersion: data.osVersion,
+          deviceModel: data.deviceModel,
+        } as any);
+
+        return success.success201("Venue device registered", device);
+      }
+    } catch (err) {
+      return error.error500("Internal server error" + err);
     }
-
-    const device = await this.deviceRepo.registerDevice(data as any);
-
-    return {
-      status: true,
-      message: "Device registered successfully",
-      data: device,
-    };
   }
 
   async getUserDevices(userId: string) {
@@ -37,14 +72,5 @@ export class DeviceService {
       message: "Device is founded",
       data: devices,
     };
-  }
-
-  async unregisterDevice(token: string) {
-    try {
-      await this.deviceRepo.deleteByToken(token);
-      return { status: true, message: "Device removed", data: null };
-    } catch (error) {
-      return { status: false, message: "Device not found", data: null };
-    }
   }
 }

@@ -10,8 +10,5 @@ router.post("/register", (req, res) =>
 router.get("/get/byUser/:userId", (req, res) =>
   deviceController.getUserDevices(req, res)
 );
-router.delete("/unregister/:userId", (req, res) =>
-  deviceController.unregister(req, res)
-);
 
 export default router;

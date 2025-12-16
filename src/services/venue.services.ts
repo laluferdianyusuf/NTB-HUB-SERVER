@@ -275,6 +275,7 @@ export class VenueServices {
         data: {
           accessToken,
           refreshToken,
+          venue,
         },
       };
     } catch (error) {
@@ -323,11 +324,20 @@ export class VenueServices {
         { expiresIn: "15m" }
       );
 
+      const newRefreshToken = jwt.sign(
+        { venueId: venue.id, name: venue.name, type: venue.type },
+        process.env.REFRESH_SECRET,
+        { expiresIn: "7d" }
+      );
+
       return {
         status: true,
         status_code: 200,
         message: "Access token refreshed successfully",
-        data: { accessToken: newAccessToken },
+        data: {
+          accessToken: newAccessToken,
+          refreshToken: newRefreshToken,
+        },
       };
     } catch (error: any) {
       if (error.name === "TokenExpiredError") {

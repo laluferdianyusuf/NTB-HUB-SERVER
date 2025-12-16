@@ -82,6 +82,54 @@ export class InvoiceRepository {
     });
   }
 
+  async findAllByVenueId(venueId: string): Promise<Invoice[]> {
+    return prisma.invoice.findMany({
+      where: {
+        booking: {
+          venueId,
+        },
+      },
+      include: {
+        booking: {
+          select: {
+            id: true,
+            startTime: true,
+            totalPrice: true,
+            user: {
+              select: {
+                name: true,
+              },
+            },
+            review: {
+              select: {
+                rating: true,
+              },
+            },
+            venue: {
+              select: {
+                name: true,
+              },
+            },
+            table: {
+              select: {
+                image: true,
+                floor: true,
+                tableNumber: true,
+              },
+            },
+            orderItems: {
+              select: {
+                quantity: true,
+                menu: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+  }
+
   async findById(id: string): Promise<Invoice | null> {
     return prisma.invoice.findUnique({
       where: { id },

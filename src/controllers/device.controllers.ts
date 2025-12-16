@@ -13,9 +13,4 @@ export class DeviceController {
     const result = await this.service.getUserDevices(req.params.userId);
     res.json(result);
   }
-
-  async unregister(req: Request, res: Response) {
-    const result = await this.service.unregisterDevice(req.params.token);
-    res.json(result);
-  }
 }

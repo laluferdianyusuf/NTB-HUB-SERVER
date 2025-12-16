@@ -1,6 +1,12 @@
-import { InvoiceRepository, UserRepository } from "repositories";
+import { error, success } from "helpers/return";
+import {
+  InvoiceRepository,
+  UserRepository,
+  VenueRepository,
+} from "repositories";
 const invoiceRepository = new InvoiceRepository();
 const userRepository = new UserRepository();
+const venueRepository = new VenueRepository();
 
 export class InvoiceServices {
   async findAllInvoice() {
@@ -95,6 +101,23 @@ export class InvoiceServices {
         message: "Internal server error",
         data: null,
       };
+    }
+  }
+  async findAllInvoiceByVenueId(venueId: string) {
+    try {
+      const venue = await venueRepository.findVenueById(venueId);
+
+      if (!venue) {
+        return error.error404("Venue not found");
+      }
+
+      const invoice = await invoiceRepository.findAllByVenueId(venueId);
+      if (!invoice) {
+        return error.error404("Invoice not found");
+      }
+      return success.success200("Invoice retrieved", invoice);
+    } catch (err) {
+      return error.error500("internal server error" + err);
     }
   }
 }
