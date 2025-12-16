@@ -94,4 +94,11 @@ export class NotificationRepository {
       orderBy: { createdAt: "desc" },
     });
   }
+
+  async findPersonalVenue(venueId: string) {
+    return prisma.notification.findMany({
+      where: { venueId },
+      orderBy: { createdAt: "desc" },
+    });
+  }
 }

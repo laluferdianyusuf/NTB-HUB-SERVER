@@ -30,4 +30,10 @@ export class DeviceRepository {
       where: { userId },
     });
   }
+
+  async deleteByToken(token: string) {
+    return prisma.device.deleteMany({
+      where: { token },
+    });
+  }
 }

@@ -4,6 +4,7 @@ import { NotificationRepository } from "../repositories/notification.repo";
 import { publisher } from "config/redis.config";
 import { uploadToCloudinary } from "utils/image";
 import { DeviceRepository } from "repositories";
+import { error, success } from "helpers/return";
 
 const notificationRepository = new NotificationRepository();
 
@@ -56,19 +57,26 @@ export class NotificationService {
 
     console.log(`FCM sent → ${response.successCount}/${tokens.length}`);
 
+    const invalidTokens: string[] = [];
+
     response.responses.forEach((res, i) => {
       if (!res.success) {
-        const error = res.error?.message || "";
+        const msg = res.error?.message || "";
         if (
-          error.includes("registration-token-not-registered") ||
-          error.includes("invalid-registration-token")
+          msg.includes("registration-token-not-registered") ||
+          msg.includes("invalid-registration-token")
         ) {
-          const invalid = tokens[i];
-          this.deviceRepo.deleteByToken(invalid);
-          console.log("Deleted invalid token:", invalid);
+          invalidTokens.push(tokens[i]);
         }
       }
     });
+
+    if (invalidTokens.length) {
+      await Promise.all(
+        invalidTokens.map((token) => this.deviceRepo.deleteByToken(token))
+      );
+      console.log("Deleted invalid tokens:", invalidTokens);
+    }
 
     return response;
   }
@@ -194,6 +202,22 @@ export class NotificationService {
         message: "Failed to get notification",
         data: null,
       };
+    }
+  }
+
+  async getNotificationByVenue(venueId: string) {
+    try {
+      const notification = await notificationRepository.findPersonalVenue(
+        venueId
+      );
+
+      if (!notification) {
+        return error.error404("Notification not found");
+      }
+
+      return success.success200("Notification retrieved", notification);
+    } catch (err) {
+      return error.error500("Internal server error" + err);
     }
   }
 }

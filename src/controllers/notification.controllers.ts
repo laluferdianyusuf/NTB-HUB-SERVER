@@ -83,4 +83,23 @@ export class NotificationController {
       });
     }
   }
+
+  async getNotificationByVenue(req: Request, res: Response) {
+    try {
+      const venueId = req.venue?.id;
+
+      const result = await this.notificationService.getNotificationByVenue(
+        venueId
+      );
+
+      res.status(200).json(result);
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({
+        status: false,
+        message: "Internal server error",
+        data: null,
+      });
+    }
+  }
 }

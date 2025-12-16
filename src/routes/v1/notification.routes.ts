@@ -17,6 +17,9 @@ router.get("/notification", auth.authenticate, (req, res) =>
 router.get("/notification/grouped", auth.authenticate, (req, res) =>
   notificationController.getGroupedNotifications(req, res)
 );
+router.get("/notification/venue", auth.venueAuth.bind(auth), (req, res) =>
+  notificationController.getNotificationByVenue(req, res)
+);
 router.put("/notification/read", auth.authenticate, (req, res) =>
   notificationController.markAllAsRead(req, res)
 );
