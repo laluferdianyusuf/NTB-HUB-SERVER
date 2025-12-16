@@ -26,6 +26,13 @@ export class TransactionRepository {
     });
   }
 
+  async findByVenueId(venueId: string): Promise<Transaction[] | null> {
+    return prisma.transaction.findMany({
+      where: { venueId: venueId },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
   async findByOrderId(orderId: string): Promise<Transaction> {
     return prisma.transaction.findFirst({ where: { orderId } });
   }

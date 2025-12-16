@@ -60,4 +60,13 @@ export class TransactionController {
     );
     return res.status(result.status_code).json(result);
   }
+
+  async findAllTransactionsByVenueId(req: Request, res: Response) {
+    const venueId = req.venue?.id;
+
+    const result = await this.transactionServices.findAllTransactionsByVenueId(
+      venueId
+    );
+    return res.status(result.status_code).json(result);
+  }
 }

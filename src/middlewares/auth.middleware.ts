@@ -133,7 +133,7 @@ export class AuthMiddlewares {
       (req as any).venue = venue;
       next();
     } catch (error: any) {
-      console.error("Auth error:", error);
+      console.error("Venue Auth error:", error);
 
       const isExpired = error.name === "TokenExpiredError";
 

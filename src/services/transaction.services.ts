@@ -3,6 +3,7 @@ import { Transaction } from "@prisma/client";
 import { TransactionRepository, UserRepository } from "../repositories";
 import { midtrans } from "config/midtrans.config";
 import { publisher } from "config/redis.config";
+import { error, success } from "helpers/return";
 
 const transactionRepository = new TransactionRepository();
 const userRepository = new UserRepository();
@@ -415,7 +416,7 @@ export class TransactionServices {
     }
   }
 
-  async findAllTransactionsByUserId(id) {
+  async findAllTransactionsByUserId(id: string) {
     try {
       const transactions = await transactionRepository.findByUserId(id);
       return {
@@ -431,6 +432,19 @@ export class TransactionServices {
         message: "Internal server error" + error.message,
         data: null,
       };
+    }
+  }
+
+  async findAllTransactionsByVenueId(venueId: string) {
+    try {
+      const transactions = await transactionRepository.findByVenueId(venueId);
+
+      if (!transactions) {
+        return error.error404("Transactions not found");
+      }
+      return success.success200("Transaction retrieved", transactions);
+    } catch (err) {
+      return error.error500("Internal server error" + err);
     }
   }
 }

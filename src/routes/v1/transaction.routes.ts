@@ -34,5 +34,8 @@ router.get(
   auth.authenticate.bind(auth),
   (req, res) => transactionController.findAllTransactionsByUserId(req, res)
 );
+router.get("/transaction-venue", auth.venueAuth.bind(auth), (req, res) =>
+  transactionController.findAllTransactionsByVenueId(req, res)
+);
 
 export default router;

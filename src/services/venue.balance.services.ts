@@ -5,6 +5,7 @@ export class VenueBalanceServices {
   async getVenueBalance(venueId: string) {
     try {
       const balance = await venueBalanceRepository.getBalanceByUserId(venueId);
+
       return {
         status: true,
         status_code: 200,

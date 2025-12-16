@@ -19,8 +19,6 @@ export class DeviceService {
     osVersion?: string;
     deviceModel?: string;
   }) {
-    console.log(data);
-
     try {
       if (data.userId) {
         const user = await this.userRepo.findById(data.userId);
