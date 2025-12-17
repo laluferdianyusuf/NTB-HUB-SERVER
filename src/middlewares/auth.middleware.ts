@@ -29,7 +29,10 @@ export class AuthMiddlewares {
       });
     }
     try {
-      const decoded = jwt.verify(token, process.env.ACCESS_SECRET as string);
+      const decoded = jwt.verify(
+        token,
+        process.env.ACCESS_SECRET as string
+      ) as any;
 
       const user = await userRepository.findById(decoded.id);
 
@@ -80,7 +83,7 @@ export class AuthMiddlewares {
     }
 
     const token = header.split(" ")[1];
-    const decoded = jwt.decode(token);
+    const decoded = jwt.decode(token) as any;
 
     if (!decoded?.exp || !decoded?.id) {
       return res.status(400).json({ message: "Invalid token" });
@@ -118,7 +121,10 @@ export class AuthMiddlewares {
     }
 
     try {
-      const decode = jwt.verify(token, process.env.ACCESS_SECRET as string);
+      const decode = jwt.verify(
+        token,
+        process.env.ACCESS_SECRET as string
+      ) as any;
 
       const venue = await venueRepository.findVenueById(decode.venueId);
 
@@ -154,7 +160,7 @@ export class AuthMiddlewares {
     }
 
     const token = header.split(" ")[1];
-    const decoded = jwt.decode(token);
+    const decoded = jwt.decode(token) as any;
 
     if (!decoded?.exp || !decoded?.venueId) {
       return res.status(400).json({ message: "Invalid token" });

@@ -27,7 +27,7 @@ router.delete("/venue/delete/:id", (req, res) =>
 router.post("/venue/logout", auth.venueAuth.bind(auth), (req, res) =>
   auth.logoutVenue(req, res)
 );
-router.get("/venue/me", auth.venueAuth.bind(auth), (req, res) =>
+router.get("/me", auth.venueAuth.bind(auth), (req, res) =>
   venueController.currentVenue(req, res)
 );
 router.get("/venue/current/venue", auth.venueAuth.bind(auth), (req, res) =>
