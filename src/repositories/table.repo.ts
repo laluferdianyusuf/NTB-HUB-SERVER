@@ -16,6 +16,7 @@ export class TableRepository {
       include: {
         bookings: true,
       },
+      orderBy: { tableNumber: "asc" },
     });
   }
 
@@ -24,10 +25,15 @@ export class TableRepository {
     return prisma.table.findUnique({ where: { id } });
   }
 
+  // find detail tables
+  async findTablesByNumber(number: number): Promise<Table | null> {
+    return prisma.table.findFirst({ where: { tableNumber: number } });
+  }
+
   //   create new table at floor
-  async createNewTableByFloor(data: Table, floorId: string): Promise<Table> {
+  async createNewTableByFloor(data: Table): Promise<Table> {
     return prisma.table.create({
-      data: { ...data, floorId },
+      data: data,
     });
   }
 

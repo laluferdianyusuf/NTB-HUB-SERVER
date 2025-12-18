@@ -8,7 +8,7 @@ const auth = new AuthMiddlewares();
 const tableController = new TableControllers();
 
 router.post(
-  "/table/floors/:floorId",
+  "/table",
   auth.venueAuth.bind(auth),
   upload.single("image"),
   (req, res) => tableController.createTable(req, res)

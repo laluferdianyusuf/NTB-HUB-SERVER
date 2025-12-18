@@ -9,20 +9,33 @@ const tableRepository = new TableRepository();
 const venueRepository = new VenueRepository();
 
 export class TableServices {
-  async createTable(data: Table, floorId: string, file?: Express.Multer.File) {
-    try {
-      let imageUrl: string | null = null;
+  async createTable(data: Table, file?: Express.Multer.File) {
+    const payload = {
+      ...data,
+      tableNumber: Number(data.tableNumber),
+      price: Number(data.price),
+    };
 
-      if (file && file.path) {
+    try {
+      const table = await tableRepository.findTablesByNumber(
+        payload.tableNumber
+      );
+      if (table)
+        return error.error400(
+          `Table number ${table.tableNumber} has been added`
+        );
+
+      let imageUrl: string | null = null;
+      if (file?.path) {
         imageUrl = await uploadToCloudinary(file.path, "tables");
       }
 
-      const createdTable = await tableRepository.createNewTableByFloor(
-        { ...data, tableNumber: Number(data.tableNumber), image: imageUrl },
-        floorId
-      );
+      const createdTable = await tableRepository.createNewTableByFloor({
+        ...payload,
+        image: imageUrl,
+      });
 
-      return success.success201("Table created successful", createdTable);
+      return success.success201("Table created successfully", createdTable);
     } catch (err) {
       return error.error500("Internal server error: " + err);
     }

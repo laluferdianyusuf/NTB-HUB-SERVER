@@ -11,12 +11,7 @@ export class TableControllers {
   async createTable(req: Request, res: Response) {
     try {
       const data = req.body;
-      const floorId = req.params.floorId;
-      const result = await this.tableService.createTable(
-        data,
-        floorId,
-        req.file
-      );
+      const result = await this.tableService.createTable(data, req.file);
 
       res.status(result.status_code).json(result);
     } catch (error: any) {

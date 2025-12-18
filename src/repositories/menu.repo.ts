@@ -14,14 +14,10 @@ export class MenuRepository {
   }
 
   //   create new menu at venue
-  async createNewMenuByVenue(
-    data: Menu,
-    venueId: string,
-    tx?: Prisma.TransactionClient
-  ) {
+  async createNewMenuByVenue(data: Menu, tx?: Prisma.TransactionClient) {
     const db = tx ?? prisma;
     return await db.menu.create({
-      data: { ...data, venueId },
+      data: data,
     });
   }
 

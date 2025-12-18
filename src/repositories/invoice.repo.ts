@@ -9,6 +9,7 @@ export class InvoiceRepository {
           select: {
             id: true,
             startTime: true,
+            endTime: true,
             totalPrice: true,
             review: {
               select: {
@@ -51,6 +52,7 @@ export class InvoiceRepository {
           select: {
             id: true,
             startTime: true,
+            endTime: true,
             totalPrice: true,
             review: {
               select: {
@@ -94,6 +96,7 @@ export class InvoiceRepository {
           select: {
             id: true,
             startTime: true,
+            endTime: true,
             totalPrice: true,
             user: {
               select: {

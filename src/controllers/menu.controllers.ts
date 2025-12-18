@@ -11,8 +11,7 @@ export class MenuControllers {
   async createMenu(req: Request, res: Response) {
     try {
       const data = req.body;
-      const venueId = req.params.venueId;
-      const result = await this.menuService.createMenu(data, venueId, req.file);
+      const result = await this.menuService.createMenu(data, req.file);
 
       res.status(result.status_code).json(result);
     } catch (error: any) {
