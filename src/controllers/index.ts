@@ -17,3 +17,4 @@ export * from "./review.controllers";
 export * from "./invoice.controllers";
 export * from "./device.controllers";
 export * from "./operational.controllers";
+export * from "./withdraw.controllers";

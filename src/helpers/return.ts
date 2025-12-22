@@ -11,7 +11,7 @@ export const error = {
   error404(message: string) {
     return {
       status: false,
-      status_code: 400,
+      status_code: 404,
       message: message,
       data: null,
     };
@@ -20,7 +20,7 @@ export const error = {
   error500(message: string) {
     return {
       status: false,
-      status_code: 400,
+      status_code: 500,
       message: message,
       data: null,
     };

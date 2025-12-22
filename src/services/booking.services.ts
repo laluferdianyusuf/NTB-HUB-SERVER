@@ -16,13 +16,19 @@ import {
   TransactionRepository,
   NotificationRepository,
   PointsRepository,
+  VenueBalanceRepository,
 } from "../repositories";
 import { publisher } from "config/redis.config";
 import { error, success } from "helpers/return";
 import { normalizeDate, toLocalDBTime } from "helpers/formatIsoDate";
 import { NotificationService } from "./notification.services";
+import {
+  PLATFORM_BALANCE_ID,
+  PLATFORM_FEE_PERCENT,
+} from "config/finance.config";
 const bookingRepository = new BookingRepository();
 const userBalanceRepository = new UserBalanceRepository();
+const venueBalanceRepository = new VenueBalanceRepository();
 const tableRepository = new TableRepository();
 const invoiceRepository = new InvoiceRepository();
 const transactionRepository = new TransactionRepository();
@@ -168,11 +174,14 @@ export class BookingServices {
         booking.userId
       );
 
-      if (!userBalance || userBalance < invoice.amount) {
+      const paymentId = `PAY-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+
+      const platformFee = Number(PLATFORM_FEE_PERCENT);
+      const userAmount = invoice.amount + platformFee;
+
+      if (!userBalance || userBalance < userAmount) {
         return error.error400("Insufficient balance");
       }
-
-      const paymentId = `PAY-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
 
       const result = await prisma.$transaction(async (tx) => {
         const processedBooking = await bookingRepository.processBookingPayment(
@@ -203,9 +212,33 @@ export class BookingServices {
           tx
         );
 
-        const updatedBalance = await userBalanceRepository.decrementBalance(
+        await userBalanceRepository.decrementBalance(
           booking.userId,
-          invoice.amount,
+          userAmount,
+          tx
+        );
+
+        await venueBalanceRepository.incrementVenueBalance(
+          booking.venueId,
+          invoice.amount
+        );
+
+        await tx.platformBalance.update({
+          where: { id: PLATFORM_BALANCE_ID },
+          data: {
+            balance: { increment: platformFee },
+          },
+        });
+
+        await transactionRepository.create(
+          {
+            userId: booking.userId,
+            amount: platformFee,
+            type: TransactionType.DEDUCTION,
+            status: TransactionStatus.SUCCESS,
+            reference: booking.id,
+            orderId: `${paymentId}-FEE`,
+          },
           tx
         );
 
@@ -228,7 +261,6 @@ export class BookingServices {
           booking: processedBooking,
           transaction,
           points,
-          balance: updatedBalance,
           invoice: updatedInvoice,
           notification,
         };
@@ -276,7 +308,7 @@ export class BookingServices {
 
       return success.success200("Book retrieved", booking);
     } catch (err) {
-      return error.error500;
+      return error.error500("Internal server error" + err);
     }
   }
 

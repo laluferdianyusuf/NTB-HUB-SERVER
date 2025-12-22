@@ -14,11 +14,34 @@ export class BookingRepository {
   }
 
   async findBookingById(id: string): Promise<Booking | null> {
-    return await prisma.booking.findUnique({ where: { id } });
+    return await prisma.booking.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            name: true,
+            phone: true,
+            email: true,
+          },
+        },
+        table: {
+          select: {
+            tableNumber: true,
+            floor: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
   }
 
   async findBookingByUserId(userId: string): Promise<Booking[]> {
-    return await prisma.booking.findMany({ where: { userId } });
+    return await prisma.booking.findMany({
+      where: { userId },
+    });
   }
 
   async resetExpiredBookings() {

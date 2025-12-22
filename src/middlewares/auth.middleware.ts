@@ -170,7 +170,7 @@ export class AuthMiddlewares {
 
     await redis.setex(`blacklist:venue:${token}`, ttl, "true");
 
-    await redis.del(`venue:refresh:${decoded.id}`);
+    await redis.del(`venue:refresh:${decoded.venueId}`);
 
     return res.json({
       status: true,

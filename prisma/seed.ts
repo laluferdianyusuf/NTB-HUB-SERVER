@@ -50,6 +50,15 @@ async function main() {
       );
     }
   }
+
+  await prisma.platformBalance.upsert({
+    where: { id: "platform-balance" },
+    update: {},
+    create: {
+      id: "platform-balance",
+      balance: 0,
+    },
+  });
 }
 
 main()

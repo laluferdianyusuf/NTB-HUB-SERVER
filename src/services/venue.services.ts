@@ -294,7 +294,7 @@ export class VenueServices {
         return {
           status: false,
           status_code: 400,
-          message: "Missing refresh token",
+          message: "Missing venue refresh token",
         };
       }
 
@@ -328,6 +328,13 @@ export class VenueServices {
         { venueId: venue.id, name: venue.name, type: venue.type },
         process.env.REFRESH_SECRET,
         { expiresIn: "7d" }
+      );
+
+      await redis.set(
+        `venue:refresh:${venue.id}`,
+        newRefreshToken,
+        "EX",
+        7 * 24 * 60 * 60
       );
 
       return {

@@ -98,6 +98,7 @@ export class InvoiceRepository {
             startTime: true,
             endTime: true,
             totalPrice: true,
+
             user: {
               select: {
                 name: true,
@@ -176,6 +177,14 @@ export class InvoiceRepository {
             id: true,
             startTime: true,
             totalPrice: true,
+            user: {
+              select: {
+                name: true,
+                address: true,
+                email: true,
+                photo: true,
+              },
+            },
             venue: {
               select: {
                 name: true,

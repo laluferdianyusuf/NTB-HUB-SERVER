@@ -232,7 +232,7 @@ export class UserService {
         return {
           status: false,
           status_code: 400,
-          message: "Missing refresh token",
+          message: "Missing user refresh token",
           data: null,
         };
       }
