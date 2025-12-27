@@ -3,14 +3,18 @@ import {
   WithdrawStatus,
   TransactionStatus,
   TransactionType,
+  Notification,
 } from "@prisma/client";
 import { PLATFORM_BALANCE_ID } from "config/finance.config";
 import { error, success } from "helpers/return";
-import { WithdrawRepository } from "repositories";
+import { NotificationRepository, WithdrawRepository } from "repositories";
+import { NotificationService } from "./notification.services";
 
 export class WithdrawService {
   private prisma = new PrismaClient();
   private withdrawRepo = new WithdrawRepository(this.prisma);
+  private notificationServices = new NotificationService();
+  private notificationRepository = new NotificationRepository();
 
   // #region venue
   async requestWithdraw(
@@ -44,6 +48,28 @@ export class WithdrawService {
         note: payload.note,
       });
 
+      const admins = await this.prisma.user.findMany({
+        where: { role: "ADMIN" },
+      });
+
+      await Promise.all(
+        admins.map((admin) =>
+          this.notificationRepository.createNewNotification({
+            userId: admin.id,
+            title: "Withdraw Request",
+            message: `Venue requested for withdraw IDR ${payload.amount}`,
+            type: "Withdraw",
+            adminOnly: true,
+            isGlobal: false,
+          } as Notification)
+        )
+      );
+
+      await this.notificationServices.sendToAdmin(
+        "Withdraw Request",
+        `New withdraw request IDR ${payload.amount}`
+      );
+
       return success.success201("Withdraw request send to admin", result);
     } catch (err) {
       return error.error500("Internal server error" + err);
@@ -64,6 +90,21 @@ export class WithdrawService {
         "approvedAt"
       );
 
+      await this.notificationRepository.createNewNotification({
+        venueId: withdraw.venueId,
+        title: "Withdraw Approved",
+        message: `Your withdraw IDR ${withdraw.amount} has been approved`,
+        type: "Withdraw",
+        adminOnly: false,
+        isGlobal: false,
+      } as Notification);
+
+      await this.notificationServices.sendToVenue(
+        withdraw.venueId,
+        "Withdraw Approved",
+        `Your withdraw IDR ${withdraw.amount} has been approved`
+      );
+
       return success.success200("Withdraw Approved", result);
     } catch (err) {
       return error.error500("Internal server error" + err);
@@ -73,12 +114,11 @@ export class WithdrawService {
   // #region admin
   async markAsPaid(id: string) {
     try {
-      const withdraw = await this.withdrawRepo.findById(id);
-      if (!withdraw || withdraw.status !== WithdrawStatus.APPROVED) {
-        return error.error400("Withdraw not approved");
-      }
-
       const result = await this.prisma.$transaction(async (tx) => {
+        const withdraw = await this.withdrawRepo.findById(id);
+        if (!withdraw || withdraw.status !== WithdrawStatus.APPROVED) {
+          return error.error400("Withdraw not approved");
+        }
         await tx.venueBalance.update({
           where: { venueId: withdraw.venueId },
           data: {
@@ -142,6 +182,21 @@ export class WithdrawService {
       const result = await this.withdrawRepo.updateStatus(
         id,
         WithdrawStatus.REJECTED
+      );
+
+      await this.notificationRepository.createNewNotification({
+        venueId: withdraw.venueId,
+        title: "Withdraw Rejected",
+        message: `Your withdraw IDR ${withdraw.amount} has been rejected`,
+        type: "Withdraw",
+        adminOnly: false,
+        isGlobal: false,
+      } as Notification);
+
+      await this.notificationServices.sendToVenue(
+        withdraw.venueId,
+        "Withdraw Rejected",
+        `Your withdraw IDR ${withdraw.amount} has been rejected`
       );
 
       return success.success200("Withdraw Rejected", result);

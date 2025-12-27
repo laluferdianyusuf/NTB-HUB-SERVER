@@ -24,6 +24,7 @@ import { normalizeDate, toLocalDBTime } from "helpers/formatIsoDate";
 import { NotificationService } from "./notification.services";
 import {
   PLATFORM_BALANCE_ID,
+  PLATFORM_FEE_NUMBER,
   PLATFORM_FEE_PERCENT,
 } from "config/finance.config";
 const bookingRepository = new BookingRepository();
@@ -176,10 +177,14 @@ export class BookingServices {
 
       const paymentId = `PAY-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
 
-      const platformFee = Number(PLATFORM_FEE_PERCENT);
-      const userAmount = invoice.amount + platformFee;
+      const platformFee = Number(PLATFORM_FEE_NUMBER);
+      const venueAmount = invoice.amount - platformFee;
 
-      if (!userBalance || userBalance < userAmount) {
+      if (venueAmount < 0) {
+        return error.error400("Invoice amount must be greater than fee");
+      }
+
+      if (!userBalance || userBalance < invoice.amount) {
         return error.error400("Insufficient balance");
       }
 
@@ -214,13 +219,13 @@ export class BookingServices {
 
         await userBalanceRepository.decrementBalance(
           booking.userId,
-          userAmount,
+          invoice.amount,
           tx
         );
 
         await venueBalanceRepository.incrementVenueBalance(
           booking.venueId,
-          invoice.amount
+          venueAmount
         );
 
         await tx.platformBalance.update({
@@ -232,9 +237,9 @@ export class BookingServices {
 
         await transactionRepository.create(
           {
-            userId: booking.userId,
+            venueId: booking.venueId,
             amount: platformFee,
-            type: TransactionType.DEDUCTION,
+            type: TransactionType.FEE,
             status: TransactionStatus.SUCCESS,
             reference: booking.id,
             orderId: `${paymentId}-FEE`,

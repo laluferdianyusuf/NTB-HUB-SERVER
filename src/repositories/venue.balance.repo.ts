@@ -16,6 +16,13 @@ export class VenueBalanceRepository {
     });
   }
 
+  async decrementVenueBalance(venueId: string, amount: number): Promise<void> {
+    await prisma.venueBalance.update({
+      where: { venueId },
+      data: { balance: { decrement: amount } },
+    });
+  }
+
   async ensureInitialBalance(venueId: string): Promise<void> {
     await prisma.venueBalance.upsert({
       where: { venueId },

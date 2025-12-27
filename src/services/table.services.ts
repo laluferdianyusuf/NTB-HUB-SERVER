@@ -1,4 +1,4 @@
-import { Table } from "@prisma/client";
+import { Booking, Invoice, Table } from "@prisma/client";
 import { TableRepository } from "./../repositories/table.repo";
 import { uploadToCloudinary } from "utils/image";
 import { error, success } from "helpers/return";
@@ -146,10 +146,24 @@ export class TableServices {
         userEndLocal.getTime() - userEndLocal.getTimezoneOffset() * 60000
       );
 
+      const now = new Date();
+
       const tables = await tableRepository.findTablesByFloor(floorId, venueId);
 
-      const result = tables.map((table) => {
+      const result = tables.map((table: any) => {
         const isBooked = table.bookings?.some((b: any) => {
+          const invoice: Invoice = b.invoice;
+
+          if (!invoice) return false;
+
+          const isInvoiceValid =
+            invoice.status === "PAID" ||
+            (invoice.status === "PENDING" &&
+              invoice.expiredAt &&
+              new Date(invoice.expiredAt) > now);
+
+          if (!isInvoiceValid) return false;
+
           const bookingStart = new Date(b.startTime);
           const bookingEnd = new Date(b.endTime);
 

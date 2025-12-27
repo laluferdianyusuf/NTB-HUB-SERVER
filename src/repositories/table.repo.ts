@@ -14,7 +14,11 @@ export class TableRepository {
     return prisma.table.findMany({
       where: { floorId, venueId },
       include: {
-        bookings: true,
+        bookings: {
+          include: {
+            invoice: true,
+          },
+        },
       },
       orderBy: { tableNumber: "asc" },
     });
