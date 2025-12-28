@@ -88,4 +88,18 @@ export class MenuControllers {
       });
     }
   }
+  async getAllMenus(req: Request, res: Response) {
+    try {
+      const result = await this.menuService.getAllMenus();
+
+      res.status(result.status_code).json(result);
+    } catch (error: any) {
+      res.status(500).json({
+        status: false,
+        status_code: 500,
+        message: error.message || "Internal Server Error",
+        data: null,
+      });
+    }
+  }
 }

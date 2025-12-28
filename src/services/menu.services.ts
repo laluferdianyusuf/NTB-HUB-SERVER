@@ -8,6 +8,7 @@ import {
 import { publisher } from "config/redis.config";
 import { uploadToCloudinary } from "utils/image";
 import { NotificationService } from "./notification.services";
+import { error, success } from "helpers/return";
 const prisma = new PrismaClient();
 
 const menuRepository = new MenuRepository();
@@ -211,6 +212,20 @@ export class MenuServices {
         message: "Internal server error",
         data: null,
       };
+    }
+  }
+
+  async getAllMenus() {
+    try {
+      const menus = await menuRepository.findAllMenus();
+
+      if (menus.length < 1) {
+        return error.error404("Menus not found");
+      }
+
+      return success.success200("Menus retrieved", menus);
+    } catch (err) {
+      return error.error500("Internal server error" + err);
     }
   }
 }

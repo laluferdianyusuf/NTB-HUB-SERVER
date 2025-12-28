@@ -7,6 +7,9 @@ const router = Router();
 const auth = new AuthMiddlewares();
 const menuController = new MenuControllers();
 
+router.get("/all", auth.authenticate, (req, res) =>
+  menuController.getAllMenus(req, res)
+);
 router.post(
   "/menu/venues",
   auth.venueAuth.bind(auth),
