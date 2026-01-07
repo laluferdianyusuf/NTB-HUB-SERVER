@@ -103,9 +103,15 @@ export class TableRepository {
       include: {
         bookings: {
           where: {
-            status: { in: ["PAID", "PENDING"] },
+            status: "PAID",
+            invoice: {
+              status: "PAID",
+            },
             startTime: { lt: endTime },
             endTime: { gt: startTime },
+          },
+          include: {
+            invoice: true,
           },
         },
       },

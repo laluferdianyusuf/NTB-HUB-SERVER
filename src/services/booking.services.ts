@@ -194,18 +194,32 @@ export class BookingServices {
           tx
         );
 
-        const transaction = await transactionRepository.create(
-          {
-            userId: booking.userId,
-            venueId: booking.venueId,
-            amount: invoice.amount,
-            type: TransactionType.DEDUCTION,
-            status: TransactionStatus.SUCCESS,
-            reference: booking.id,
-            orderId: paymentId,
-          },
-          tx
-        );
+        await transactionRepository.create({
+          userId: booking.userId,
+          amount: invoice.amount,
+          type: TransactionType.DEDUCTION,
+          status: TransactionStatus.SUCCESS,
+          reference: booking.id,
+          orderId: paymentId,
+        });
+
+        await transactionRepository.create({
+          venueId: booking.venueId,
+          amount: venueAmount,
+          type: TransactionType.DEDUCTION,
+          status: TransactionStatus.SUCCESS,
+          reference: booking.id,
+          orderId: paymentId,
+        });
+
+        await transactionRepository.create({
+          venueId: booking.venueId,
+          amount: platformFee,
+          type: TransactionType.FEE,
+          status: TransactionStatus.SUCCESS,
+          reference: booking.id,
+          orderId: `${paymentId}-FEE`,
+        });
 
         const points = await pointRepository.generatePoints(
           {
@@ -235,18 +249,6 @@ export class BookingServices {
           },
         });
 
-        await transactionRepository.create(
-          {
-            venueId: booking.venueId,
-            amount: platformFee,
-            type: TransactionType.FEE,
-            status: TransactionStatus.SUCCESS,
-            reference: booking.id,
-            orderId: `${paymentId}-FEE`,
-          },
-          tx
-        );
-
         const updatedInvoice = await invoiceRepository.updateInvoicePaid(
           booking.id,
           tx
@@ -264,7 +266,6 @@ export class BookingServices {
 
         return {
           booking: processedBooking,
-          transaction,
           points,
           invoice: updatedInvoice,
           notification,
@@ -279,7 +280,6 @@ export class BookingServices {
         null
       );
 
-      await publishEvent("booking-events", "booking:paid", result.transaction);
       await publishEvent("points-events", "point:updated", result.points);
       await publishEvent(
         "notification-events",

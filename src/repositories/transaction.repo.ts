@@ -21,7 +21,7 @@ export class TransactionRepository {
 
   async findByUserId(id: string): Promise<Transaction[] | null> {
     return prisma.transaction.findMany({
-      where: { userId: id },
+      where: { userId: id, status: "SUCCESS" },
       orderBy: { createdAt: "desc" },
     });
   }

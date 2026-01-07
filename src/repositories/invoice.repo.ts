@@ -111,6 +111,7 @@ export class InvoiceRepository {
             },
             venue: {
               select: {
+                transactions: true,
                 name: true,
               },
             },

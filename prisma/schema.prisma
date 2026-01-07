@@ -117,6 +117,11 @@ model Venue {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @default(now()) @updatedAt
 
+  hasFloors   Boolean @default(false)
+  hasTables   Boolean @default(false)
+  hasMenu     Boolean @default(false)
+  hasDelivery Boolean @default(false)
+
   // Relations
   devices          Device[]
   floors           Floor[]
@@ -376,26 +381,25 @@ model PlatformBalance {
   updatedAt DateTime @default(now()) @updatedAt
 }
 
-
 model WithdrawRequest {
-  id            String         @id @default(uuid())
-  venueId       String
-  amount        Float
-  fee           Float          @default(0)
-  netAmount     Float
-  status        WithdrawStatus @default(PENDING)
+  id        String         @id @default(uuid())
+  venueId   String
+  amount    Float
+  fee       Float          @default(0)
+  netAmount Float
+  status    WithdrawStatus @default(PENDING)
 
-  bankCode      String
-  bankAccount   String
-  accountName   String
-  note          String?
+  bankCode    String
+  bankAccount String
+  accountName String
+  note        String?
 
-  requestedAt   DateTime       @default(now())
-  approvedAt    DateTime?
-  paidAt        DateTime?
+  requestedAt DateTime  @default(now())
+  approvedAt  DateTime?
+  paidAt      DateTime?
 
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @default(now()) @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   venue Venue @relation(fields: [venueId], references: [id])
 

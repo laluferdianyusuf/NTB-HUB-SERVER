@@ -21,27 +21,27 @@ export class TransactionServices {
         };
       }
 
+      const adminFee = 4440;
+      const grossAmount = data.amount + adminFee;
+
       const topUpId = `TOPUP-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
-      const transactionData: Partial<Transaction> = {
+      const expiredAt = new Date(Date.now() + 5 * 60 * 1000);
+
+      const transaction = await transactionRepository.create({
         userId: data.userId,
         amount: data.amount,
         type: "TOPUP",
         status: "PENDING",
         bankCode: data.bankCode.toUpperCase(),
         orderId: topUpId,
-        expiredAt: new Date(Date.now() + 5 * 60 * 60 * 1000),
-      };
-      const transaction = await transactionRepository.create(
-        transactionData as Transaction
-      );
-
-      const expiredAt = new Date(Date.now() + 5 * 60 * 1000);
+        expiredAt,
+      } as Transaction);
 
       const parameter = {
         payment_type: "bank_transfer",
         transaction_details: {
           order_id: topUpId,
-          gross_amount: transaction.amount,
+          gross_amount: grossAmount,
         },
         bank_transfer: {
           bank: data.bankCode.toLowerCase(),
@@ -57,9 +57,15 @@ export class TransactionServices {
         item_details: [
           {
             id: transaction.id,
-            price: transaction.amount,
-            quantity: 1,
             name: "Top Up Balance",
+            price: data.amount,
+            quantity: 1,
+          },
+          {
+            id: "FEE",
+            name: "Convenience Fee",
+            price: adminFee,
+            quantity: 1,
           },
         ],
       };
@@ -74,7 +80,7 @@ export class TransactionServices {
 
       await transactionRepository.updateTransaction(transaction.id, {
         vaNumber: va_number,
-        expiredAt: expiredAt,
+        expiredAt,
       });
 
       return {
@@ -83,11 +89,12 @@ export class TransactionServices {
         message: "VA generated successfully",
         data: {
           transactionId: transaction.id,
-          amount: transaction.amount,
+          amount: transaction.amount, // saldo masuk
+          grossAmount, // user bayar
           vaNumber: va_number,
           status: transaction.status,
           bank: data.bankCode,
-          expiredAt: expiredAt,
+          expiredAt,
         },
       };
     } catch (error: any) {
@@ -112,35 +119,30 @@ export class TransactionServices {
         };
       }
 
+      const fee = Math.ceil(data.amount * 0.007);
+      const grossAmount = data.amount + fee;
+
       const topUpId = `TOPUP-QRIS-${Date.now()}-${crypto
         .randomUUID()
         .slice(0, 8)}`;
 
-      const transactionData: Partial<Transaction> = {
+      const transaction = await transactionRepository.create({
         userId: data.userId,
         amount: data.amount,
         type: "TOPUP",
         status: "PENDING",
         bankCode: "QRIS",
         orderId: topUpId,
-      };
-
-      const transaction = await transactionRepository.create(
-        transactionData as Transaction
-      );
+      } as Transaction);
 
       const parameter = {
         payment_type: "qris",
         transaction_details: {
           order_id: topUpId,
-          gross_amount: transaction.amount,
+          gross_amount: grossAmount,
         },
         qris: {
           acquirer: "gopay",
-        },
-        custom_expiry: {
-          expiry_duration: 5,
-          unit: "minute",
         },
         customer_details: {
           first_name: user.name,
@@ -149,9 +151,15 @@ export class TransactionServices {
         item_details: [
           {
             id: transaction.id,
-            price: transaction.amount,
+            price: data.amount,
             quantity: 1,
             name: "Top Up via QRIS",
+          },
+          {
+            id: "FEE",
+            price: fee,
+            quantity: 1,
+            name: "QRIS Fee 0.7%",
           },
         ],
       };
@@ -173,7 +181,8 @@ export class TransactionServices {
         message: "QRIS generated successfully",
         data: {
           transactionId: transaction.id,
-          amount: transaction.amount,
+          amount: transaction.amount, // saldo masuk
+          grossAmount, // user bayar
           qrisUrl: qrUrl,
           status: transaction.status,
           bank: "QRIS",
