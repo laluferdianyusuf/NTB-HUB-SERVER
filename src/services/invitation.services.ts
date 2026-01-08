@@ -24,7 +24,7 @@ export class InvitationServices {
         <p>Anda diundang untuk mendaftarkan venue <b>${venueName}</b>.</p>
 
         <a
-          href="https://dev.ntbhubapps.com/venue-invite?key=${key}"
+          href="com.laluferdian.ntbhubapps://venue?key=${key}"
           style="
             display:inline-block;
             padding:12px 20px;

@@ -1,9 +1,10 @@
-import { Venue } from "@prisma/client";
+import { Prisma, PrismaClient, Venue } from "@prisma/client";
 import {
   VenueRepository,
   InvitationKeyRepository,
   VenueBalanceRepository,
   OwnerRepository,
+  OperationalRepository,
 } from "../repositories";
 import { randomUUID } from "crypto";
 import jwt from "jsonwebtoken";
@@ -11,12 +12,27 @@ import { sendEmail } from "utils/mail";
 import Redis from "ioredis";
 import { uploadToCloudinary } from "utils/image";
 import { publisher } from "config/redis.config";
+import { toBool, toNum } from "helpers/parser";
+
+const prisma = new PrismaClient();
 const redis = new Redis();
 
 const venueRepository = new VenueRepository();
 const invitationRepository = new InvitationKeyRepository();
 const venueBalanceRepository = new VenueBalanceRepository();
 const ownerRepository = new OwnerRepository();
+const operationalRepository = new OperationalRepository();
+
+type OperationalHourInput = {
+  dayOfWeek: number;
+  opensAt: string; // "09:00"
+  closesAt: string; // "22:00"
+  isOpen: boolean;
+};
+
+type UpdateVenueInput = Partial<Venue> & {
+  operationalHours?: OperationalHourInput[];
+};
 
 export class VenueServices {
   async getVenues() {
@@ -69,18 +85,18 @@ export class VenueServices {
 
   async updateVenue(
     id: string,
-    data: Partial<Venue>,
+    data: UpdateVenueInput,
     files?: { image?: Express.Multer.File[]; gallery?: Express.Multer.File[] }
   ) {
     try {
       let imageUrl: string | undefined;
       let galleryUrls: string[] | undefined;
 
-      if (files?.image && files.image.length > 0) {
+      if (files?.image?.length) {
         imageUrl = await uploadToCloudinary(files.image[0].path, "venues");
       }
 
-      if (files?.gallery && files.gallery.length > 0) {
+      if (files?.gallery?.length) {
         galleryUrls = await Promise.all(
           files.gallery.map((file) => uploadToCloudinary(file.path, "venues"))
         );
@@ -96,16 +112,76 @@ export class VenueServices {
         };
       }
 
+      const updatedVenue = await venueRepository.updateVenue(id, {
+        name: data.name,
+        type: data.type,
+        address: data.address,
+        latitude: toNum(data.latitude),
+        longitude: toNum(data.longitude),
+        hasFloors: toBool(data.hasFloors),
+        hasTables: toBool(data.hasTables),
+        hasMenu: toBool(data.hasMenu),
+        hasDelivery: toBool(data.hasDelivery),
+        isActive: true,
+        ...(imageUrl && { image: imageUrl }),
+        ...(galleryUrls && { gallery: galleryUrls }),
+      });
+
+      let operationalHours = data.operationalHours;
+      if (typeof operationalHours === "string") {
+        try {
+          operationalHours = JSON.parse(operationalHours);
+        } catch {
+          operationalHours = [];
+        }
+      }
+
+      if (Array.isArray(operationalHours) && operationalHours.length > 0) {
+        const existingOps = await operationalRepository.getOperationalHours(id);
+
+        await Promise.all(
+          operationalHours.map(async (op) => {
+            console.log(op);
+
+            if (!op.isOpen) return;
+
+            const opensAt = new Date();
+            const [oh, om] = op.opensAt.split(":");
+            opensAt.setHours(Number(oh), Number(om), 0, 0);
+
+            const closesAt = new Date();
+            const [ch, cm] = op.closesAt.split(":");
+            closesAt.setHours(Number(ch), Number(cm), 0, 0);
+
+            const found = existingOps.find((x) => x.dayOfWeek === op.dayOfWeek);
+
+            if (found) {
+              await operationalRepository.update(found.id, {
+                opensAt,
+                closesAt,
+              });
+            } else {
+              await operationalRepository.create(id, {
+                dayOfWeek: op.dayOfWeek,
+                opensAt,
+                closesAt,
+              });
+            }
+          })
+        );
+      }
+
       const owner = await ownerRepository.findOwnerByVenue(id);
-
       await venueBalanceRepository.ensureInitialBalance(id);
+      const invitation = await invitationRepository.findByVenueId(id);
 
-      let invitation = await invitationRepository.findByVenueId(id);
+      const wasInactive = !existing.isActive;
+      const willBeActive = true;
 
-      if (invitation && !existing.isActive) {
+      if (invitation && wasInactive && willBeActive) {
         const newKey = `SIGN-${randomUUID().slice(0, 8).toUpperCase()}`;
 
-        invitation = await invitationRepository.updateByVenueId(id, {
+        await invitationRepository.updateByVenueId(id, {
           key: newKey,
           expiresAt: null,
           usedAt: new Date(),
@@ -116,35 +192,33 @@ export class VenueServices {
           owner.email,
           "Sign In Key",
           `
+          <a
+            href="com.laluferdian.ntbhubapps://venue?key=${newKey}"
+            style="padding:12px 20px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;"
+          >
+            Buka Aplikasi
+          </a>
           <h2>You're all set!</h2>
           <p>Your venue has been activated.</p>
-          <p>Use this signin key:</p>
           <h3>${newKey}</h3>
-          <p>Open NTB Hub to manage your venue</p>
         `
         );
       }
-
-      const updated = await venueRepository.updateVenue(id, {
-        ...data,
-        isActive: true,
-        ...(imageUrl && { image: imageUrl }),
-        ...(galleryUrls && { gallery: galleryUrls }),
-      });
 
       await publisher.publish(
         "venue-events",
         JSON.stringify({
           event: "venue:updated",
-          payload: updated,
+          payload: updatedVenue,
         })
       );
+
       return {
         status: true,
         status_code: 200,
         message: "Venue updated successfully",
         data: {
-          ...updated,
+          ...updatedVenue,
           invitationKey: invitation ? invitation.key : null,
         },
       };
