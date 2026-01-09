@@ -7,12 +7,12 @@ const router = Router();
 const auth = new AuthMiddlewares();
 const menuController = new MenuControllers();
 
-router.get("/all", auth.authenticate, (req, res) =>
+router.get("/all", auth.authorize(["CUSTOMER"]), (req, res) =>
   menuController.getAllMenus(req, res)
 );
 router.post(
   "/menu/venues",
-  auth.venueAuth.bind(auth),
+  auth.authorize(["VENUE"]),
   upload.single("image"),
   (req, res) => menuController.createMenu(req, res)
 );
@@ -22,11 +22,11 @@ router.get("/menu/venues/:venueId", (req, res) =>
 router.get("/menu/:id", (req, res) => menuController.getMenuById(req, res));
 router.put(
   "/menu/:id",
-  auth.venueAuth.bind(auth),
+  auth.authorize(["VENUE"]),
   upload.single("image"),
   (req, res) => menuController.updateMenu(req, res)
 );
-router.delete("/menu/:id", auth.venueAuth.bind(auth), (req, res) =>
+router.delete("/menu/:id", auth.authorize(["VENUE"]), (req, res) =>
   menuController.deleteMenu(req, res)
 );
 

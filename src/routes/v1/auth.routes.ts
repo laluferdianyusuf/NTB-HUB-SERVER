@@ -16,7 +16,7 @@ router.post("/logout", auth.authenticate.bind(auth), (req, res) =>
   auth.logout(req, res)
 );
 router.post("/google", (req, res) => userController.googleLogin(req, res));
-router.get("/me", auth.authenticate.bind(auth), (req, res) =>
+router.get("/me", auth.authorize(["CUSTOMER", "ADMIN", "VENUE"]), (req, res) =>
   userController.currentUser(req, res)
 );
 

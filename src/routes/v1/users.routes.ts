@@ -12,14 +12,11 @@ router.get("/user/:id", (req, res) => userController.getById(req, res));
 router.put(
   "/user/update/:id",
   upload.single("image"),
-  auth.authenticate.bind(auth),
+  auth.authorize(["CUSTOMER"]),
   (req, res) => userController.update(req, res)
 );
-router.delete(
-  "/user/delete/:id",
-  auth.authenticate.bind(auth),
-  auth.isAdmin.bind(auth),
-  (req, res) => userController.delete(req, res)
+router.delete("/user/delete/:id", auth.authorize(["ADMIN"]), (req, res) =>
+  userController.delete(req, res)
 );
 
 export default router;

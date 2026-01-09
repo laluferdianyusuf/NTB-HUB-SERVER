@@ -6,16 +6,16 @@ const router = Router();
 const auth = new AuthMiddlewares();
 const invoiceController = new InvoiceController();
 
-router.get("/invoice/invoices", auth.authenticate.bind(auth), (req, res) =>
+router.get("/invoice/invoices", auth.authorize(["CUSTOMER"]), (req, res) =>
   invoiceController.findAllInvoice(req, res)
 );
 router.get("/invoice/:bookingId", (req, res) =>
   invoiceController.findInvoiceByBookingId(req, res)
 );
-router.get("/user/invoices", auth.authenticate.bind(auth), (req, res) =>
+router.get("/user/invoices", auth.authorize(["CUSTOMER"]), (req, res) =>
   invoiceController.findAllInvoiceByUserId(req, res)
 );
-router.get("/venue/invoices", auth.venueAuth.bind(auth), (req, res) =>
+router.get("/venue/invoices", auth.authorize(["VENUE"]), (req, res) =>
   invoiceController.findAllInvoiceByVenueId(req, res)
 );
 

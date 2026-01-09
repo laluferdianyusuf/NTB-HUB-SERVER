@@ -7,27 +7,20 @@ const auth = new AuthMiddlewares();
 const controller = new WithdrawController();
 
 /* VENUE */
-router.post("/request", auth.venueAuth, controller.request);
-router.get("/my", auth.venueAuth, controller.venueWithdraws);
+router.post("/request", auth.authorize(["VENUE"]), controller.request);
+router.get("/my", auth.authorize(["VENUE"]), controller.venueWithdraws);
 
 /* ADMIN */
-router.get("/admin", auth.authenticate, auth.isAdmin, controller.allWithdraws);
+router.get("/admin", auth.authorize(["ADMIN"]), controller.allWithdraws);
 router.patch(
   "/admin/:id/approve",
-  auth.authenticate,
-  auth.isAdmin,
+  auth.authorize(["ADMIN"]),
   controller.approve
 );
-router.patch(
-  "/admin/:id/reject",
-  auth.authenticate,
-  auth.isAdmin,
-  controller.reject
-);
+router.patch("/admin/:id/reject", auth.authorize(["ADMIN"]), controller.reject);
 router.patch(
   "/admin/:id/paid",
-  auth.authenticate,
-  auth.isAdmin,
+  auth.authorize(["ADMIN"]),
   controller.markAsPaid
 );
 

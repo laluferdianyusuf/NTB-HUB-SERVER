@@ -6,25 +6,25 @@ const router = Router();
 const auth = new AuthMiddlewares();
 const bookingController = new BookingControllers();
 
-router.post("/booking/create", auth.authenticate.bind(auth), (req, res) =>
+router.post("/booking/create", auth.authorize(["CUSTOMER"]), (req, res) =>
   bookingController.createBooking(req, res)
 );
-router.put("/booking/payment/:id", auth.authenticate.bind(auth), (req, res) =>
+router.put("/booking/payment/:id", auth.authorize(["CUSTOMER"]), (req, res) =>
   bookingController.processBookingPayment(req, res)
 );
-router.get("/booking/bookings", auth.authenticate.bind(auth), (req, res) =>
+router.get("/booking/bookings", auth.authorize(["CUSTOMER"]), (req, res) =>
   bookingController.getAllBookings(req, res)
 );
-router.get("/booking/users/:userId", auth.authenticate.bind(auth), (req, res) =>
+router.get("/booking/users/:userId", auth.authorize(["CUSTOMER"]), (req, res) =>
   bookingController.getBookingByUserId(req, res)
 );
 router.get("/booking/:id", (req, res) =>
   bookingController.getBookingById(req, res)
 );
-router.put("/booking/:id/cancel", auth.authenticate.bind(auth), (req, res) =>
+router.put("/booking/:id/cancel", auth.authorize(["CUSTOMER"]), (req, res) =>
   bookingController.cancelBooking(req, res)
 );
-router.put("/booking/:id/complete", auth.authenticate.bind(auth), (req, res) =>
+router.put("/booking/:id/complete", auth.authorize(["CUSTOMER"]), (req, res) =>
   bookingController.completeBooking(req, res)
 );
 router.get("/existing/bookings", (req, res) =>

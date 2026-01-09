@@ -5,7 +5,7 @@ const router = Router();
 const venueBalanceController = new VenueBalanceController();
 const auth = new AuthMiddlewares();
 
-router.get("/balance/venue/:venueId", auth.venueAuth.bind(auth), (req, res) =>
+router.get("/balance/venue/:venueId", auth.authorize(["VENUE"]), (req, res) =>
   venueBalanceController.getVenueBalance(req, res)
 );
 

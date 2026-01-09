@@ -141,8 +141,6 @@ export class VenueServices {
 
         await Promise.all(
           operationalHours.map(async (op) => {
-            console.log(op);
-
             if (!op.isOpen) return;
 
             const opensAt = new Date();
@@ -301,6 +299,7 @@ export class VenueServices {
             venueId: venue.id,
             name: venue.name,
             type: venue.type,
+            role: "VENUE",
             createdAt: venue.createdAt,
           },
           process.env.ACCESS_SECRET,
@@ -312,6 +311,7 @@ export class VenueServices {
             venueId: venue.id,
             name: venue.name,
             type: venue.type,
+            role: "VENUE",
             createdAt: venue.createdAt,
           },
           process.env.REFRESH_SECRET,
@@ -349,7 +349,10 @@ export class VenueServices {
         data: {
           accessToken,
           refreshToken,
-          venue,
+          venue: {
+            ...venue,
+            role: "VENUE",
+          },
         },
       };
     } catch (error) {
