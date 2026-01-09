@@ -24,13 +24,13 @@ router.put(
 router.delete("/venue/delete/:id", (req, res) =>
   venueController.deleteVenue(req, res)
 );
-router.post("/venue/logout", auth.venueAuth.bind(auth), (req, res) =>
+router.post("/venue/logout", auth.authorize(["VENUE"]), (req, res) =>
   auth.logoutVenue(req, res)
 );
-router.get("/venue/me", auth.venueAuth.bind(auth), (req, res) =>
+router.get("/me", auth.authorize(["VENUE"]), (req, res) =>
   venueController.currentVenue(req, res)
 );
-router.get("/venue/current/venue", auth.venueAuth.bind(auth), (req, res) =>
+router.get("/venue/current/venue", auth.authorize(["VENUE"]), (req, res) =>
   venueController.currentVenue(req, res)
 );
 

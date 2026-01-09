@@ -18,3 +18,4 @@ export * from "./transaction.services";
 export * from "./owner.services";
 export * from "./device.services";
 export * from "./operational.services";
+export * from "./withdraw.services";

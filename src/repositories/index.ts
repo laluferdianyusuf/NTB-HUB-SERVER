@@ -18,3 +18,4 @@ export * from "./transaction.repo";
 export * from "./owner.repo";
 export * from "./operational.repo";
 export * from "./device.repo";
+export * from "./withdraw.repo";

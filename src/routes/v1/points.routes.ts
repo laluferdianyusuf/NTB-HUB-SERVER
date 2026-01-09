@@ -6,7 +6,7 @@ const router = Router();
 const auth = new AuthMiddlewares();
 const pointsController = new PointsController();
 
-router.get("/point/user/:userId", auth.authenticate.bind(auth), (req, res) =>
+router.get("/point/user/:userId", auth.authorize(["CUSTOMER"]), (req, res) =>
   pointsController.getUserTotalPoints(req, res)
 );
 

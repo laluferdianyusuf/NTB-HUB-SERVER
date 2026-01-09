@@ -187,7 +187,7 @@ export class UserService {
           id: existing.id,
           name: existing.name,
           email: existing.email,
-          createdAt: existing.createdAt,
+          role: existing.role,
         },
         process.env.ACCESS_SECRET,
         { expiresIn: "15m" }
@@ -198,7 +198,7 @@ export class UserService {
           id: existing.id,
           name: existing.name,
           email: existing.email,
-          createdAt: existing.createdAt,
+          role: existing.role,
         },
         process.env.REFRESH_SECRET,
         { expiresIn: "7d" }
@@ -232,7 +232,7 @@ export class UserService {
         return {
           status: false,
           status_code: 400,
-          message: "Missing refresh token",
+          message: "Missing user refresh token",
           data: null,
         };
       }

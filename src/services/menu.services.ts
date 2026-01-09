@@ -8,6 +8,7 @@ import {
 import { publisher } from "config/redis.config";
 import { uploadToCloudinary } from "utils/image";
 import { NotificationService } from "./notification.services";
+import { error, success } from "helpers/return";
 const prisma = new PrismaClient();
 
 const menuRepository = new MenuRepository();
@@ -17,7 +18,7 @@ const notificationRepository = new NotificationRepository();
 const notificationService = new NotificationService();
 
 export class MenuServices {
-  async createMenu(data: Menu, venueId: string, file: Express.Multer.File) {
+  async createMenu(data: Menu, file: Express.Multer.File) {
     try {
       let imageUrl: string | null = null;
 
@@ -25,7 +26,7 @@ export class MenuServices {
         imageUrl = await uploadToCloudinary(file.path, "menus");
       }
 
-      const venue = await venueRepository.findVenueById(venueId);
+      const venue = await venueRepository.findVenueById(data.venueId);
 
       if (!venue) {
         return {
@@ -39,7 +40,6 @@ export class MenuServices {
       const result = await prisma.$transaction(async (tx) => {
         const menu = await menuRepository.createNewMenuByVenue(
           { ...data, price: parseFloat(data.price as any), image: imageUrl },
-          venueId,
           tx
         );
 
@@ -58,7 +58,7 @@ export class MenuServices {
         await Promise.all(
           users.map((user) =>
             notificationService.sendToUser(
-              venueId,
+              data.venueId,
               user.id,
               "New Menu Release!",
               `${menu.name} has been added to ${venue.name}`,
@@ -212,6 +212,20 @@ export class MenuServices {
         message: "Internal server error",
         data: null,
       };
+    }
+  }
+
+  async getAllMenus() {
+    try {
+      const menus = await menuRepository.findAllMenus();
+
+      if (menus.length < 1) {
+        return error.error404("Menus not found");
+      }
+
+      return success.success200("Menus retrieved", menus);
+    } catch (err) {
+      return error.error500("Internal server error" + err);
     }
   }
 }

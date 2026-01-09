@@ -8,8 +8,8 @@ const auth = new AuthMiddlewares();
 const tableController = new TableControllers();
 
 router.post(
-  "/table/floors/:floorId",
-  auth.venueAuth.bind(auth),
+  "/table",
+  auth.authorize(["VENUE"]),
   upload.single("image"),
   (req, res) => tableController.createTable(req, res)
 );
@@ -19,11 +19,11 @@ router.get("/table/floors/:floorId/venue/:venueId", (req, res) =>
 router.get("/table/:id", (req, res) => tableController.getTableById(req, res));
 router.put(
   "/table/update/:id",
-  auth.venueAuth.bind(auth),
+  auth.authorize(["VENUE"]),
   upload.single("image"),
   (req, res) => tableController.updateTable(req, res)
 );
-router.delete("/table/delete/:id", auth.venueAuth.bind(auth), (req, res) =>
+router.delete("/table/delete/:id", auth.authorize(["VENUE"]), (req, res) =>
   tableController.deleteTable(req, res)
 );
 router.get("/table/:id/status", (req, res) =>

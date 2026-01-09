@@ -1,4 +1,4 @@
-import { Table } from "@prisma/client";
+import { Booking, Invoice, Table } from "@prisma/client";
 import { TableRepository } from "./../repositories/table.repo";
 import { uploadToCloudinary } from "utils/image";
 import { error, success } from "helpers/return";
@@ -9,20 +9,33 @@ const tableRepository = new TableRepository();
 const venueRepository = new VenueRepository();
 
 export class TableServices {
-  async createTable(data: Table, floorId: string, file?: Express.Multer.File) {
-    try {
-      let imageUrl: string | null = null;
+  async createTable(data: Table, file?: Express.Multer.File) {
+    const payload = {
+      ...data,
+      tableNumber: Number(data.tableNumber),
+      price: Number(data.price),
+    };
 
-      if (file && file.path) {
+    try {
+      const table = await tableRepository.findTablesByNumber(
+        payload.tableNumber
+      );
+      if (table)
+        return error.error400(
+          `Table number ${table.tableNumber} has been added`
+        );
+
+      let imageUrl: string | null = null;
+      if (file?.path) {
         imageUrl = await uploadToCloudinary(file.path, "tables");
       }
 
-      const createdTable = await tableRepository.createNewTableByFloor(
-        { ...data, tableNumber: Number(data.tableNumber), image: imageUrl },
-        floorId
-      );
+      const createdTable = await tableRepository.createNewTableByFloor({
+        ...payload,
+        image: imageUrl,
+      });
 
-      return success.success201("Table created successful", createdTable);
+      return success.success201("Table created successfully", createdTable);
     } catch (err) {
       return error.error500("Internal server error: " + err);
     }
@@ -133,10 +146,24 @@ export class TableServices {
         userEndLocal.getTime() - userEndLocal.getTimezoneOffset() * 60000
       );
 
+      const now = new Date();
+
       const tables = await tableRepository.findTablesByFloor(floorId, venueId);
 
-      const result = tables.map((table) => {
+      const result = tables.map((table: any) => {
         const isBooked = table.bookings?.some((b: any) => {
+          const invoice: Invoice = b.invoice;
+
+          if (!invoice) return false;
+
+          const isInvoiceValid =
+            invoice.status === "PAID" ||
+            (invoice.status === "PENDING" &&
+              invoice.expiredAt &&
+              new Date(invoice.expiredAt) > now);
+
+          if (!isInvoiceValid) return false;
+
           const bookingStart = new Date(b.startTime);
           const bookingEnd = new Date(b.endTime);
 

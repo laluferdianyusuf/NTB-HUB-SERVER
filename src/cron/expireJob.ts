@@ -7,6 +7,7 @@ const invoiceRepository = new InvoiceRepository();
 export function startExpireJob() {
   cron.schedule("* * * * *", async () => {
     const now = new Date();
+    console.log("[JOB RUNNING] Executing job");
 
     const expiredInvoices = await invoiceRepository.findExpiredInvoices(now);
     for (const inv of expiredInvoices) {

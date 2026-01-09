@@ -9,6 +9,7 @@ export class InvoiceRepository {
           select: {
             id: true,
             startTime: true,
+            endTime: true,
             totalPrice: true,
             review: {
               select: {
@@ -51,6 +52,7 @@ export class InvoiceRepository {
           select: {
             id: true,
             startTime: true,
+            endTime: true,
             totalPrice: true,
             review: {
               select: {
@@ -94,7 +96,9 @@ export class InvoiceRepository {
           select: {
             id: true,
             startTime: true,
+            endTime: true,
             totalPrice: true,
+
             user: {
               select: {
                 name: true,
@@ -107,6 +111,7 @@ export class InvoiceRepository {
             },
             venue: {
               select: {
+                transactions: true,
                 name: true,
               },
             },
@@ -173,6 +178,14 @@ export class InvoiceRepository {
             id: true,
             startTime: true,
             totalPrice: true,
+            user: {
+              select: {
+                name: true,
+                address: true,
+                email: true,
+                photo: true,
+              },
+            },
             venue: {
               select: {
                 name: true,
@@ -259,9 +272,21 @@ export class InvoiceRepository {
   async markInvoiceExpired(invoiceId: string, tx?: PrismaClient) {
     const db = tx ?? prisma;
 
-    return db.invoice.update({
-      where: { id: invoiceId },
-      data: { status: "EXPIRED" },
+    return db.$transaction(async (trx) => {
+      const invoice = await trx.invoice.update({
+        where: { id: invoiceId },
+        data: { status: "EXPIRED" },
+        select: { id: true, bookingId: true },
+      });
+
+      if (invoice.bookingId) {
+        await trx.booking.update({
+          where: { id: invoice.bookingId },
+          data: { status: "CANCELLED" },
+        });
+      }
+
+      return invoice;
     });
   }
 }

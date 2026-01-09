@@ -20,6 +20,7 @@ import reviewRouter from "./v1/review.routes";
 import invoiceRouter from "./v1/invoice.routes";
 import deviceRouter from "./v1/device.routes";
 import operationalRouter from "./v1/operational.routes";
+import withdrawRouter from "./v1/withdraw.routes";
 
 import { deprecatedRouters } from "./deprecated";
 
@@ -48,6 +49,7 @@ v1.use("/reviews", reviewRouter);
 v1.use("/invoice", invoiceRouter);
 v1.use("/devices", deviceRouter);
 v1.use("/operational", operationalRouter);
+v1.use("/withdraw", withdrawRouter);
 
 // mount v1 API
 router.use("/api/v1", v1);

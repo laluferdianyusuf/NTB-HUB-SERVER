@@ -16,13 +16,20 @@ import {
   TransactionRepository,
   NotificationRepository,
   PointsRepository,
+  VenueBalanceRepository,
 } from "../repositories";
 import { publisher } from "config/redis.config";
 import { error, success } from "helpers/return";
 import { normalizeDate, toLocalDBTime } from "helpers/formatIsoDate";
 import { NotificationService } from "./notification.services";
+import {
+  PLATFORM_BALANCE_ID,
+  PLATFORM_FEE_NUMBER,
+  PLATFORM_FEE_PERCENT,
+} from "config/finance.config";
 const bookingRepository = new BookingRepository();
 const userBalanceRepository = new UserBalanceRepository();
+const venueBalanceRepository = new VenueBalanceRepository();
 const tableRepository = new TableRepository();
 const invoiceRepository = new InvoiceRepository();
 const transactionRepository = new TransactionRepository();
@@ -168,11 +175,18 @@ export class BookingServices {
         booking.userId
       );
 
+      const paymentId = `PAY-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+
+      const platformFee = Number(PLATFORM_FEE_NUMBER);
+      const venueAmount = invoice.amount - platformFee;
+
+      if (venueAmount < 0) {
+        return error.error400("Invoice amount must be greater than fee");
+      }
+
       if (!userBalance || userBalance < invoice.amount) {
         return error.error400("Insufficient balance");
       }
-
-      const paymentId = `PAY-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
 
       const result = await prisma.$transaction(async (tx) => {
         const processedBooking = await bookingRepository.processBookingPayment(
@@ -180,18 +194,32 @@ export class BookingServices {
           tx
         );
 
-        const transaction = await transactionRepository.create(
-          {
-            userId: booking.userId,
-            venueId: booking.venueId,
-            amount: invoice.amount,
-            type: TransactionType.DEDUCTION,
-            status: TransactionStatus.SUCCESS,
-            reference: booking.id,
-            orderId: paymentId,
-          },
-          tx
-        );
+        await transactionRepository.create({
+          userId: booking.userId,
+          amount: invoice.amount,
+          type: TransactionType.DEDUCTION,
+          status: TransactionStatus.SUCCESS,
+          reference: booking.id,
+          orderId: paymentId,
+        });
+
+        await transactionRepository.create({
+          venueId: booking.venueId,
+          amount: venueAmount,
+          type: TransactionType.DEDUCTION,
+          status: TransactionStatus.SUCCESS,
+          reference: booking.id,
+          orderId: paymentId,
+        });
+
+        await transactionRepository.create({
+          venueId: booking.venueId,
+          amount: platformFee,
+          type: TransactionType.FEE,
+          status: TransactionStatus.SUCCESS,
+          reference: booking.id,
+          orderId: `${paymentId}-FEE`,
+        });
 
         const points = await pointRepository.generatePoints(
           {
@@ -203,11 +231,23 @@ export class BookingServices {
           tx
         );
 
-        const updatedBalance = await userBalanceRepository.decrementBalance(
+        await userBalanceRepository.decrementBalance(
           booking.userId,
           invoice.amount,
           tx
         );
+
+        await venueBalanceRepository.incrementVenueBalance(
+          booking.venueId,
+          venueAmount
+        );
+
+        await tx.platformBalance.update({
+          where: { id: PLATFORM_BALANCE_ID },
+          data: {
+            balance: { increment: platformFee },
+          },
+        });
 
         const updatedInvoice = await invoiceRepository.updateInvoicePaid(
           booking.id,
@@ -226,9 +266,7 @@ export class BookingServices {
 
         return {
           booking: processedBooking,
-          transaction,
           points,
-          balance: updatedBalance,
           invoice: updatedInvoice,
           notification,
         };
@@ -242,7 +280,6 @@ export class BookingServices {
         null
       );
 
-      await publishEvent("booking-events", "booking:paid", result.transaction);
       await publishEvent("points-events", "point:updated", result.points);
       await publishEvent(
         "notification-events",
@@ -276,7 +313,7 @@ export class BookingServices {
 
       return success.success200("Book retrieved", booking);
     } catch (err) {
-      return error.error500;
+      return error.error500("Internal server error" + err);
     }
   }
 

@@ -6,11 +6,8 @@ const router = Router();
 const auth = new AuthMiddlewares();
 const invitationController = new InvitationController();
 
-router.post(
-  "/invitation/create",
-  auth.authenticate.bind(auth),
-  auth.isAdmin.bind(auth),
-  (req, res) => invitationController.generateInvitationKey(req, res)
+router.post("/invitation/create", auth.authorize(["ADMIN"]), (req, res) =>
+  invitationController.generateInvitationKey(req, res)
 );
 router.get("/invitation/invitations", (req, res) =>
   invitationController.findAllInvitationKeys(req, res)

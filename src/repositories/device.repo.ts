@@ -31,6 +31,25 @@ export class DeviceRepository {
     });
   }
 
+  async findByVenueId(venueId: string) {
+    return prisma.device.findMany({
+      where: { venueId },
+    });
+  }
+
+  async findAdmins() {
+    return prisma.device.findMany({
+      where: {
+        user: {
+          role: "ADMIN",
+        },
+      },
+      include: {
+        user: true,
+      },
+    });
+  }
+
   async deleteByToken(token: string) {
     return prisma.device.deleteMany({
       where: { token },

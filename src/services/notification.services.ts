@@ -81,6 +81,136 @@ export class NotificationService {
     return response;
   }
 
+  async sendToVenue(
+    venueId: string,
+    title: string,
+    body: string,
+    image?: string
+  ) {
+    const devices = await this.deviceRepo.findByVenueId(venueId);
+
+    if (!devices.length) return;
+
+    const tokens = devices.map((d) => d.token);
+
+    const message: firebase.messaging.MulticastMessage = {
+      tokens,
+      notification: {
+        title,
+        body,
+        imageUrl: image || undefined,
+      },
+      data: {
+        action: "OPEN_VENUE",
+        venueId,
+      },
+      android: {
+        priority: "high",
+        notification: {
+          channelId: "default",
+          sound: "custom_sound.wav",
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            category: "OPEN_VENUE",
+            contentAvailable: true,
+            sound: "custom_sound.wav",
+          },
+        },
+      },
+    };
+
+    const response = await firebase.messaging().sendEachForMulticast(message);
+    console.log(
+      `FCM → Venue ${venueId}: ${response.successCount}/${tokens.length}`
+    );
+
+    const invalidTokens: string[] = [];
+
+    response.responses.forEach((res, i) => {
+      if (!res.success) {
+        const msg = res.error?.message || "";
+        if (
+          msg.includes("registration-token-not-registered") ||
+          msg.includes("invalid-registration-token")
+        ) {
+          invalidTokens.push(tokens[i]);
+        }
+      }
+    });
+
+    if (invalidTokens.length) {
+      await Promise.all(
+        invalidTokens.map((token) => this.deviceRepo.deleteByToken(token))
+      );
+    }
+
+    return response;
+  }
+
+  async sendToAdmin(title: string, body: string, image?: string) {
+    const devices = await this.deviceRepo.findAdmins();
+
+    if (!devices.length) return;
+
+    const tokens = devices.map((d) => d.token);
+
+    const message: firebase.messaging.MulticastMessage = {
+      tokens,
+      notification: {
+        title,
+        body,
+        imageUrl: image || undefined,
+      },
+      data: {
+        action: "ADMIN_NOTIFICATION",
+      },
+      android: {
+        priority: "high",
+        notification: {
+          channelId: "default",
+          sound: "custom_sound.wav",
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            category: "ADMIN_NOTIFICATION",
+            contentAvailable: true,
+            sound: "custom_sound.wav",
+          },
+        },
+      },
+    };
+
+    const response = await firebase.messaging().sendEachForMulticast(message);
+    console.log(`FCM → Admins: ${response.successCount}/${tokens.length}`);
+
+    const invalidTokens: string[] = [];
+
+    response.responses.forEach((res, i) => {
+      if (!res.success) {
+        const msg = res.error?.message || "";
+        if (
+          msg.includes("registration-token-not-registered") ||
+          msg.includes("invalid-registration-token")
+        ) {
+          invalidTokens.push(tokens[i]);
+        }
+      }
+    });
+
+    if (invalidTokens.length) {
+      await Promise.all(
+        invalidTokens.map((token) => this.deviceRepo.deleteByToken(token))
+      );
+    }
+
+    return response;
+  }
+
   async sendNotification(data: Notification, file?: Express.Multer.File) {
     try {
       let imageUrl: string | null = null;

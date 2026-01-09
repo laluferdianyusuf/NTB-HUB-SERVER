@@ -3,6 +3,19 @@ import { Prisma, PrismaClient, Menu } from "@prisma/client";
 const prisma = new PrismaClient();
 
 export class MenuRepository {
+  // find all menus
+  async findAllMenus(): Promise<Menu[]> {
+    return prisma.menu.findMany({
+      include: {
+        venue: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+  }
+
   // find all menus at venue
   async findMenuByVenueId(venueId: string): Promise<Menu[]> {
     return prisma.menu.findMany({ where: { venueId } });
@@ -14,14 +27,10 @@ export class MenuRepository {
   }
 
   //   create new menu at venue
-  async createNewMenuByVenue(
-    data: Menu,
-    venueId: string,
-    tx?: Prisma.TransactionClient
-  ) {
+  async createNewMenuByVenue(data: Menu, tx?: Prisma.TransactionClient) {
     const db = tx ?? prisma;
     return await db.menu.create({
-      data: { ...data, venueId },
+      data: data,
     });
   }
 
