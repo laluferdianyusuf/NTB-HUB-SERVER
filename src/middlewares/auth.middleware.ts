@@ -198,8 +198,10 @@ export class AuthMiddlewares {
         const decoded = jwt.verify(token, process.env.ACCESS_SECRET!) as any;
 
         // check token blacklist based on role in JWT
-        const roleInToken =
-          decoded.role || (decoded.venueId ? "VENUE" : "CUSTOMER");
+        const roleInToken = String(
+          decoded.role || (decoded.venueId ? "VENUE" : "CUSTOMER")
+        ) as "CUSTOMER" | "ADMIN" | "VENUE";
+
         const blacklistKey =
           roleInToken === "VENUE"
             ? `blacklist:venue:${token}`
@@ -213,9 +215,13 @@ export class AuthMiddlewares {
             message: "Token has been revoked",
           });
         }
+        const normalizedRole = roleInToken.toUpperCase() as
+          | "CUSTOMER"
+          | "ADMIN"
+          | "VENUE";
 
         // check if role allowed
-        if (!roles.includes(roleInToken)) {
+        if (!roles.includes(normalizedRole)) {
           return res.status(403).json({
             status: false,
             status_code: 403,

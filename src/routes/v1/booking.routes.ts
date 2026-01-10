@@ -12,8 +12,10 @@ router.post("/booking/create", auth.authorize(["CUSTOMER"]), (req, res) =>
 router.put("/booking/payment/:id", auth.authorize(["CUSTOMER"]), (req, res) =>
   bookingController.processBookingPayment(req, res)
 );
-router.get("/booking/bookings", auth.authorize(["CUSTOMER"]), (req, res) =>
-  bookingController.getAllBookings(req, res)
+router.get(
+  "/booking/bookings",
+  auth.authorize(["CUSTOMER", "ADMIN"]),
+  (req, res) => bookingController.getAllBookings(req, res)
 );
 router.get("/booking/users/:userId", auth.authorize(["CUSTOMER"]), (req, res) =>
   bookingController.getBookingByUserId(req, res)

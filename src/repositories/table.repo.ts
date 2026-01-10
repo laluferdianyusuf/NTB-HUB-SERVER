@@ -29,6 +29,11 @@ export class TableRepository {
     return prisma.table.findUnique({ where: { id } });
   }
 
+  // find tables by venue
+  async findTablesByVenueId(venueId: string): Promise<Table[]> {
+    return prisma.table.findMany({ where: { venueId } });
+  }
+
   // find detail tables
   async findTablesByNumber(number: number): Promise<Table | null> {
     return prisma.table.findFirst({ where: { tableNumber: number } });

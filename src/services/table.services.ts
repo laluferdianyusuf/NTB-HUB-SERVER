@@ -65,6 +65,20 @@ export class TableServices {
     }
   }
 
+  async getTableByVenueId(venueId: string) {
+    try {
+      const existing = await tableRepository.findTablesByVenueId(venueId);
+
+      if (!existing) {
+        return error.error404("Table not found");
+      }
+
+      return success.success200("Table retrieved", existing);
+    } catch (err) {
+      return error.error500("Internal server error: " + err);
+    }
+  }
+
   async updateTable(id: string, data: Table, file: Express.Multer.File) {
     try {
       let imageUrl: string | null = null;

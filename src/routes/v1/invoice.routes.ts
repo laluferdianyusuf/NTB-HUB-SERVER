@@ -6,8 +6,10 @@ const router = Router();
 const auth = new AuthMiddlewares();
 const invoiceController = new InvoiceController();
 
-router.get("/invoice/invoices", auth.authorize(["CUSTOMER"]), (req, res) =>
-  invoiceController.findAllInvoice(req, res)
+router.get(
+  "/invoice/invoices",
+  auth.authorize(["CUSTOMER", "ADMIN"]),
+  (req, res) => invoiceController.findAllInvoice(req, res)
 );
 router.get("/invoice/:bookingId", (req, res) =>
   invoiceController.findInvoiceByBookingId(req, res)

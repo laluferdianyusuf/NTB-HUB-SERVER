@@ -7,6 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// #region ENUMS
 enum Role {
   CUSTOMER
   ADMIN
@@ -68,6 +69,24 @@ enum WithdrawStatus {
   PAID
 }
 
+enum EventStatus {
+  UPCOMING
+  ONGOING
+  FINISHED
+  CANCELLED
+}
+
+enum PublicPlaceType {
+  TOURISM
+  HOSPITAL
+  SCHOOL
+  PARK
+  MALL
+  TERMINAL
+  OTHER
+}
+
+// #regionUSER & AUTH
 model User {
   id         String   @id @default(uuid())
   name       String
@@ -92,6 +111,15 @@ model User {
   logs          Log[]
   balance       UserBalance?
   points        Point[]
+  likedVenues       LikeVenue[]
+  venueImpressions VenueImpression[]
+
+  likedEvents       LikeEvent[]
+  eventReviews      ReviewEvent[]
+
+  likedPlaces       LikePublicPlace[]
+  placeReviews      ReviewPublicPlace[]
+  placeImpressions      PublicPlaceImpression[]
 }
 
 model UserBalance {
@@ -103,6 +131,48 @@ model UserBalance {
   user User @relation(fields: [userId], references: [id])
 }
 
+model Device {
+  id          String   @id @default(uuid())
+  userId      String?
+  venueId     String?
+  token       String
+  platform    String?
+  osName      String?
+  buildId     String?
+  osVersion   String?
+  deviceModel String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user  User?  @relation(fields: [userId], references: [id])
+  venue Venue? @relation(fields: [venueId], references: [id])
+
+  @@unique([token, userId])
+  @@index([venueId])
+}
+
+model LocationTracking {
+  id        String   @id @default(uuid())
+  userId    String
+  latitude  Float
+  longitude Float
+  updatedAt DateTime @default(now()) @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Log {
+  id          String   @id @default(uuid())
+  userId      String?
+  action      String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  user User? @relation(fields: [userId], references: [id])
+}
+
+// #region VENUE CORE
 model Venue {
   id          String     @id @default(uuid())
   name        String
@@ -134,16 +204,9 @@ model Venue {
   transactions     Transaction[]
   owner            Owner?
   withdrawRequests WithdrawRequest[]
-}
-
-model OperationalHour {
-  id        String   @id @default(uuid())
-  venueId   String
-  dayOfWeek Int
-  opensAt   DateTime
-  closesAt  DateTime
-
-  venue Venue @relation(fields: [venueId], references: [id])
+  likes        LikeVenue[]
+  impressions VenueImpression[]
+  events       Event[]
 }
 
 model Owner {
@@ -161,15 +224,6 @@ model Owner {
   venue Venue? @relation(fields: [venueId], references: [id])
 }
 
-model VenueBalance {
-  id        String   @id @default(uuid())
-  venueId   String   @unique
-  balance   Float    @default(0)
-  updatedAt DateTime @default(now()) @updatedAt
-
-  venue Venue @relation(fields: [venueId], references: [id])
-}
-
 model InvitationKey {
   id        String    @id @default(uuid())
   venueId   String    @unique
@@ -182,6 +236,16 @@ model InvitationKey {
   venue Venue @relation(fields: [venueId], references: [id])
 }
 
+model VenueBalance {
+  id        String   @id @default(uuid())
+  venueId   String   @unique
+  balance   Float    @default(0)
+  updatedAt DateTime @default(now()) @updatedAt
+
+  venue Venue @relation(fields: [venueId], references: [id])
+}
+
+// #region VENUE STRUCTURE
 model Floor {
   id      String  @id @default(uuid())
   name    String
@@ -208,6 +272,17 @@ model Table {
   bookings Booking[]
 }
 
+model OperationalHour {
+  id        String   @id @default(uuid())
+  venueId   String
+  dayOfWeek Int
+  opensAt   DateTime
+  closesAt  DateTime
+
+  venue Venue @relation(fields: [venueId], references: [id])
+}
+
+// #region BOOKING & ORDER
 model Booking {
   id         String        @id @default(uuid())
   userId     String
@@ -268,72 +343,7 @@ model Review {
   booking Booking @relation(fields: [bookingId], references: [id])
 }
 
-model Point {
-  id        String            @id @default(uuid())
-  userId    String
-  activity  PointActivityType
-  points    Int
-  reference String? // id dari booking, transaction, dsb
-  createdAt DateTime          @default(now())
-
-  user User @relation(fields: [userId], references: [id])
-}
-
-model Invoice {
-  id            String        @id @default(uuid())
-  bookingId     String        @unique
-  invoiceNumber String        @unique
-  amount        Float
-  status        InvoiceStatus @default(PENDING)
-  paymentMethod String?
-  issuedAt      DateTime      @default(now())
-  paidAt        DateTime?
-  cancelledAt   DateTime?
-  expiredAt     DateTime?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @default(now()) @updatedAt
-
-  booking Booking @relation(fields: [bookingId], references: [id])
-}
-
-model LocationTracking {
-  id        String   @id @default(uuid())
-  userId    String
-  latitude  Float
-  longitude Float
-  updatedAt DateTime @default(now()) @updatedAt
-
-  user User @relation(fields: [userId], references: [id])
-}
-
-model Notification {
-  id        String   @id @default(uuid())
-  userId    String
-  venueId   String?
-  adminOnly Boolean? @default(false)
-  title     String
-  message   String
-  type      String?
-  image     String?
-  isRead    Boolean  @default(false)
-  isGlobal  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-
-  user User @relation(fields: [userId], references: [id])
-}
-
-model Log {
-  id          String   @id @default(uuid())
-  userId      String?
-  action      String
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now()) @updatedAt
-
-  user User? @relation(fields: [userId], references: [id])
-}
-
+// #region FINANCIAL / PAYMENT
 model Transaction {
   id          String             @id @default(uuid())
   userId      String?
@@ -355,30 +365,21 @@ model Transaction {
   venue Venue? @relation(fields: [venueId], references: [id])
 }
 
-model Device {
-  id          String   @id @default(uuid())
-  userId      String?
-  venueId     String?
-  token       String
-  platform    String?
-  osName      String?
-  buildId     String?
-  osVersion   String?
-  deviceModel String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model Invoice {
+  id            String        @id @default(uuid())
+  bookingId     String        @unique
+  invoiceNumber String        @unique
+  amount        Float
+  status        InvoiceStatus @default(PENDING)
+  paymentMethod String?
+  issuedAt      DateTime      @default(now())
+  paidAt        DateTime?
+  cancelledAt   DateTime?
+  expiredAt     DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @default(now()) @updatedAt
 
-  user  User?  @relation(fields: [userId], references: [id])
-  venue Venue? @relation(fields: [venueId], references: [id])
-
-  @@unique([token, userId])
-  @@index([venueId])
-}
-
-model PlatformBalance {
-  id        String   @id @default(uuid())
-  balance   Float    @default(0)
-  updatedAt DateTime @default(now()) @updatedAt
+  booking Booking @relation(fields: [bookingId], references: [id])
 }
 
 model WithdrawRequest {
@@ -405,3 +406,179 @@ model WithdrawRequest {
 
   @@index([venueId, status])
 }
+
+model PlatformBalance {
+  id        String   @id @default(uuid())
+  balance   Float    @default(0)
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+// #region POINTS SYSTEM
+model Point {
+  id        String            @id @default(uuid())
+  userId    String
+  activity  PointActivityType
+  points    Int
+  reference String? // id dari booking, transaction, dsb
+  createdAt DateTime          @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+// #region VENUE INTERACTIONS
+model LikeVenue {
+  id        String   @id @default(uuid())
+  userId    String
+  venueId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  venue Venue @relation(fields: [venueId], references: [id])
+
+  @@unique([userId, venueId])
+}
+
+model VenueImpression {
+  id        String   @id @default(uuid())
+  venueId   String
+  userId    String?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  venue Venue @relation(fields: [venueId], references: [id])
+  user  User? @relation(fields: [userId], references: [id])
+
+  @@index([venueId, createdAt])
+}
+
+// #region EVENTS INTERACTION
+model ReviewEvent {
+  id        String   @id @default(uuid())
+  eventId   String
+  userId    String
+  rating    Float
+  comment   String?
+  image     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@unique([userId, eventId])
+}
+
+model LikeEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  eventId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
+
+  @@unique([userId, eventId])
+}
+
+// #region PUBLIC PLACE INTERACTIONS
+model ReviewPublicPlace {
+  id        String   @id @default(uuid())
+  userId    String
+  placeId   String
+  rating    Float
+  comment   String?
+  image     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  user  User        @relation(fields: [userId], references: [id])
+  place PublicPlace @relation(fields: [placeId], references: [id])
+
+  @@unique([userId, placeId])
+}
+
+model LikePublicPlace {
+  id        String   @id @default(uuid())
+  userId    String
+  placeId   String
+  createdAt DateTime @default(now())
+
+  user  User        @relation(fields: [userId], references: [id])
+  place PublicPlace @relation(fields: [placeId], references: [id])
+
+  @@unique([userId, placeId])
+}
+
+model PublicPlaceImpression {
+  id        String   @id @default(uuid())
+  placeId   String
+  userId    String?
+  createdAt DateTime @default(now())
+
+  place PublicPlace @relation(fields: [placeId], references: [id])
+  user  User?       @relation(fields: [userId], references: [id])
+
+  @@index([placeId, createdAt])
+}
+
+// #region EVENTS & PUBLIC PLACES CORE
+
+model Event {
+  id          String      @id @default(uuid())
+  venueId     String?
+  name        String
+  description String
+  image       String?
+  startAt     DateTime
+  endAt       DateTime
+  capacity    Int?
+  status      EventStatus @default(UPCOMING)
+  isActive    Boolean     @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  venue   Venue?        @relation(fields: [venueId], references: [id])
+  reviews ReviewEvent[]
+  likes   LikeEvent[]
+}
+
+model PublicPlace {
+  id          String          @id @default(uuid())
+  name        String
+  type        PublicPlaceType
+  address     String
+  description String?
+  latitude    Float?
+  longitude   Float?
+  image       String?
+  gallery     String[]        @default([])
+  isActive    Boolean         @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  reviews     ReviewPublicPlace[]
+  likes       LikePublicPlace[]
+  impressions PublicPlaceImpression[]
+}
+
+// #region NOTIFICATIONS
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  venueId   String?
+  adminOnly Boolean? @default(false)
+  title     String
+  message   String
+  type      String?
+  image     String?
+  isRead    Boolean  @default(false)
+  isGlobal  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+

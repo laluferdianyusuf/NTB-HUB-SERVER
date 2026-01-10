@@ -60,6 +60,22 @@ export class TableControllers {
     }
   }
 
+  async getTableByVenueId(req: Request, res: Response) {
+    try {
+      const venueId = req.params.venueId;
+      const result = await this.tableService.getTableByVenueId(venueId);
+
+      res.status(result.status_code).json(result);
+    } catch (error: any) {
+      res.status(500).json({
+        status: false,
+        status_code: 500,
+        message: error.message || "Internal Server Error",
+        data: null,
+      });
+    }
+  }
+
   async updateTable(req: Request, res: Response) {
     try {
       const id = req.params.id;

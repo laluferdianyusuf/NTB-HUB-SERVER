@@ -264,11 +264,21 @@ export class BookingServices {
           } as Notification
         );
 
+        const venueNotification =
+          await notificationRepository.createNewNotification({
+            venueId: booking.venueId,
+            title: "Payment Successful",
+            message: `A payment of ${invoice.amount} has been received for invoice ${invoice.invoiceNumber}.`,
+            type: "Booking",
+            isGlobal: false,
+          } as Notification);
+
         return {
           booking: processedBooking,
           points,
           invoice: updatedInvoice,
           notification,
+          venueNotification,
         };
       });
 
@@ -277,6 +287,13 @@ export class BookingServices {
         booking.userId,
         result.notification.title,
         result.notification.message,
+        null
+      );
+
+      await notificationService.sendToVenue(
+        booking.venueId,
+        result.venueNotification.title,
+        result.venueNotification.message,
         null
       );
 

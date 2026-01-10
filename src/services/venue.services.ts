@@ -5,6 +5,8 @@ import {
   VenueBalanceRepository,
   OwnerRepository,
   OperationalRepository,
+  VenueLikeRepository,
+  VenueImpressionRepository,
 } from "../repositories";
 import { randomUUID } from "crypto";
 import jwt from "jsonwebtoken";
@@ -22,6 +24,8 @@ const invitationRepository = new InvitationKeyRepository();
 const venueBalanceRepository = new VenueBalanceRepository();
 const ownerRepository = new OwnerRepository();
 const operationalRepository = new OperationalRepository();
+const venueLikeRepository = new VenueLikeRepository();
+const venueImpressionRepository = new VenueImpressionRepository();
 
 type OperationalHourInput = {
   dayOfWeek: number;
@@ -435,6 +439,96 @@ export class VenueServices {
         status: false,
         status_code: 500,
         message: "Internal server error",
+      };
+    }
+  }
+
+  async toggleLike(venueId: string, userId: string) {
+    try {
+      const result = await venueLikeRepository.likeVenue(venueId, userId);
+
+      return {
+        status: true,
+        status_code: 201,
+        message: "Venue like toggled",
+        data: result,
+      };
+    } catch (error) {
+      return {
+        status: false,
+        status_code: 500,
+        message: "Internal server error",
+        data: null,
+      };
+    }
+  }
+
+  async getLikeCount(venueId: string, userId: string) {
+    try {
+      const [count, liked] = await Promise.all([
+        venueLikeRepository.countLikesByVenueId(venueId),
+        userId ? venueLikeRepository.isLikedByUser(venueId, userId) : false,
+      ]);
+
+      return {
+        status: true,
+        status_code: 200,
+        message: "Like count retrieved",
+        data: { count, likedByMe: liked },
+      };
+    } catch (error) {
+      return {
+        status: false,
+        status_code: 500,
+        message: "Internal server error",
+        data: null,
+      };
+    }
+  }
+
+  async createImpression(data: {
+    venueId: string;
+    userId?: string;
+    ipAddress?: string;
+    userAgent?: string;
+  }) {
+    try {
+      await venueImpressionRepository.createImpression(data);
+
+      return {
+        status: true,
+        status_code: 201,
+        message: "Impression recorded",
+        data: null,
+      };
+    } catch (error) {
+      return {
+        status: false,
+        status_code: 500,
+        message: "Internal server error",
+        data: null,
+      };
+    }
+  }
+
+  async getImpressionCount(venueId: string) {
+    try {
+      const count = await venueImpressionRepository.countImpressionByVenueId(
+        venueId
+      );
+
+      return {
+        status: true,
+        status_code: 200,
+        message: "Impression count retrieved",
+        data: { count },
+      };
+    } catch (error) {
+      return {
+        status: false,
+        status_code: 500,
+        message: "Internal server error",
+        data: null,
       };
     }
   }

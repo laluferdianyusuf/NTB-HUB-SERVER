@@ -19,3 +19,5 @@ export * from "./owner.repo";
 export * from "./operational.repo";
 export * from "./device.repo";
 export * from "./withdraw.repo";
+export * from "./venue.like.repo";
+export * from "./venue.impression.repo";

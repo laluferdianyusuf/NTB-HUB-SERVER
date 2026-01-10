@@ -17,6 +17,9 @@ router.get("/table/floors/:floorId/venue/:venueId", (req, res) =>
   tableController.getTableByFloorId(req, res)
 );
 router.get("/table/:id", (req, res) => tableController.getTableById(req, res));
+router.get("/tables/:venueId", auth.authorize(["VENUE"]), (req, res) =>
+  tableController.getTableByVenueId(req, res)
+);
 router.put(
   "/table/update/:id",
   auth.authorize(["VENUE"]),

@@ -16,8 +16,10 @@ router.post(
   upload.single("image"),
   (req, res) => menuController.createMenu(req, res)
 );
-router.get("/menu/venues/:venueId", (req, res) =>
-  menuController.getMenuByVenueId(req, res)
+router.get(
+  "/menu/venues/:venueId",
+  auth.authorize(["CUSTOMER", "VENUE"]),
+  (req, res) => menuController.getMenuByVenueId(req, res)
 );
 router.get("/menu/:id", (req, res) => menuController.getMenuById(req, res));
 router.put(

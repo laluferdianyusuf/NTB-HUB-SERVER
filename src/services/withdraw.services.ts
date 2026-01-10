@@ -29,6 +29,9 @@ export class WithdrawService {
     }
   ) {
     try {
+      const venue = await this.prisma.venue.findUnique({
+        where: { id: venueId },
+      });
       const venueBalance = await this.prisma.venueBalance.findUnique({
         where: { venueId },
       });
@@ -67,7 +70,7 @@ export class WithdrawService {
 
       await this.notificationServices.sendToAdmin(
         "Withdraw Request",
-        `New withdraw request IDR ${payload.amount}`
+        `Venue ${venue.name} requested for withdraw IDR ${payload.amount}`
       );
 
       return success.success201("Withdraw request send to admin", result);

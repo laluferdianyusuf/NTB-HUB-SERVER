@@ -84,15 +84,29 @@ export class VenueControllers {
 
       res.status(result.status_code).json(result);
     } catch (error) {
-      res.status(500).json(error.message || "Internal Server Error");
+      res.status(500).json({
+        status: false,
+        status_code: 500,
+        message: error.message || "Internal Server Error",
+        data: null,
+      });
     }
   }
 
   async refresh(req: Request, res: Response) {
-    const { refreshToken } = req.body;
+    try {
+      const { refreshToken } = req.body;
 
-    const result = await this.venueServices.refreshVenueToken(refreshToken);
-    return res.status(result.status_code).json(result);
+      const result = await this.venueServices.refreshVenueToken(refreshToken);
+      return res.status(result.status_code).json(result);
+    } catch (error) {
+      res.status(500).json({
+        status: false,
+        status_code: 500,
+        message: error.message || "Internal Server Error",
+        data: null,
+      });
+    }
   }
 
   async currentVenue(req: Request, res: Response) {
@@ -106,7 +120,85 @@ export class VenueControllers {
         data: venue,
       });
     } catch (error) {
-      throw new error("Error" + error);
+      res.status(500).json({
+        status: false,
+        status_code: 500,
+        message: error.message || "Internal Server Error",
+        data: null,
+      });
+    }
+  }
+
+  async toggleLike(req: Request, res: Response) {
+    try {
+      const venueId = req.params.venueId;
+      const userId = req.user.id;
+
+      const result = await this.venueServices.toggleLike(venueId, userId);
+
+      return res.status(result.status_code).json(result);
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to toggle like",
+      });
+    }
+  }
+
+  async getLikeCount(req: Request, res: Response) {
+    try {
+      const venueId = req.params.venueId;
+      const userId = req.user?.id;
+      const result = await this.venueServices.getLikeCount(venueId, userId);
+
+      return res.status(result.status_code).json(result);
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to fetch like count",
+      });
+    }
+  }
+
+  async createImpression(req: Request, res: Response) {
+    try {
+      const venueId = req.params.venueId;
+      const userId = req.user?.id;
+      const ipAddress = req.ip;
+      const userAgent = req.headers["user-agent"];
+
+      await this.venueServices.createImpression({
+        venueId,
+        userId,
+        ipAddress,
+        userAgent,
+      });
+
+      return res.status(204).send();
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to create impression",
+      });
+    }
+  }
+
+  async getImpressionCount(req: Request, res: Response) {
+    try {
+      const venueId = req.params.venueId;
+
+      const result = await this.venueServices.getImpressionCount(venueId);
+
+      return res.status(result.status_code).json(result);
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to fetch impression count",
+      });
     }
   }
 }
