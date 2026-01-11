@@ -254,7 +254,7 @@ export class AuthMiddlewares {
 
         next();
       } catch (error: any) {
-        console.error("Auth error:", error);
+        // console.error("Auth error:", error);
         const isExpired = error.name === "TokenExpiredError";
         return res.status(401).json({
           status: false,
