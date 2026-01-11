@@ -23,3 +23,4 @@ export * from "./event.order.services";
 export * from "./event.ticket.services";
 export * from "./event.services";
 export * from "./event.ticket.type.services";
+export * from "./public.place.services";

@@ -25,3 +25,4 @@ export * from "./event.order.repo";
 export * from "./event.ticket.repo";
 export * from "./event.repo";
 export * from "./event.ticket.type.repo";
+export * from "./public.place.repo";
