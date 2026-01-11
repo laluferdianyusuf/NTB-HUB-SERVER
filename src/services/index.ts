@@ -19,3 +19,7 @@ export * from "./owner.services";
 export * from "./device.services";
 export * from "./operational.services";
 export * from "./withdraw.services";
+export * from "./event.order.services";
+export * from "./event.ticket.services";
+export * from "./event.services";
+export * from "./event.ticket.type.services";
