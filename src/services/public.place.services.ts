@@ -1,9 +1,11 @@
+import { uploadToCloudinary } from "utils/image";
 import {
   PublicPlaceImpressionRepository,
   PublicPlaceLikeRepository,
   PublicPlaceRepository,
 } from "../repositories";
 import { PublicPlace, PublicPlaceType } from "@prisma/client";
+import { toNum } from "helpers/parser";
 
 export class PublicPlaceService {
   private repo = new PublicPlaceRepository();
@@ -24,10 +26,37 @@ export class PublicPlaceService {
     return place;
   }
 
-  async create(data: PublicPlace): Promise<PublicPlace> {
+  async create(
+    data: Omit<
+      PublicPlace,
+      "id" | "createdAt" | "updatedAt" | "gallery" | "image"
+    >,
+    files?: {
+      image?: Express.Multer.File[];
+      gallery?: Express.Multer.File[];
+    }
+  ): Promise<PublicPlace> {
+    let imageUrl: string | undefined;
+    let galleryUrls: string[] = [];
+
+    if (files?.image?.length) {
+      imageUrl = await uploadToCloudinary(files.image[0].path, "public_place");
+    }
+
+    if (files?.gallery?.length) {
+      galleryUrls = await Promise.all(
+        files.gallery.map((file) =>
+          uploadToCloudinary(file.path, "public_place")
+        )
+      );
+    }
+
     return this.repo.create({
       ...data,
-      gallery: data.gallery ?? [],
+      latitude: toNum(data.latitude),
+      longitude: toNum(data.longitude),
+      image: imageUrl,
+      gallery: galleryUrls,
       isActive: true,
     });
   }

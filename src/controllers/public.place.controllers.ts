@@ -29,7 +29,12 @@ export class PublicPlaceController {
   }
 
   async create(req: Request, res: Response) {
-    const data = await this.publicPlaceService.create(req.body);
+    const files = req.files as {
+      image?: Express.Multer.File[];
+      gallery?: Express.Multer.File[];
+    };
+
+    const data = await this.publicPlaceService.create(req.body, files);
     res
       .status(201)
       .json({ status: true, message: "Public place created", data });

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { PublicPlaceController } from "controllers";
 import { AuthMiddlewares } from "middlewares/auth.middleware";
+import { upload } from "middlewares/upload";
 
 const router = Router();
 const controller = new PublicPlaceController();
@@ -11,8 +12,14 @@ router.get("/list", (req, res) => controller.list(req, res));
 router.get("/detail/:id", (req, res) => controller.detail(req, res));
 
 // admin only
-router.post("/create", auth.authorize(["ADMIN"]), (req, res) =>
-  controller.create(req, res)
+router.post(
+  "/create",
+  auth.authorize(["ADMIN"]),
+  upload.fields([
+    { name: "image", maxCount: 1 },
+    { name: "gallery", maxCount: 5 },
+  ]),
+  (req, res) => controller.create(req, res)
 );
 router.put("/update/:id", auth.authorize(["ADMIN"]), (req, res) =>
   controller.update(req, res)
