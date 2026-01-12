@@ -15,6 +15,7 @@ import Redis from "ioredis";
 import { uploadToCloudinary } from "utils/image";
 import { publisher } from "config/redis.config";
 import { toBool, toNum } from "helpers/parser";
+import { parseTimeToDateUTC } from "helpers/formatIsoDate";
 
 const prisma = new PrismaClient();
 const redis = new Redis();
@@ -147,13 +148,8 @@ export class VenueServices {
           operationalHours.map(async (op) => {
             if (!op.isOpen) return;
 
-            const opensAt = new Date();
-            const [oh, om] = op.opensAt.split(":");
-            opensAt.setHours(Number(oh), Number(om), 0, 0);
-
-            const closesAt = new Date();
-            const [ch, cm] = op.closesAt.split(":");
-            closesAt.setHours(Number(ch), Number(cm), 0, 0);
+            const opensAt = parseTimeToDateUTC(op.opensAt);
+            const closesAt = parseTimeToDateUTC(op.closesAt);
 
             const found = existingOps.find((x) => x.dayOfWeek === op.dayOfWeek);
 

@@ -21,6 +21,11 @@ import invoiceRouter from "./v1/invoice.routes";
 import deviceRouter from "./v1/device.routes";
 import operationalRouter from "./v1/operational.routes";
 import withdrawRouter from "./v1/withdraw.routes";
+import eventOrderRouter from "./v1/event.order.routes";
+import eventTicketRouter from "./v1/event.ticket.routes";
+import eventRouter from "./v1/event.routes";
+import eventTypeRouter from "./v1/event.ticket.type.routes";
+import publicPlaceRouter from "./v1/public.place.routes";
 
 import { deprecatedRouters } from "./deprecated";
 
@@ -50,6 +55,11 @@ v1.use("/invoice", invoiceRouter);
 v1.use("/devices", deviceRouter);
 v1.use("/operational", operationalRouter);
 v1.use("/withdraw", withdrawRouter);
+v1.use("/event-order", eventOrderRouter);
+v1.use("/event-ticket", eventTicketRouter);
+v1.use("/event", eventRouter);
+v1.use("/event-ticket-type", eventTypeRouter);
+v1.use("/public-place", publicPlaceRouter);
 
 // mount v1 API
 router.use("/api/v1", v1);

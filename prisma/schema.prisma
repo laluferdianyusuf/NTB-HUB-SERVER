@@ -76,6 +76,20 @@ enum EventStatus {
   CANCELLED
 }
 
+enum TicketStatus {
+  ACTIVE
+  USED
+  EXPIRED
+  REFUNDED
+}
+
+enum EventOrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+  EXPIRED
+}
+
 enum PublicPlaceType {
   TOURISM
   HOSPITAL
@@ -104,22 +118,24 @@ model User {
   updatedAt  DateTime @default(now()) @updatedAt
 
   // Relations
-  bookings      Booking[]
-  transactions  Transaction[]
-  notifications Notification[]
-  locations     LocationTracking[]
-  logs          Log[]
-  balance       UserBalance?
-  points        Point[]
-  likedVenues       LikeVenue[]
+  bookings         Booking[]
+  transactions     Transaction[]
+  notifications    Notification[]
+  locations        LocationTracking[]
+  logs             Log[]
+  balance          UserBalance?
+  points           Point[]
+  likedVenues      LikeVenue[]
   venueImpressions VenueImpression[]
 
-  likedEvents       LikeEvent[]
-  eventReviews      ReviewEvent[]
+  likedEvents  LikeEvent[]
+  eventReviews ReviewEvent[]
 
-  likedPlaces       LikePublicPlace[]
-  placeReviews      ReviewPublicPlace[]
-  placeImpressions      PublicPlaceImpression[]
+  likedPlaces      LikePublicPlace[]
+  placeReviews     ReviewPublicPlace[]
+  placeImpressions PublicPlaceImpression[]
+  eventOrders      EventOrder[]
+  eventTickets     EventTicket[]
 }
 
 model UserBalance {
@@ -204,9 +220,9 @@ model Venue {
   transactions     Transaction[]
   owner            Owner?
   withdrawRequests WithdrawRequest[]
-  likes        LikeVenue[]
-  impressions VenueImpression[]
-  events       Event[]
+  likes            LikeVenue[]
+  impressions      VenueImpression[]
+  events           Event[]
 }
 
 model Owner {
@@ -345,29 +361,33 @@ model Review {
 
 // #region FINANCIAL / PAYMENT
 model Transaction {
-  id          String             @id @default(uuid())
-  userId      String?
-  venueId     String?
-  amount      Float
-  type        TransactionType
-  reference   String?
-  vaNumber    String?
-  qrisUrl     String?
-  paymentCode String?
-  bankCode    String?
-  orderId     String?
-  expiredAt   DateTime?
-  status      TransactionStatus? @default(PENDING)
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @default(now()) @updatedAt
+  id           String             @id @default(uuid())
+  userId       String?
+  venueId      String?
+  amount       Float
+  type         TransactionType
+  reference    String?
+  vaNumber     String?
+  qrisUrl      String?
+  paymentCode  String?
+  bankCode     String?
+  orderId      String?
+  expiredAt    DateTime?
+  status       TransactionStatus? @default(PENDING)
+  eventOrderId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   user  User?  @relation(fields: [userId], references: [id])
   venue Venue? @relation(fields: [venueId], references: [id])
 }
 
 model Invoice {
-  id            String        @id @default(uuid())
-  bookingId     String        @unique
+  id           String  @id @default(uuid())
+  bookingId    String? @unique
+  eventOrderId String? @unique
+
   invoiceNumber String        @unique
   amount        Float
   status        InvoiceStatus @default(PENDING)
@@ -376,10 +396,12 @@ model Invoice {
   paidAt        DateTime?
   cancelledAt   DateTime?
   expiredAt     DateTime?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @default(now()) @updatedAt
 
-  booking Booking @relation(fields: [bookingId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  booking    Booking?    @relation(fields: [bookingId], references: [id])
+  eventOrder EventOrder? @relation(fields: [eventOrderId], references: [id])
 }
 
 model WithdrawRequest {
@@ -542,6 +564,71 @@ model Event {
   venue   Venue?        @relation(fields: [venueId], references: [id])
   reviews ReviewEvent[]
   likes   LikeEvent[]
+
+  ticketTypes EventTicketType[]
+  orders      EventOrder[]
+  tickets     EventTicket[]
+}
+
+model EventTicketType {
+  id          String  @id @default(uuid())
+  eventId     String
+  name        String
+  price       Float
+  quota       Int
+  sold        Int     @default(0)
+  description String?
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  event   Event         @relation(fields: [eventId], references: [id])
+  tickets EventTicket[]
+
+  @@index([eventId])
+}
+
+model EventOrder {
+  id      String           @id @default(uuid())
+  userId  String
+  eventId String
+  total   Float
+  status  EventOrderStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  user    User          @relation(fields: [userId], references: [id])
+  event   Event         @relation(fields: [eventId], references: [id])
+  tickets EventTicket[]
+  invoice Invoice?
+
+  @@index([userId])
+  @@index([eventId])
+}
+
+model EventTicket {
+  id           String @id @default(uuid())
+  ticketTypeId String
+  eventId      String
+  userId       String
+  orderId      String
+
+  qrCode String       @unique
+  status TicketStatus @default(ACTIVE)
+  usedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  user       User            @relation(fields: [userId], references: [id])
+  event      Event           @relation(fields: [eventId], references: [id])
+  order      EventOrder      @relation(fields: [orderId], references: [id])
+  ticketType EventTicketType @relation(fields: [ticketTypeId], references: [id])
+
+  @@index([eventId])
+  @@index([userId])
 }
 
 model PublicPlace {
@@ -567,7 +654,7 @@ model PublicPlace {
 // #region NOTIFICATIONS
 model Notification {
   id        String   @id @default(uuid())
-  userId    String
+  userId    String?
   venueId   String?
   adminOnly Boolean? @default(false)
   title     String
@@ -579,6 +666,5 @@ model Notification {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+  user User? @relation(fields: [userId], references: [id])
 }
-

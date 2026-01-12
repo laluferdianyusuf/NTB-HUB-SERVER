@@ -18,3 +18,8 @@ export * from "./invoice.controllers";
 export * from "./device.controllers";
 export * from "./operational.controllers";
 export * from "./withdraw.controllers";
+export * from "./event.order.controller";
+export * from "./event.ticket.controllers";
+export * from "./event.controllers";
+export * from "./event.ticket.type.controllers";
+export * from "./public.place.controllers";

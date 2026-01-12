@@ -16,3 +16,7 @@ export function parseLocalToUTC(date: string, time: string) {
 
   return new Date(local.getTime() - local.getTimezoneOffset() * 60000);
 }
+export function parseTimeToDateUTC(time: string) {
+  const [h, m] = time.split(":").map(Number);
+  return new Date(Date.UTC(1970, 0, 1, h, m, 0));
+}

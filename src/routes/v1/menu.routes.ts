@@ -11,7 +11,7 @@ router.get("/all", auth.authorize(["CUSTOMER"]), (req, res) =>
   menuController.getAllMenus(req, res)
 );
 router.post(
-  "/menu/venues",
+  "/create/menu",
   auth.authorize(["VENUE"]),
   upload.single("image"),
   (req, res) => menuController.createMenu(req, res)
