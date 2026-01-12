@@ -152,6 +152,7 @@ model Device {
   userId      String?
   venueId     String?
   token       String
+  expoToken       String
   platform    String?
   osName      String?
   buildId     String?

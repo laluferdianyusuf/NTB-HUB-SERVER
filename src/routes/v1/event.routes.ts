@@ -1,24 +1,71 @@
 import { Router } from "express";
-import { EventController } from "controllers";
+import {
+  EventController,
+  EventOrderController,
+  EventTicketController,
+  EventTicketTypeController,
+} from "controllers";
 import { AuthMiddlewares } from "middlewares/auth.middleware";
 
 const router = Router();
-const controller = new EventController();
+const eventController = new EventController();
+const eventTicketController = new EventTicketController();
+const eventTicketTypeController = new EventTicketTypeController();
+const eventOrderController = new EventOrderController();
 const auth = new AuthMiddlewares();
 
 // PUBLIC
-router.get("/list", controller.listEvent);
-router.get("/detail/:id", controller.detailEvent);
+router.get("/list", (req, res) => eventController.listEvent(req, res));
+router.get("/detail/:id", (req, res) => eventController.detailEvent(req, res));
 
 // ADMIN
-router.post("/create", auth.authorize(["ADMIN"]), controller.create);
-
-router.put(
-  "/update/:id/status",
-  auth.authorize(["ADMIN"]),
-  controller.updateStatusEvent
+router.post("/create", auth.authorize(["ADMIN"]), (req, res) =>
+  eventController.create(req, res)
 );
 
-router.delete("/remove/:id", auth.authorize(["ADMIN"]), controller.removeEvent);
+router.put("/update/:id/status", auth.authorize(["ADMIN"]), (req, res) =>
+  eventController.updateStatusEvent(req, res)
+);
+
+router.delete("/remove/:id", auth.authorize(["ADMIN"]), (req, res) =>
+  eventController.removeEvent(req, res)
+);
+
+// event ticket
+router.post("/ticket/scan", auth.authorize(["VENUE"]), (req, res) =>
+  eventTicketController.scan(req, res)
+);
+
+// event ticket type
+router.post("/ticket/type/create", auth.authorize(["ADMIN"]), (req, res) =>
+  eventTicketTypeController.create(req, res)
+);
+
+router.put("/ticket/type/update/:id", auth.authorize(["ADMIN"]), (req, res) =>
+  eventTicketTypeController.update(req, res)
+);
+
+router.delete(
+  "/ticket/type/delete/:id",
+  auth.authorize(["ADMIN"]),
+  (req, res) => eventTicketTypeController.delete(req, res)
+);
+
+router.get("/ticket/type/event/:eventId", (req, res) =>
+  eventTicketTypeController.getByEvent(req, res)
+);
+
+// event order
+router.post("/event/order/checkout", auth.authorize(["CUSTOMER"]), (req, res) =>
+  eventOrderController.checkout(req, res)
+);
+
+router.post("/event/order/payment/webhook", (req, res) =>
+  eventOrderController.paymentWebhook(req, res)
+);
+
+router.get("/event/order/:id", auth.authorize(["CUSTOMER"]), (req, res) =>
+  eventOrderController.getDetail(req, res)
+);
 
 export default router;

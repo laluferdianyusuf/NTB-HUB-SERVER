@@ -18,7 +18,7 @@ export class EventTicketController {
 
       const ticket = await this.service.scanTicket(qrCode, venueId);
 
-      return res.json({
+      return res.status(200).json({
         status: true,
         message: "Ticket valid",
         data: {

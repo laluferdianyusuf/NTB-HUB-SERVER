@@ -14,6 +14,7 @@ export class DeviceService {
     venueId?: string;
     userId?: string;
     token: string;
+    expoToken: string;
     platform?: string;
     osName?: string;
     osVersion?: string;
@@ -28,6 +29,7 @@ export class DeviceService {
 
         const device = await this.deviceRepo.registerDevice({
           token: data.token,
+          expoToken: data.expoToken,
           userId: data.userId,
           venueId: null,
           platform: data.platform,
