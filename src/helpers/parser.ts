@@ -3,3 +3,10 @@ export const toBool = (v: any) =>
 
 export const toNum = (v: any) =>
   v === "" || v === null || v === undefined ? null : Number(v);
+
+export const jsonToObject = (value: unknown): Record<string, any> => {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    return value as Record<string, any>;
+  }
+  return {};
+};
