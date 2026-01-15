@@ -22,6 +22,25 @@ export class VenueControllers {
     }
   }
 
+  async activateVenue(req: Request, res: Response) {
+    try {
+      const { venueId } = req.params;
+
+      const result = await this.venueServices.activateVenue(venueId);
+
+      res.status(200).json({
+        status: true,
+        message: "Venue activated",
+        data: result,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        status: false,
+        message: error.message || "Internal Server Error",
+      });
+    }
+  }
+
   async getVenueById(req: Request, res: Response) {
     try {
       const id = req.params.id;

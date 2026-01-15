@@ -1,45 +1,51 @@
-import { Prisma, PrismaClient, Venue } from "@prisma/client";
+import { Venue } from "@prisma/client";
 import {
   VenueRepository,
   InvitationKeyRepository,
   VenueBalanceRepository,
-  OwnerRepository,
-  OperationalRepository,
   VenueLikeRepository,
   VenueImpressionRepository,
 } from "../repositories";
-import { randomUUID } from "crypto";
 import jwt from "jsonwebtoken";
-import { sendEmail } from "utils/mail";
 import Redis from "ioredis";
 import { uploadToCloudinary } from "utils/image";
 import { publisher } from "config/redis.config";
-import { toBool, toNum } from "helpers/parser";
-import { parseTimeToDateUTC } from "helpers/formatIsoDate";
+import { toNum } from "helpers/parser";
 
-const prisma = new PrismaClient();
 const redis = new Redis();
 
 const venueRepository = new VenueRepository();
 const invitationRepository = new InvitationKeyRepository();
 const venueBalanceRepository = new VenueBalanceRepository();
-const ownerRepository = new OwnerRepository();
-const operationalRepository = new OperationalRepository();
 const venueLikeRepository = new VenueLikeRepository();
 const venueImpressionRepository = new VenueImpressionRepository();
 
-type OperationalHourInput = {
-  dayOfWeek: number;
-  opensAt: string; // "09:00"
-  closesAt: string; // "22:00"
-  isOpen: boolean;
-};
-
-type UpdateVenueInput = Partial<Venue> & {
-  operationalHours?: OperationalHourInput[];
-};
-
 export class VenueServices {
+  async activateVenue(venueId: string) {
+    const venue = await venueRepository.findVenueById(venueId);
+
+    if (!venue) throw new Error("Venue not found");
+
+    if (venue.operationalHours.length === 0) {
+      throw new Error("Operational hours must be set");
+    }
+
+    if (venue.services.length === 0) {
+      throw new Error("At least one active service is required");
+    }
+
+    for (const service of venue.services) {
+      if (service.unitType && service.units.length === 0) {
+        throw new Error(
+          `Service "${service.id}" requires at least one active unit`
+        );
+      }
+    }
+
+    const activate = await venueRepository.activateVenue(venueId);
+
+    return { activate };
+  }
   async getVenues() {
     try {
       const venues = await venueRepository.findAllVenue();
@@ -90,7 +96,7 @@ export class VenueServices {
 
   async updateVenue(
     id: string,
-    data: UpdateVenueInput,
+    data: Partial<Venue>,
     files?: { image?: Express.Multer.File[]; gallery?: Express.Multer.File[] }
   ) {
     try {
@@ -119,89 +125,14 @@ export class VenueServices {
 
       const updatedVenue = await venueRepository.updateVenue(id, {
         name: data.name,
-        type: data.type,
         address: data.address,
         latitude: toNum(data.latitude),
         longitude: toNum(data.longitude),
-        hasFloors: toBool(data.hasFloors),
-        hasTables: toBool(data.hasTables),
-        hasMenu: toBool(data.hasMenu),
-        hasDelivery: toBool(data.hasDelivery),
-        isActive: true,
         ...(imageUrl && { image: imageUrl }),
         ...(galleryUrls && { gallery: galleryUrls }),
       });
 
-      let operationalHours = data.operationalHours;
-      if (typeof operationalHours === "string") {
-        try {
-          operationalHours = JSON.parse(operationalHours);
-        } catch {
-          operationalHours = [];
-        }
-      }
-
-      if (Array.isArray(operationalHours) && operationalHours.length > 0) {
-        const existingOps = await operationalRepository.getOperationalHours(id);
-
-        await Promise.all(
-          operationalHours.map(async (op) => {
-            if (!op.isOpen) return;
-
-            const opensAt = parseTimeToDateUTC(op.opensAt);
-            const closesAt = parseTimeToDateUTC(op.closesAt);
-
-            const found = existingOps.find((x) => x.dayOfWeek === op.dayOfWeek);
-
-            if (found) {
-              await operationalRepository.update(found.id, {
-                opensAt,
-                closesAt,
-              });
-            } else {
-              await operationalRepository.create(id, {
-                dayOfWeek: op.dayOfWeek,
-                opensAt,
-                closesAt,
-              });
-            }
-          })
-        );
-      }
-
-      const owner = await ownerRepository.findOwnerByVenue(id);
       await venueBalanceRepository.ensureInitialBalance(id);
-      const invitation = await invitationRepository.findByVenueId(id);
-
-      const wasInactive = !existing.isActive;
-      const willBeActive = true;
-
-      if (invitation && wasInactive && willBeActive) {
-        const newKey = `SIGN-${randomUUID().slice(0, 8).toUpperCase()}`;
-
-        await invitationRepository.updateByVenueId(id, {
-          key: newKey,
-          expiresAt: null,
-          usedAt: new Date(),
-          updatedAt: new Date(),
-        });
-
-        await sendEmail(
-          owner.email,
-          "Sign In Key",
-          `
-          <a
-            href="com.laluferdian.ntbhubapps://venue?key=${newKey}"
-            style="padding:12px 20px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;"
-          >
-            Buka Aplikasi
-          </a>
-          <h2>You're all set!</h2>
-          <p>Your venue has been activated.</p>
-          <h3>${newKey}</h3>
-        `
-        );
-      }
 
       await publisher.publish(
         "venue-events",
@@ -217,7 +148,6 @@ export class VenueServices {
         message: "Venue updated successfully",
         data: {
           ...updatedVenue,
-          invitationKey: invitation ? invitation.key : null,
         },
       };
     } catch (error: any) {
@@ -298,7 +228,6 @@ export class VenueServices {
           {
             venueId: venue.id,
             name: venue.name,
-            type: venue.type,
             role: "VENUE",
             createdAt: venue.createdAt,
           },
@@ -310,7 +239,6 @@ export class VenueServices {
           {
             venueId: venue.id,
             name: venue.name,
-            type: venue.type,
             role: "VENUE",
             createdAt: venue.createdAt,
           },
@@ -396,13 +324,13 @@ export class VenueServices {
       }
 
       const newAccessToken = jwt.sign(
-        { venueId: venue.id, name: venue.name, type: venue.type },
+        { venueId: venue.id, name: venue.name },
         process.env.ACCESS_SECRET,
         { expiresIn: "15m" }
       );
 
       const newRefreshToken = jwt.sign(
-        { venueId: venue.id, name: venue.name, type: venue.type },
+        { venueId: venue.id, name: venue.name },
         process.env.REFRESH_SECRET,
         { expiresIn: "7d" }
       );

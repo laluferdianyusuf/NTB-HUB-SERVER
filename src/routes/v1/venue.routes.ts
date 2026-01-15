@@ -23,17 +23,25 @@ router.put(
   ]),
   (req, res) => venueController.updateVenue(req, res)
 );
+
 router.delete("/venue/delete/:id", (req, res) =>
   venueController.deleteVenue(req, res)
 );
+
 router.post("/venue/logout", auth.authorize(["VENUE"]), (req, res) =>
   auth.logoutVenue(req, res)
 );
+
 router.get("/me", auth.authorize(["VENUE"]), (req, res) =>
   venueController.currentVenue(req, res)
 );
+
 router.get("/venue/current/venue", auth.authorize(["VENUE"]), (req, res) =>
   venueController.currentVenue(req, res)
+);
+
+router.put("/activate", auth.authorize(["VENUE", "ADMIN"]), (req, res) =>
+  venueController.activateVenue(req, res)
 );
 
 // interactions with venues

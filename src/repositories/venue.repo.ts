@@ -7,26 +7,31 @@ export class VenueRepository {
     return await prisma.venue.findMany();
   }
 
-  async findVenueById(id: string): Promise<Venue | null> {
-    return prisma.venue.findUnique({
+  async findVenueById(id: string) {
+    return await prisma.venue.findUnique({
       where: { id },
-      include: { invitation: true },
-    });
-  }
-
-  async createVenue(data: Venue): Promise<Venue> {
-    return prisma.venue.create({
-      data: {
-        name: data.name ?? "Untitled Venue",
-        address: data.address ?? "",
-        description: data.description ?? "",
-        type: data.type ?? "UNKNOWN",
+      include: {
+        invitation: true,
+        operationalHours: true,
+        services: {
+          where: { isActive: true },
+          include: {
+            units: { where: { isActive: true } },
+          },
+        },
       },
     });
   }
 
+  async activateVenue(id: string) {
+    return await prisma.venue.update({
+      where: { id },
+      data: { isActive: true },
+    });
+  }
+
   async updateVenue(id: string, data: Partial<Venue>): Promise<Venue> {
-    return prisma.$transaction(async (tx) => {
+    return await prisma.$transaction(async (tx) => {
       const existingFloor = await tx.floor.findFirst({
         where: { venueId: id },
       });
@@ -58,7 +63,7 @@ export class VenueRepository {
   }
 
   async deleteVenueWithRelations(id: string): Promise<Venue> {
-    return prisma.$transaction(async (tx) => {
+    return await prisma.$transaction(async (tx) => {
       await tx.invitationKey.deleteMany({
         where: { venueId: id },
       });
