@@ -1,10 +1,4 @@
-import {
-  PrismaClient,
-  Booking,
-  BookingStatus,
-  TableStatus,
-  Prisma,
-} from "@prisma/client";
+import { PrismaClient, Booking, BookingStatus, Prisma } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -22,16 +16,6 @@ export class BookingRepository {
             name: true,
             phone: true,
             email: true,
-          },
-        },
-        table: {
-          select: {
-            tableNumber: true,
-            floor: {
-              select: {
-                name: true,
-              },
-            },
           },
         },
       },
@@ -73,18 +57,44 @@ export class BookingRepository {
   }
 
   async existingBooking(
-    tableId: string,
+    serviceId: string,
+    unitId: string,
     startTime: Date,
     endTime: Date
   ): Promise<Booking[]> {
     return await prisma.booking.findMany({
       where: {
-        tableId,
+        serviceId,
+        unitId,
         status: { in: [BookingStatus.PENDING, BookingStatus.PAID] },
         startTime: { lt: endTime },
         endTime: { gt: startTime },
       },
     });
+  }
+
+  async checkOverlapping({
+    serviceId,
+    unitId,
+    startTime,
+    endTime,
+  }: {
+    serviceId: string;
+    unitId?: string | null;
+    startTime: Date;
+    endTime: Date;
+  }) {
+    const count = await prisma.booking.count({
+      where: {
+        serviceId,
+        unitId,
+        status: { notIn: ["CANCELLED"] },
+        startTime: { lt: endTime },
+        endTime: { gt: startTime },
+      },
+    });
+
+    return count > 0;
   }
 
   async createBooking(

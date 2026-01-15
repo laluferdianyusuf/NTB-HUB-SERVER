@@ -1,22 +1,21 @@
 import {
-  Booking,
   Notification,
   OrderItem,
   PointActivityType,
   PrismaClient,
-  TableStatus,
   TransactionStatus,
   TransactionType,
 } from "@prisma/client";
 import {
   BookingRepository,
   UserBalanceRepository,
-  TableRepository,
   InvoiceRepository,
   TransactionRepository,
   NotificationRepository,
   PointsRepository,
   VenueBalanceRepository,
+  VenueServiceRepository,
+  VenueUnitRepository,
 } from "../repositories";
 import { publisher } from "config/redis.config";
 import { error, success } from "helpers/return";
@@ -25,129 +24,152 @@ import { NotificationService } from "./notification.services";
 import {
   PLATFORM_BALANCE_ID,
   PLATFORM_FEE_NUMBER,
-  PLATFORM_FEE_PERCENT,
 } from "config/finance.config";
 const bookingRepository = new BookingRepository();
 const userBalanceRepository = new UserBalanceRepository();
 const venueBalanceRepository = new VenueBalanceRepository();
-const tableRepository = new TableRepository();
 const invoiceRepository = new InvoiceRepository();
 const transactionRepository = new TransactionRepository();
 const notificationRepository = new NotificationRepository();
 const notificationService = new NotificationService();
 const pointRepository = new PointsRepository();
+const venueServiceRepository = new VenueServiceRepository();
+const venueUnitRepository = new VenueUnitRepository();
 const prisma = new PrismaClient();
 
-interface Props {
+interface CreateBookingProps {
   userId: string;
   venueId: string;
-  tableId: string;
+  serviceId: string;
+  unitId: string;
   startTime: Date;
   endTime: Date;
-  totalPrice: number;
-  orders: OrderItem[];
+  orders?: OrderItem[];
+  sessionId?: string;
+  date?: string;
 }
 
 const publishEvent = (channel: string, event: string, payload: any) =>
   publisher.publish(channel, JSON.stringify({ event, payload }));
 
 export class BookingServices {
-  async createBooking(data: Props) {
-    const startTime = normalizeDate(String(data.startTime));
-    const endTime = normalizeDate(String(data.endTime));
-
-    const invoiceNumber = `INV-${crypto
-      .randomUUID()
-      .slice(0, 8)
-      .toUpperCase()}`;
-
+  async createBooking(data: CreateBookingProps) {
     try {
-      const table = await tableRepository.findTablesById(data.tableId);
+      const service = await venueServiceRepository.findById(data.serviceId);
 
-      if (!table) return error.error404("Table not found");
-      if (table.status === "MAINTENANCE")
-        return error.error400("This table is under maintenance");
+      if (!service || !service.isActive)
+        return error.error400("Service not available");
 
-      const overlapping = await bookingRepository.existingBooking(
-        data.tableId,
-        startTime,
-        endTime
-      );
+      let unit = null;
 
-      if (overlapping.length > 0) return error.error400("Booking exist");
+      if (service.unitType) {
+        if (!data.unitId) return error.error400("Unit is required");
+
+        unit = await venueUnitRepository.findById(data.unitId);
+
+        if (!unit || !unit.isActive)
+          return error.error400("Unit not available");
+      }
+
+      let startTime: Date;
+      let endTime: Date;
+
+      if (service.bookingType === "NONE") {
+        startTime = new Date();
+        endTime = new Date();
+      } else {
+        if (!data.startTime || !data.endTime)
+          return error.error400("Start & end time required");
+
+        startTime = normalizeDate(String(data.startTime));
+        endTime = normalizeDate(String(data.endTime));
+      }
+
+      if (service.bookingType === "TIME") {
+        const overlapping = await bookingRepository.checkOverlapping({
+          serviceId: data.serviceId,
+          unitId: data.unitId ?? null,
+          startTime,
+          endTime,
+        });
+
+        if (overlapping) return error.error400("Time slot not available");
+      }
+
+      let totalPrice = 0;
+
+      if (service.bookingType === "TIME" && unit) {
+        const hours = (endTime.getTime() - startTime.getTime()) / 3600000;
+
+        totalPrice = hours * unit.price;
+      }
+
+      const invoiceNumber = `INV-${crypto
+        .randomUUID()
+        .slice(0, 8)
+        .toUpperCase()}`;
 
       const result = await prisma.$transaction(async (tx) => {
-        const booking = await bookingRepository.createBooking(
-          {
+        const booking = await tx.booking.create({
+          data: {
             userId: data.userId,
             venueId: data.venueId,
-            tableId: data.tableId,
-            startTime: startTime,
-            endTime: endTime,
-            totalPrice: data.totalPrice,
-          } as Booking,
-          tx
-        );
+            serviceId: data.serviceId,
+            unitId: data.unitId,
+            startTime,
+            endTime,
+            totalPrice,
+          },
+        });
 
         let totalOrderAmount = 0;
-        let orderItems: any[] = [];
 
-        if (data.orders && data.orders.length > 0) {
-          const menuIds = data.orders.map((o) => o.menuId);
-          const menus = await tx.menu.findMany({
-            where: { id: { in: menuIds } },
-          });
-
+        if (data.orders?.length) {
           for (const o of data.orders) {
-            const menu = menus.find((m) => m.id === o.menuId);
-            if (!menu) throw new Error(`Menu not found: ${o.menuId}`);
+            const menu = await tx.menu.findUnique({
+              where: { id: o.menuId },
+            });
+
+            if (!menu) throw new Error("Menu not found");
 
             const subtotal = menu.price * o.quantity;
             totalOrderAmount += subtotal;
 
-            orderItems.push(
-              await tx.orderItem.create({
-                data: {
-                  bookingId: booking.id,
-                  menuId: o.menuId,
-                  quantity: o.quantity,
-                  subtotal,
-                },
-              })
-            );
+            await tx.orderItem.create({
+              data: {
+                bookingId: booking.id,
+                menuId: o.menuId,
+                quantity: o.quantity,
+                subtotal,
+              },
+            });
           }
         }
 
-        const totalInvoiceAmount = booking.totalPrice + totalOrderAmount;
-
-        const invoice = await invoiceRepository.create(
-          {
+        const invoice = await tx.invoice.create({
+          data: {
             bookingId: booking.id,
             invoiceNumber,
-            amount: totalInvoiceAmount,
-            paymentMethod: "DEDUCTION",
+            amount: totalPrice + totalOrderAmount,
             expiredAt: new Date(Date.now() + 5 * 60 * 1000),
           },
-          tx
-        );
+        });
 
-        return { booking, orderItems, invoice };
+        return { booking, invoice };
       });
-      const fullInvoice = await invoiceRepository.findById(result.invoice.id);
 
       await notificationService.sendToUser(
         data.venueId,
         data.userId,
         "Booking Created",
-        `Your booking has been created with invoice ${fullInvoice.invoiceNumber}`,
+        `Invoice ${invoiceNumber} created`,
         null
       );
 
-      await publishEvent("invoice-events", "invoice:created", fullInvoice);
-
-      return success.success201("Booking created successfully", result);
+      return success.success201("Booking created", result);
     } catch (err) {
-      return error.error500("Internal server error" + err);
+      console.error(err);
+      return error.error500("Internal server error");
     }
   }
 
@@ -381,12 +403,6 @@ export class BookingServices {
 
         const invoice = await invoiceRepository.updateInvoiceCanceled(id, tx);
 
-        await tableRepository.updateTableStatus(
-          booking.tableId,
-          TableStatus.AVAILABLE,
-          tx
-        );
-
         return { bookings, invoice };
       });
 
@@ -445,13 +461,19 @@ export class BookingServices {
     }
   }
 
-  async getExistingBooking(tableId: string, startTime: Date, endTime: Date) {
+  async getExistingBooking(
+    serviceId: string,
+    unitId: string,
+    startTime: Date,
+    endTime: Date
+  ) {
     const startTimeDB = toLocalDBTime(new Date(startTime));
     const endTimeDB = toLocalDBTime(new Date(endTime));
 
     try {
       const existing = await bookingRepository.existingBooking(
-        tableId,
+        serviceId,
+        unitId,
         startTimeDB,
         endTimeDB
       );

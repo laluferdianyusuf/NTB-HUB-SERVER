@@ -115,9 +115,10 @@ export class BookingControllers {
 
   async getExistingBooking(req: Request, res: Response) {
     try {
-      const { tableId, startTime, endTime } = req.query;
+      const { serviceId, unitId, startTime, endTime } = req.query;
       const result = await this.bookingService.getExistingBooking(
-        String(tableId),
+        String(serviceId),
+        String(unitId),
         new Date(String(startTime)),
         new Date(String(endTime))
       );
