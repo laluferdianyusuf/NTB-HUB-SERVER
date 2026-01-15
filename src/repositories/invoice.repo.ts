@@ -21,13 +21,6 @@ export class InvoiceRepository {
                 name: true,
               },
             },
-            table: {
-              select: {
-                image: true,
-                floor: true,
-                tableNumber: true,
-              },
-            },
             orderItems: {
               select: {
                 quantity: true,
@@ -62,13 +55,6 @@ export class InvoiceRepository {
             venue: {
               select: {
                 name: true,
-              },
-            },
-            table: {
-              select: {
-                image: true,
-                floor: true,
-                tableNumber: true,
               },
             },
             orderItems: {
@@ -115,13 +101,6 @@ export class InvoiceRepository {
                 name: true,
               },
             },
-            table: {
-              select: {
-                image: true,
-                floor: true,
-                tableNumber: true,
-              },
-            },
             orderItems: {
               select: {
                 quantity: true,
@@ -149,13 +128,6 @@ export class InvoiceRepository {
             },
             venue: {
               select: { name: true },
-            },
-            table: {
-              select: {
-                image: true,
-                tableNumber: true,
-                floor: true,
-              },
             },
             orderItems: {
               select: {
@@ -195,13 +167,6 @@ export class InvoiceRepository {
               select: {
                 quantity: true,
                 menu: true,
-              },
-            },
-            table: {
-              select: {
-                image: true,
-                floor: true,
-                tableNumber: true,
               },
             },
           },
