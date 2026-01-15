@@ -4,7 +4,13 @@ import { sendEmail } from "utils/mail";
 const invitationKeyRepository = new InvitationKeyRepository();
 
 export class InvitationServices {
-  async generateInvitationKey(email: string, venueName: string) {
+  async generateInvitationKey(
+    email: string,
+    venueName: string,
+    address: string,
+    city: string,
+    province: string
+  ) {
     try {
       const key = `INVITE-${randomUUID().slice(0, 8).toUpperCase()}`;
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -12,7 +18,10 @@ export class InvitationServices {
       const newKey = await invitationKeyRepository.generate(
         email,
         venueName,
-        expiresAt,
+        address,
+        city,
+        province,
+        null,
         key
       );
 
@@ -39,7 +48,6 @@ export class InvitationServices {
         </a>
 
         <p>Kode undangan: <b>${key}</b></p>
-        <p>Kode berlaku hingga ${expiresAt.toLocaleString("id-ID")}.</p>
       `
       );
 
@@ -51,7 +59,6 @@ export class InvitationServices {
           id: newKey.invitation.id,
           email: email,
           venueName: newKey.venue.name,
-          expiresAt: newKey.invitation.expiresAt,
         },
       };
     } catch (error) {

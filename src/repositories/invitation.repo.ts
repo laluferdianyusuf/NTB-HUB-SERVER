@@ -6,6 +6,9 @@ export class InvitationKeyRepository {
   async generate(
     email: string,
     venueName: string,
+    address: string,
+    city: string,
+    province: string,
     expiresAt?: Date,
     key?: string
   ) {
@@ -17,14 +20,15 @@ export class InvitationKeyRepository {
       const venue = await tx.venue.create({
         data: {
           name: venueName,
-          type: "UNKNOWN",
-          address: "Not set",
-          description: "Auto-generated venue",
+          address: address ?? "Auto-generated address",
+          city: city ?? "Auto-generated city",
+          province: province ?? "Auto-generated province",
+          description: "Auto-generated description",
           isActive: false,
         },
       });
       const owners = await tx.owner.create({
-        data: { venueId: venue.id, email, name: "Not set" } as any,
+        data: { venueId: venue.id, email, name: "Auto-generated name" } as any,
       });
 
       const generatedKey = key ?? crypto.randomUUID();

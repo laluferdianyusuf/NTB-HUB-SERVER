@@ -9,10 +9,13 @@ export class InvitationController {
   }
 
   async generateInvitationKey(req: Request, res: Response) {
-    const { email, venueName } = req.body;
+    const { email, venueName, address, city, province } = req.body;
     const result = await this.invitationServices.generateInvitationKey(
       email,
-      venueName
+      venueName,
+      address,
+      city,
+      province
     );
     return res.status(result.status_code).json(result);
   }
