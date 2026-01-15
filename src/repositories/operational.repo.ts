@@ -78,4 +78,10 @@ export class OperationalRepository {
       data,
     });
   }
+
+  async delete(id: string) {
+    return prisma.operationalHour.delete({
+      where: { id },
+    });
+  }
 }
