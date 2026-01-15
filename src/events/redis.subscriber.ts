@@ -13,7 +13,6 @@ export const setupRedisSubscriber = (io: Server) => {
     "venue-events",
     "points-events",
     "notification-events",
-    "tables-events",
     "balance-events",
     "invoice-events",
   ];
