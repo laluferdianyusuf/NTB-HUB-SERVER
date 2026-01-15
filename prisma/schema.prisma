@@ -11,19 +11,8 @@ datasource db {
 enum Role {
   CUSTOMER
   ADMIN
-}
-
-enum VenueType {
-  BILLIARD
-  MINI_SOCCER
-  CAFE
-  UNKNOWN
-}
-
-enum TableStatus {
-  AVAILABLE
-  BOOKED
-  MAINTENANCE
+  VENUE_STAFF
+  VENUE_OWNER
 }
 
 enum BookingStatus {
@@ -100,6 +89,19 @@ enum PublicPlaceType {
   OTHER
 }
 
+enum UnitType {
+  FIELD
+  TABLE
+  ROOM
+  COURT
+}
+
+enum BookingType {
+  TIME
+  SESSION
+  NONE
+}
+
 // #regionUSER & AUTH
 model User {
   id         String   @id @default(uuid())
@@ -152,7 +154,7 @@ model Device {
   userId      String?
   venueId     String?
   token       String
-  expoToken       String
+  expoToken   String
   platform    String?
   osName      String?
   buildId     String?
@@ -191,29 +193,26 @@ model Log {
 
 // #region VENUE CORE
 model Venue {
-  id          String     @id @default(uuid())
+  id          String   @id @default(uuid())
   name        String
-  type        VenueType?
   address     String
+  city        String
+  province    String
   description String
   latitude    Float?
   longitude   Float?
   image       String?
-  gallery     String[]   @default([])
-  isActive    Boolean    @default(false)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @default(now()) @updatedAt
+  gallery     String[] @default([])
+  isActive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
 
-  hasFloors   Boolean @default(false)
-  hasTables   Boolean @default(false)
-  hasMenu     Boolean @default(false)
-  hasDelivery Boolean @default(false)
+  services VenueService[]
+  units    VenueUnit[]
 
   // Relations
   devices          Device[]
   floors           Floor[]
-  tables           Table[]
-  menus            Menu[]
   bookings         Booking[]
   operationalHours OperationalHour[]
   invitation       InvitationKey?
@@ -224,6 +223,62 @@ model Venue {
   likes            LikeVenue[]
   impressions      VenueImpression[]
   events           Event[]
+}
+
+model VenueCategory {
+  id       String  @id @default(uuid())
+  name     String // Sport, Food, Entertainment, dll
+  code     String  @unique
+  icon     String?
+  isActive Boolean @default(true)
+
+  subCategories VenueSubCategory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VenueSubCategory {
+  id            String  @id @default(uuid())
+  categoryId    String
+  name          String // Mini Soccer, Cafe, Billiard
+  code          String  @unique
+  description   String?
+  defaultConfig Json // TEMPLATE CONFIG
+  isActive      Boolean @default(true)
+
+  category VenueCategory  @relation(fields: [categoryId], references: [id])
+  services VenueService[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VenueService {
+  id            String @id @default(uuid())
+  venueId       String
+  subCategoryId String
+
+  config Json
+
+  unitType    UnitType?
+  bookingType BookingType?
+
+  isActive Boolean @default(true)
+
+  venue       Venue            @relation(fields: [venueId], references: [id])
+  subCategory VenueSubCategory @relation(fields: [subCategoryId], references: [id])
+
+  units    VenueUnit[]
+  menus    Menu[]
+  bookings Booking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([venueId, subCategoryId])
+  @@index([venueId])
+  @@index([subCategoryId])
 }
 
 model Owner {
@@ -264,29 +319,37 @@ model VenueBalance {
 
 // #region VENUE STRUCTURE
 model Floor {
-  id      String  @id @default(uuid())
+  id      String @id @default(uuid())
   name    String
   level   Int?
   venueId String
-  venue   Venue   @relation(fields: [venueId], references: [id])
-  tables  Table[]
+  venue   Venue  @relation(fields: [venueId], references: [id])
+
+  units VenueUnit[]
 }
 
-model Table {
-  id          String      @id @default(uuid())
-  tableNumber Int
-  floorId     String?
-  venueId     String
-  status      TableStatus @default(AVAILABLE)
-  image       String?
-  price       Float       @default(0)
-  bookingAt   DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @default(now()) @updatedAt
+model VenueUnit {
+  id        String  @id @default(uuid())
+  venueId   String
+  serviceId String
+  floorId   String?
 
-  floor    Floor?    @relation(fields: [floorId], references: [id])
-  venue    Venue     @relation(fields: [venueId], references: [id])
-  bookings Booking[]
+  name     String
+  type     UnitType
+  price    Float
+  isActive Boolean  @default(true)
+
+  floor   Floor?       @relation(fields: [floorId], references: [id])
+  venue   Venue        @relation(fields: [venueId], references: [id])
+  service VenueService @relation(fields: [serviceId], references: [id])
+
+  booking Booking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([venueId])
+  @@index([serviceId])
 }
 
 model OperationalHour {
@@ -304,7 +367,8 @@ model Booking {
   id         String        @id @default(uuid())
   userId     String
   venueId    String
-  tableId    String
+  serviceId  String
+  unitId     String?
   startTime  DateTime
   endTime    DateTime
   totalPrice Float
@@ -312,17 +376,23 @@ model Booking {
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @default(now()) @updatedAt
 
-  user       User        @relation(fields: [userId], references: [id])
-  venue      Venue       @relation(fields: [venueId], references: [id])
-  table      Table       @relation(fields: [tableId], references: [id])
+  user       User         @relation(fields: [userId], references: [id])
+  venue      Venue        @relation(fields: [venueId], references: [id])
+  service    VenueService @relation(fields: [serviceId], references: [id])
+  unit       VenueUnit?   @relation(fields: [unitId], references: [id])
   orderItems OrderItem[]
   review     Review?
   invoice    Invoice?
+
+  @@index([userId])
+  @@index([venueId])
+  @@index([serviceId])
 }
 
 model Menu {
-  id          String   @id @default(uuid())
-  venueId     String
+  id        String @id @default(uuid())
+  serviceId String
+
   name        String
   price       Float
   category    String
@@ -331,7 +401,7 @@ model Menu {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now()) @updatedAt
 
-  venue      Venue       @relation(fields: [venueId], references: [id])
+  service    VenueService @relation(fields: [serviceId], references: [id])
   orderItems OrderItem[]
 }
 
