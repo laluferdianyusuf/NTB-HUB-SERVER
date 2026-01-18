@@ -37,32 +37,46 @@ export class VenueServices {
     for (const service of venue.services) {
       if (service.unitType && service.units.length === 0) {
         throw new Error(
-          `Service "${service.id}" requires at least one active unit`
+          `Service "${service.id}" requires at least one active unit`,
         );
       }
     }
 
     const activate = await venueRepository.activateVenue(venueId);
 
-    return { activate };
+    return activate;
   }
+
+  async getActiveVenues() {
+    const venues = await venueRepository.findActiveVenue();
+
+    if (!venues) throw new Error("Venue not found");
+
+    return venues;
+  }
+
   async getVenues() {
-    try {
-      const venues = await venueRepository.findAllVenue();
-      return {
-        status: true,
-        status_code: 200,
-        message: "Venues retrieved",
-        data: venues,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
-    }
+    const venues = await venueRepository.findAllVenue();
+    if (!venues) throw new Error("Venue not found");
+    return venues;
+  }
+
+  async getPopularVenues() {
+    const venues = await venueRepository.findPopularVenues();
+    if (!venues) throw new Error("Venue not found");
+    return venues;
+  }
+
+  async getVenuesByCategoryId(categoryId: string) {
+    const venues = await venueRepository.findVenueByCategory(categoryId);
+    if (!venues) throw new Error("Venue not found");
+    return venues;
+  }
+
+  async getPopularVenuesByCategoryId(categoryId: string) {
+    const venues = await venueRepository.findPopularVenueByCategory(categoryId);
+    if (!venues) throw new Error("Venue not found");
+    return venues;
   }
 
   async getVenueById(id: string) {
@@ -97,7 +111,7 @@ export class VenueServices {
   async updateVenue(
     id: string,
     data: Partial<Venue>,
-    files?: { image?: Express.Multer.File[]; gallery?: Express.Multer.File[] }
+    files?: { image?: Express.Multer.File[]; gallery?: Express.Multer.File[] },
   ) {
     try {
       let imageUrl: string | undefined;
@@ -109,7 +123,7 @@ export class VenueServices {
 
       if (files?.gallery?.length) {
         galleryUrls = await Promise.all(
-          files.gallery.map((file) => uploadToCloudinary(file.path, "venues"))
+          files.gallery.map((file) => uploadToCloudinary(file.path, "venues")),
         );
       }
 
@@ -139,7 +153,7 @@ export class VenueServices {
         JSON.stringify({
           event: "venue:updated",
           payload: updatedVenue,
-        })
+        }),
       );
 
       return {
@@ -232,7 +246,7 @@ export class VenueServices {
             createdAt: venue.createdAt,
           },
           process.env.ACCESS_SECRET,
-          { expiresIn: "15m" }
+          { expiresIn: "15m" },
         );
 
         refreshToken = jwt.sign(
@@ -243,7 +257,7 @@ export class VenueServices {
             createdAt: venue.createdAt,
           },
           process.env.REFRESH_SECRET,
-          { expiresIn: "7d" }
+          { expiresIn: "7d" },
         );
       } else {
         accessToken = jwt.sign(
@@ -251,7 +265,7 @@ export class VenueServices {
             venueId: venue.id,
           },
           process.env.ACCESS_SECRET,
-          { expiresIn: "15m" }
+          { expiresIn: "15m" },
         );
 
         refreshToken = jwt.sign(
@@ -259,7 +273,7 @@ export class VenueServices {
             venueId: venue.id,
           },
           process.env.REFRESH_SECRET,
-          { expiresIn: "7d" }
+          { expiresIn: "7d" },
         );
       }
 
@@ -267,7 +281,7 @@ export class VenueServices {
         `venue:refresh:${venue.id}`,
         refreshToken,
         "EX",
-        7 * 24 * 60 * 60
+        7 * 24 * 60 * 60,
       );
 
       return {
@@ -305,7 +319,7 @@ export class VenueServices {
 
       const decoded = jwt.verify(
         refreshToken,
-        process.env.REFRESH_SECRET
+        process.env.REFRESH_SECRET,
       ) as any;
       const storedToken = await redis.get(`venue:refresh:${decoded.venueId}`);
 
@@ -326,20 +340,20 @@ export class VenueServices {
       const newAccessToken = jwt.sign(
         { venueId: venue.id, name: venue.name },
         process.env.ACCESS_SECRET,
-        { expiresIn: "15m" }
+        { expiresIn: "15m" },
       );
 
       const newRefreshToken = jwt.sign(
         { venueId: venue.id, name: venue.name },
         process.env.REFRESH_SECRET,
-        { expiresIn: "7d" }
+        { expiresIn: "7d" },
       );
 
       await redis.set(
         `venue:refresh:${venue.id}`,
         newRefreshToken,
         "EX",
-        7 * 24 * 60 * 60
+        7 * 24 * 60 * 60,
       );
 
       return {
@@ -437,9 +451,8 @@ export class VenueServices {
 
   async getImpressionCount(venueId: string) {
     try {
-      const count = await venueImpressionRepository.countImpressionByVenueId(
-        venueId
-      );
+      const count =
+        await venueImpressionRepository.countImpressionByVenueId(venueId);
 
       return {
         status: true,
