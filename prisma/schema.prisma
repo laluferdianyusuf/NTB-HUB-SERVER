@@ -356,8 +356,8 @@ model OperationalHour {
   id        String   @id @default(uuid())
   venueId   String
   dayOfWeek Int
-  opensAt   DateTime
-  closesAt  DateTime
+  opensAt   Int
+  closesAt  Int
 
   venue Venue @relation(fields: [venueId], references: [id])
 }

@@ -7,18 +7,18 @@ export class MenuRepository {
   async findAllMenus(): Promise<Menu[]> {
     return prisma.menu.findMany({
       include: {
-        venue: {
+        service: {
           select: {
-            name: true,
+            venue: true,
           },
         },
       },
     });
   }
 
-  // find all menus at venue
-  async findMenuByVenueId(venueId: string): Promise<Menu[]> {
-    return prisma.menu.findMany({ where: { venueId } });
+  // find all menus at service
+  async findMenuByServiceId(serviceId: string): Promise<Menu[]> {
+    return prisma.menu.findMany({ where: { serviceId } });
   }
 
   // find detail menu
@@ -27,7 +27,16 @@ export class MenuRepository {
   }
 
   //   create new menu at venue
-  async createNewMenuByVenue(data: Menu, tx?: Prisma.TransactionClient) {
+  async createNewMenuByService(
+    data: {
+      name: string;
+      price: number;
+      category: string;
+      serviceId: string;
+      image: string;
+    },
+    tx?: Prisma.TransactionClient,
+  ) {
     const db = tx ?? prisma;
     return await db.menu.create({
       data: data,

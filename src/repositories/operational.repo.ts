@@ -9,13 +9,19 @@ export class OperationalRepository {
     });
   }
 
+  getOperationalHourOfWeek(venueId: string, dayOfWeek: number) {
+    return prisma.operationalHour.findFirst({
+      where: { venueId, dayOfWeek },
+    });
+  }
+
   async create(
     venueId: string,
     data: {
       dayOfWeek: number;
-      opensAt: Date;
-      closesAt: Date;
-    }
+      opensAt: number;
+      closesAt: number;
+    },
   ) {
     return prisma.operationalHour.create({
       data: {
@@ -31,9 +37,9 @@ export class OperationalRepository {
     venueId: string,
     hours: {
       dayOfWeek: number;
-      opensAt: Date;
-      closesAt: Date;
-    }[]
+      opensAt: number;
+      closesAt: number;
+    }[],
   ) {
     return prisma.operationalHour.createMany({
       data: hours.map((h) => ({
@@ -49,9 +55,9 @@ export class OperationalRepository {
     id: string,
     data: Partial<{
       dayOfWeek: number;
-      opensAt: Date;
-      closesAt: Date;
-    }>
+      opensAt: number;
+      closesAt: number;
+    }>,
   ) {
     return prisma.operationalHour.update({
       where: { id },
@@ -69,9 +75,9 @@ export class OperationalRepository {
     venueId: string,
     dayOfWeek: number,
     data: {
-      opensAt: Date;
-      closesAt: Date;
-    }
+      opensAt: number;
+      closesAt: number;
+    },
   ) {
     return prisma.operationalHour.updateMany({
       where: { venueId, dayOfWeek },

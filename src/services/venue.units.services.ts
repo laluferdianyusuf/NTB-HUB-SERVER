@@ -4,12 +4,14 @@ import {
   VenueServiceRepository,
   VenueUnitRepository,
   FloorRepository,
+  OperationalRepository,
 } from "../repositories";
 
 export class VenueUnitService {
   private venueRepository = new VenueRepository();
   private venueServiceRepository = new VenueServiceRepository();
   private venueUnitRepository = new VenueUnitRepository();
+  private operationalRepository = new OperationalRepository();
   private floorRepository = new FloorRepository();
 
   // CREATE UNIT
@@ -84,9 +86,67 @@ export class VenueUnitService {
     return unit;
   }
 
+  async getAvailabilityUnits(venueId: string, serviceId: string, date: string) {
+    const dayOfWeek = new Date(date).getDay();
+
+    const operational =
+      await this.operationalRepository.getOperationalHourOfWeek(
+        venueId,
+        dayOfWeek,
+      );
+
+    if (!operational) {
+      throw new Error("Venue closed");
+    }
+
+    const { opensAt, closesAt } = operational;
+
+    const hours: number[] = [];
+
+    for (let h = opensAt; h < closesAt; h++) {
+      hours.push(h);
+    }
+
+    const dayStart = new Date(`${date}T00:00:00`);
+    const dayEnd = new Date(`${date}T23:59:59`);
+
+    const units = await this.venueUnitRepository.getUnitsWithBookings(
+      venueId,
+      serviceId,
+      dayStart,
+      dayEnd,
+    );
+
+    return units.map((u) => {
+      const slots = hours.map((hour) => {
+        const slotStart = new Date(
+          `${date}T${String(hour).padStart(2, "0")}:00:00`,
+        );
+        const slotEnd = new Date(
+          `${date}T${String(hour + 1).padStart(2, "0")}:00:00`,
+        );
+
+        const isBooked = u.booking.some(
+          (b) => slotStart < b.endTime && slotEnd > b.startTime,
+        );
+
+        return {
+          hour,
+          available: !isBooked,
+        };
+      });
+
+      return {
+        id: u.id,
+        name: u.name,
+        price: u.price,
+        slots,
+      };
+    });
+  }
+
   // UPDATE UNIT
   // Tidak boleh mengubah type jika sudah ada booking
-
   async update(
     id: string,
     input: {
@@ -94,7 +154,7 @@ export class VenueUnitService {
       price?: number;
       type?: UnitType;
       isActive?: boolean;
-    }
+    },
   ) {
     const unit = await this.venueUnitRepository.findById(id);
     if (!unit) {

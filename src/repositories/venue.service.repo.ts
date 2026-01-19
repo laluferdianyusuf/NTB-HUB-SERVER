@@ -24,6 +24,12 @@ export class VenueServiceRepository {
             category: true,
           },
         },
+        venue: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         units: true,
         menus: true,
       },
@@ -62,7 +68,7 @@ export class VenueServiceRepository {
       unitType?: UnitType;
       config?: Record<string, any>;
       isActive?: boolean;
-    }
+    },
   ) {
     return prisma.venueService.update({
       where: { id },
