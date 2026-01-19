@@ -76,7 +76,7 @@ export class PublicPlaceController {
       const userId = req.user?.id;
       const result = await this.publicPlaceService.getLikeCount(
         placeId,
-        userId
+        userId,
       );
 
       return res.status(result.status_code).json(result);
