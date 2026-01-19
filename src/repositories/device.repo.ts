@@ -79,13 +79,13 @@ export class DeviceRepository {
 
   async findByUserId(userId: string) {
     return prisma.device.findMany({
-      where: { userId, expoToken: { not: null } },
+      where: { userId },
     });
   }
 
   async findByVenueId(venueId: string) {
     return prisma.device.findMany({
-      where: { venueId, expoToken: { not: null } },
+      where: { venueId },
     });
   }
 

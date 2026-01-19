@@ -11,22 +11,95 @@ export class VenueControllers {
     try {
       const result = await this.venueServices.getVenues();
 
-      res.status(result.status_code).json(result);
+      res.status(200).json({
+        status: true,
+        message: "Venues retrieved successful",
+        data: result,
+      });
     } catch (error: any) {
       res.status(500).json({
         status: false,
-        status_code: 500,
         message: error.message || "Internal Server Error",
-        data: null,
+      });
+    }
+  }
+
+  async getPopularVenues(req: Request, res: Response) {
+    try {
+      const result = await this.venueServices.getPopularVenues();
+
+      res.status(200).json({
+        status: true,
+        message: "Venues retrieved successful",
+        data: result,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        status: false,
+        message: error.message || "Internal Server Error",
+      });
+    }
+  }
+
+  async getVenuesByCategory(req: Request, res: Response) {
+    try {
+      const { categoryId } = req.params;
+      const result = await this.venueServices.getVenuesByCategoryId(categoryId);
+
+      res.status(200).json({
+        status: true,
+        message: "Venues retrieved successful",
+        data: result,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        status: false,
+        message: error.message || "Internal Server Error",
+      });
+    }
+  }
+
+  async getPopularVenuesByCategory(req: Request, res: Response) {
+    try {
+      const { categoryId } = req.params;
+      const result =
+        await this.venueServices.getPopularVenuesByCategoryId(categoryId);
+
+      res.status(200).json({
+        status: true,
+        message: "Venues retrieved successful",
+        data: result,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        status: false,
+        message: error.message || "Internal Server Error",
+      });
+    }
+  }
+
+  async getActiveVenues(req: Request, res: Response) {
+    try {
+      const result = await this.venueServices.getActiveVenues();
+
+      res.status(200).json({
+        status: true,
+        message: "Venues retrieved successful",
+        data: result,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        status: false,
+        message: error.message || "Internal Server Error",
       });
     }
   }
 
   async activateVenue(req: Request, res: Response) {
     try {
-      const { venueId } = req.params;
+      const { id } = req.params;
 
-      const result = await this.venueServices.activateVenue(venueId);
+      const result = await this.venueServices.activateVenue(id);
 
       res.status(200).json({
         status: true,
@@ -97,9 +170,8 @@ export class VenueControllers {
   async signInWithInvitationKey(req: Request, res: Response) {
     try {
       const { invitationKey } = req.body;
-      const result = await this.venueServices.signInWithInvitationKey(
-        invitationKey
-      );
+      const result =
+        await this.venueServices.signInWithInvitationKey(invitationKey);
 
       res.status(result.status_code).json(result);
     } catch (error) {

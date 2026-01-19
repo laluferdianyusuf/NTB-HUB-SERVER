@@ -16,10 +16,11 @@ import {
   VenueBalanceRepository,
   VenueServiceRepository,
   VenueUnitRepository,
+  OperationalRepository,
 } from "../repositories";
 import { publisher } from "config/redis.config";
 import { error, success } from "helpers/return";
-import { normalizeDate, toLocalDBTime } from "helpers/formatIsoDate";
+import { toLocalDBTime } from "helpers/formatIsoDate";
 import { NotificationService } from "./notification.services";
 import {
   PLATFORM_BALANCE_ID,
@@ -35,6 +36,7 @@ const notificationService = new NotificationService();
 const pointRepository = new PointsRepository();
 const venueServiceRepository = new VenueServiceRepository();
 const venueUnitRepository = new VenueUnitRepository();
+const operationalRepository = new OperationalRepository();
 const prisma = new PrismaClient();
 
 interface CreateBookingProps {
@@ -42,8 +44,8 @@ interface CreateBookingProps {
   venueId: string;
   serviceId: string;
   unitId: string;
-  startTime: Date;
-  endTime: Date;
+  startTime: number;
+  endTime: number;
   orders?: OrderItem[];
   sessionId?: string;
   date?: string;
@@ -56,53 +58,57 @@ export class BookingServices {
   async createBooking(data: CreateBookingProps) {
     try {
       const service = await venueServiceRepository.findById(data.serviceId);
-
-      if (!service || !service.isActive)
+      if (!service || !service.isActive) {
         return error.error400("Service not available");
-
-      let unit = null;
-
-      if (service.unitType) {
-        if (!data.unitId) return error.error400("Unit is required");
-
-        unit = await venueUnitRepository.findById(data.unitId);
-
-        if (!unit || !unit.isActive)
-          return error.error400("Unit not available");
       }
 
-      let startTime: Date;
-      let endTime: Date;
-
-      if (service.bookingType === "NONE") {
-        startTime = new Date();
-        endTime = new Date();
-      } else {
-        if (!data.startTime || !data.endTime)
-          return error.error400("Start & end time required");
-
-        startTime = normalizeDate(String(data.startTime));
-        endTime = normalizeDate(String(data.endTime));
+      const unit = await venueUnitRepository.findById(data.unitId);
+      if (!unit || !unit.isActive) {
+        return error.error400("Unit not available");
       }
 
-      if (service.bookingType === "TIME") {
-        const overlapping = await bookingRepository.checkOverlapping({
-          serviceId: data.serviceId,
-          unitId: data.unitId ?? null,
-          startTime,
-          endTime,
-        });
+      const startTime = new Date(
+        `${data.date}T${String(data.startTime).padStart(2, "0")}:00:00`,
+      );
+      const endTime = new Date(
+        `${data.date}T${String(data.endTime).padStart(2, "0")}:00:00`,
+      );
 
-        if (overlapping) return error.error400("Time slot not available");
+      if (endTime <= startTime) {
+        return error.error400("Invalid booking time range");
       }
 
-      let totalPrice = 0;
+      const dayOfWeek = startTime.getDay();
 
-      if (service.bookingType === "TIME" && unit) {
-        const hours = (endTime.getTime() - startTime.getTime()) / 3600000;
+      const operational = await operationalRepository.getOperationalHourOfWeek(
+        data.venueId,
+        dayOfWeek,
+      );
 
-        totalPrice = hours * unit.price;
+      if (!operational) {
+        return error.error400("Venue closed");
       }
+
+      if (
+        data.startTime < operational.opensAt ||
+        data.endTime > operational.closesAt
+      ) {
+        return error.error400("Outside operational hours");
+      }
+
+      const overlapping = await bookingRepository.checkOverlapping({
+        serviceId: data.serviceId,
+        unitId: data.unitId,
+        startTime,
+        endTime,
+      });
+
+      if (overlapping) {
+        return error.error400("Time slot already booked");
+      }
+
+      const hours = data.endTime - data.startTime;
+      const totalPrice = hours * unit.price;
 
       const invoiceNumber = `INV-${crypto
         .randomUUID()
@@ -122,18 +128,17 @@ export class BookingServices {
           },
         });
 
-        let totalOrderAmount = 0;
+        let orderAmount = 0;
 
         if (data.orders?.length) {
           for (const o of data.orders) {
             const menu = await tx.menu.findUnique({
               where: { id: o.menuId },
             });
-
             if (!menu) throw new Error("Menu not found");
 
             const subtotal = menu.price * o.quantity;
-            totalOrderAmount += subtotal;
+            orderAmount += subtotal;
 
             await tx.orderItem.create({
               data: {
@@ -150,7 +155,7 @@ export class BookingServices {
           data: {
             bookingId: booking.id,
             invoiceNumber,
-            amount: totalPrice + totalOrderAmount,
+            amount: totalPrice + orderAmount,
             expiredAt: new Date(Date.now() + 5 * 60 * 1000),
           },
         });
@@ -163,7 +168,7 @@ export class BookingServices {
         data.userId,
         "Booking Created",
         `Invoice ${invoiceNumber} created`,
-        null
+        null,
       );
 
       return success.success201("Booking created", result);
@@ -194,7 +199,7 @@ export class BookingServices {
       }
 
       const userBalance = await userBalanceRepository.getBalanceByUserId(
-        booking.userId
+        booking.userId,
       );
 
       const paymentId = `PAY-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
@@ -213,7 +218,7 @@ export class BookingServices {
       const result = await prisma.$transaction(async (tx) => {
         const processedBooking = await bookingRepository.processBookingPayment(
           booking.id,
-          tx
+          tx,
         );
 
         await transactionRepository.create({
@@ -250,18 +255,18 @@ export class BookingServices {
             points: 10,
             reference: booking.id,
           },
-          tx
+          tx,
         );
 
         await userBalanceRepository.decrementBalance(
           booking.userId,
           invoice.amount,
-          tx
+          tx,
         );
 
         await venueBalanceRepository.incrementVenueBalance(
           booking.venueId,
-          venueAmount
+          venueAmount,
         );
 
         await tx.platformBalance.update({
@@ -273,7 +278,7 @@ export class BookingServices {
 
         const updatedInvoice = await invoiceRepository.updateInvoicePaid(
           booking.id,
-          tx
+          tx,
         );
 
         const notification = await notificationRepository.createNewNotification(
@@ -283,7 +288,7 @@ export class BookingServices {
             message: `Thank you! Your payment of ${invoice.amount} has been successfully received.`,
             type: "Booking",
             isGlobal: false,
-          } as Notification
+          } as Notification,
         );
 
         const venueNotification =
@@ -309,21 +314,21 @@ export class BookingServices {
         booking.userId,
         result.notification.title,
         result.notification.message,
-        null
+        null,
       );
 
       await notificationService.sendToVenue(
         booking.venueId,
         result.venueNotification.title,
         result.venueNotification.message,
-        null
+        null,
       );
 
       await publishEvent("points-events", "point:updated", result.points);
       await publishEvent(
         "notification-events",
         "notification:send",
-        result.notification
+        result.notification,
       );
 
       return success.success200("Booking payment processed", result);
@@ -411,7 +416,7 @@ export class BookingServices {
         JSON.stringify({
           event: "booking:updated",
           payload: result.bookings,
-        })
+        }),
       );
 
       return {
@@ -465,7 +470,7 @@ export class BookingServices {
     serviceId: string,
     unitId: string,
     startTime: Date,
-    endTime: Date
+    endTime: Date,
   ) {
     const startTimeDB = toLocalDBTime(new Date(startTime));
     const endTimeDB = toLocalDBTime(new Date(endTime));
@@ -475,7 +480,7 @@ export class BookingServices {
         serviceId,
         unitId,
         startTimeDB,
-        endTimeDB
+        endTimeDB,
       );
 
       return success.success200("Booking fetch successfully", existing);

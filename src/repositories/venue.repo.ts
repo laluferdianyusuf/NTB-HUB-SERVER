@@ -4,7 +4,116 @@ const prisma = new PrismaClient();
 
 export class VenueRepository {
   async findAllVenue(): Promise<Venue[]> {
-    return await prisma.venue.findMany();
+    return await prisma.venue.findMany({
+      include: {
+        services: {
+          where: { isActive: true },
+          include: {
+            subCategory: {
+              include: {
+                category: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async findVenueByCategory(categoryId: string): Promise<Venue[]> {
+    return await prisma.venue.findMany({
+      where: {
+        services: {
+          some: {
+            subCategory: {
+              category: {
+                id: categoryId,
+                isActive: true,
+              },
+            },
+          },
+        },
+      },
+      include: {
+        services: {
+          include: {
+            subCategory: {
+              include: {
+                category: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async findPopularVenueByCategory(categoryId: string): Promise<Venue[]> {
+    return await prisma.venue.findMany({
+      where: {
+        services: {
+          some: {
+            subCategory: {
+              category: {
+                id: categoryId,
+                isActive: true,
+              },
+            },
+          },
+        },
+      },
+      include: {
+        _count: {
+          select: {
+            impressions: true,
+          },
+        },
+      },
+      orderBy: {
+        impressions: {
+          _count: "desc",
+        },
+      },
+      take: 10,
+    });
+  }
+
+  async findPopularVenues(): Promise<Venue[]> {
+    return await prisma.venue.findMany({
+      include: {
+        _count: {
+          select: {
+            impressions: true,
+          },
+        },
+      },
+      orderBy: {
+        impressions: {
+          _count: "desc",
+        },
+      },
+      take: 10,
+    });
+  }
+
+  async findActiveVenue(): Promise<Venue[]> {
+    return await prisma.venue.findMany({
+      where: {
+        isActive: true,
+      },
+      include: {
+        services: {
+          where: { isActive: true },
+          include: {
+            subCategory: {
+              include: {
+                category: true,
+              },
+            },
+          },
+        },
+      },
+    });
   }
 
   async findVenueById(id: string) {

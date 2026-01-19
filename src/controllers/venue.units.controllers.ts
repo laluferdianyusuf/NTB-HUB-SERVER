@@ -58,6 +58,31 @@ export class VenueUnitControllers {
     }
   }
 
+  async getAvailabilityUnits(req: Request, res: Response) {
+    try {
+      const { venueId } = req.params;
+      const { serviceId, date } = req.query;
+      const result = await this.venueUnitServices.getAvailabilityUnits(
+        venueId,
+        serviceId as string,
+        date as string,
+      );
+
+      return res.status(200).json({
+        status: true,
+        message: "Units availability retrieved successful",
+        data: result,
+      });
+    } catch (err) {
+      console.log(err);
+
+      return res.status(400).json({
+        status: false,
+        message: err.message,
+      });
+    }
+  }
+
   async getUnitByVenue(req: Request, res: Response) {
     try {
       const { venueId } = req.params;

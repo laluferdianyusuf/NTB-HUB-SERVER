@@ -24,10 +24,10 @@ export class MenuControllers {
     }
   }
 
-  async getMenuByVenueId(req: Request, res: Response) {
+  async getMenuByServiceId(req: Request, res: Response) {
     try {
-      const venueId = req.params.venueId;
-      const result = await this.menuService.getMenuByVenueId(venueId);
+      const serviceId = req.params.serviceId;
+      const result = await this.menuService.getMenuByServiceId(serviceId);
 
       res.status(result.status_code).json(result);
     } catch (error: any) {

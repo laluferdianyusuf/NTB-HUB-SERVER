@@ -4,6 +4,7 @@ import {
   VenueRepository,
   UserRepository,
   NotificationRepository,
+  VenueServiceRepository,
 } from "./../repositories";
 import { publisher } from "config/redis.config";
 import { uploadToCloudinary } from "utils/image";
@@ -13,44 +14,53 @@ const prisma = new PrismaClient();
 
 const menuRepository = new MenuRepository();
 const venueRepository = new VenueRepository();
+const venueServiceRepository = new VenueServiceRepository();
 const userRepository = new UserRepository();
 const notificationRepository = new NotificationRepository();
 const notificationService = new NotificationService();
 
 export class MenuServices {
-  async createMenu(data: Menu, file: Express.Multer.File) {
+  async createMenu(
+    data: {
+      name: string;
+      price: number | string;
+      category: string;
+      serviceId: string;
+    },
+    file: Express.Multer.File,
+  ) {
     try {
       let imageUrl: string | null = null;
+
+      const service = await venueServiceRepository.findById(data.serviceId);
 
       if (file && file.path) {
         imageUrl = await uploadToCloudinary(file.path, "menus");
       }
 
-      const venue = await venueRepository.findVenueById(data.venueId);
-
-      if (!venue) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "Venue not found",
-          data: null,
-        };
-      }
+      const price =
+        typeof data.price === "string" ? parseFloat(data.price) : data.price;
 
       const result = await prisma.$transaction(async (tx) => {
-        const menu = await menuRepository.createNewMenuByVenue(
-          { ...data, price: parseFloat(data.price as any), image: imageUrl },
-          tx
+        const menu = await menuRepository.createNewMenuByService(
+          {
+            name: data.name,
+            category: data.category,
+            serviceId: data.serviceId,
+            price,
+            image: imageUrl,
+          },
+          tx,
         );
 
         const notification = await notificationRepository.createNewNotification(
           {
             title: "New Menu Release!",
-            message: `${menu.name} has been added to ${venue.name}`,
+            message: `${menu.name} has been added to ${service.venue.name}`,
             type: "Information",
             image: imageUrl || "",
             isGlobal: true,
-          } as Notification
+          } as Notification,
         );
 
         const users = await userRepository.findManyUsers(tx);
@@ -58,13 +68,13 @@ export class MenuServices {
         await Promise.all(
           users.map((user) =>
             notificationService.sendToUser(
-              data.venueId,
+              service.venue.id,
               user.id,
               "New Menu Release!",
-              `${menu.name} has been added to ${venue.name}`,
-              imageUrl
-            )
-          )
+              `${menu.name} has been added to ${service.venue.name}`,
+              imageUrl,
+            ),
+          ),
         );
 
         return { menu, notification };
@@ -75,7 +85,7 @@ export class MenuServices {
         JSON.stringify({
           event: "notification:updated",
           payload: result.notification,
-        })
+        }),
       );
       return {
         status: true,
@@ -95,9 +105,9 @@ export class MenuServices {
     }
   }
 
-  async getMenuByVenueId(venueId: string) {
+  async getMenuByServiceId(serviceId: string) {
     try {
-      const menus = await menuRepository.findMenuByVenueId(venueId);
+      const menus = await menuRepository.findMenuByServiceId(serviceId);
       return {
         status: true,
         status_code: 200,

@@ -5,7 +5,6 @@ import { withAccelerate } from "@prisma/extension-accelerate";
 const prisma = new PrismaClient().$extends(withAccelerate());
 
 async function main() {
-  // Buat admin default
   const adminPassword = await bcrypt.hash("admin123", 10);
 
   await prisma.user.upsert({
@@ -19,16 +18,15 @@ async function main() {
     },
   });
 
-  // Ambil semua venue
   const venues = await prisma.venue.findMany();
 
   if (venues.length === 0) {
-    console.log("Tidak ada venue. Skip seeding operational hours.");
+    console.log("No venues. Skip seeding operational hours.");
     return;
   }
 
-  const defaultOpen = new Date("1970-01-01T09:00:00.000Z");
-  const defaultClose = new Date("1970-01-01T17:00:00.000Z");
+  const DEFAULT_OPEN_HOUR = 9; // 09:00
+  const DEFAULT_CLOSE_HOUR = 17; // 17:00
 
   for (const venue of venues) {
     const existingHours = await prisma.operationalHour.findMany({
@@ -39,14 +37,16 @@ async function main() {
       const ops = Array.from({ length: 7 }).map((_, day) => ({
         venueId: venue.id,
         dayOfWeek: day,
-        opensAt: defaultOpen,
-        closesAt: defaultClose,
+        opensAt: DEFAULT_OPEN_HOUR,
+        closesAt: DEFAULT_CLOSE_HOUR,
       }));
 
-      await prisma.operationalHour.createMany({ data: ops });
+      await prisma.operationalHour.createMany({
+        data: ops,
+      });
 
       console.log(
-        `✔ Venue "${venue.name}" sudah ditambahkan jam operasional default.`
+        `✔ Venue "${venue.name}" sudah ditambahkan jam operasional default (${DEFAULT_OPEN_HOUR}:00 - ${DEFAULT_CLOSE_HOUR}:00).`,
       );
     }
   }

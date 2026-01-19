@@ -30,6 +30,35 @@ export class VenueUnitRepository {
     });
   }
 
+  getUnitsWithBookings(
+    venueId: string,
+    serviceId: string,
+    startTime: Date,
+    endTime: Date,
+  ) {
+    return prisma.venueUnit.findMany({
+      where: {
+        venueId,
+        serviceId,
+        isActive: true,
+      },
+      include: {
+        booking: {
+          where: {
+            status: { in: ["PENDING", "PAID"] },
+            startTime: { lt: endTime },
+            endTime: { gt: startTime },
+            invoice: { status: "PAID" },
+          },
+          select: {
+            startTime: true,
+            endTime: true,
+          },
+        },
+      },
+    });
+  }
+
   findByService(serviceId: string) {
     return prisma.venueUnit.findMany({
       where: {
@@ -61,7 +90,7 @@ export class VenueUnitRepository {
       price?: number;
       type?: UnitType;
       isActive?: boolean;
-    }
+    },
   ) {
     return prisma.venueUnit.update({
       where: { id },
