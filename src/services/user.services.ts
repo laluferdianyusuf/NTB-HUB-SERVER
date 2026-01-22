@@ -10,6 +10,7 @@ import Redis from "ioredis";
 import { publisher } from "config/redis.config";
 import { uploadToCloudinary } from "utils/image";
 import { OAuth2Client } from "google-auth-library";
+import { uploadImage } from "utils/uploadS3";
 
 const prisma = new PrismaClient();
 
@@ -72,8 +73,9 @@ export class UserService {
     try {
       let imageUrl = null;
 
-      if (file && file.path) {
-        imageUrl = await uploadToCloudinary(file.path, "users");
+      if (file) {
+        const image = await uploadImage({ file, folder: "users" });
+        imageUrl = image.url;
       }
 
       const existing = await userRepository.findByEmail(data.email);
@@ -94,11 +96,11 @@ export class UserService {
             password: hashedPassword,
             photo: imageUrl,
           },
-          tx
+          tx,
         );
         const balance = await userBalanceRepository.generateInitialBalance(
           newUser.id,
-          tx
+          tx,
         );
 
         const point = await pointRepository.generatePoints(
@@ -108,7 +110,7 @@ export class UserService {
             activity: "REGISTER",
             reference: newUser.id,
           } as Point,
-          tx
+          tx,
         );
 
         return { newUser, balance, point };
@@ -118,7 +120,7 @@ export class UserService {
         JSON.stringify({
           event: "point:updated",
           payload: result.point,
-        })
+        }),
       );
 
       await publisher.publish(
@@ -126,7 +128,7 @@ export class UserService {
         JSON.stringify({
           event: "balance:updated",
           payload: result.balance,
-        })
+        }),
       );
 
       return {
@@ -170,7 +172,7 @@ export class UserService {
 
       const isPasswordCorrect = bcrypt.compareSync(
         data.password,
-        existing.password
+        existing.password,
       );
 
       if (!isPasswordCorrect) {
@@ -190,7 +192,7 @@ export class UserService {
           role: existing.role,
         },
         process.env.ACCESS_SECRET,
-        { expiresIn: "15m" }
+        { expiresIn: "15m" },
       );
 
       const refreshToken = jwt.sign(
@@ -201,14 +203,14 @@ export class UserService {
           role: existing.role,
         },
         process.env.REFRESH_SECRET,
-        { expiresIn: "7d" }
+        { expiresIn: "7d" },
       );
 
       await redis.set(
         `refresh:${existing.id}`,
         refreshToken,
         "EX",
-        7 * 24 * 60 * 60
+        7 * 24 * 60 * 60,
       );
       return {
         status: true,
@@ -267,7 +269,7 @@ export class UserService {
           role: user.role,
         },
         process.env.ACCESS_SECRET,
-        { expiresIn: "15m" }
+        { expiresIn: "15m" },
       );
 
       const newRefreshToken = jwt.sign(
@@ -278,14 +280,14 @@ export class UserService {
           createdAt: user.createdAt,
         },
         process.env.REFRESH_SECRET,
-        { expiresIn: "7d" }
+        { expiresIn: "7d" },
       );
 
       await redis.set(
         `refresh:${user.id}`,
         newRefreshToken,
         "EX",
-        7 * 24 * 60 * 60
+        7 * 24 * 60 * 60,
       );
 
       return {
@@ -316,13 +318,14 @@ export class UserService {
   async updateUser(
     id: string,
     data: Partial<User>,
-    file?: Express.Multer.File
+    file?: Express.Multer.File,
   ) {
     try {
       let imageUrl: string | null = null;
 
       if (file && file.path) {
-        imageUrl = await uploadToCloudinary(file.path, "users");
+        const image = await uploadImage({ file, folder: "users" });
+        imageUrl = image.url;
       }
 
       const user = await userRepository.findById(id);
@@ -427,20 +430,20 @@ export class UserService {
       const accessToken = jwt.sign(
         { id: user.id, email: user.email },
         process.env.ACCESS_SECRET!,
-        { expiresIn: "15m" }
+        { expiresIn: "15m" },
       );
 
       const refreshToken = jwt.sign(
         { id: user.id, email: user.email },
         process.env.REFRESH_SECRET!,
-        { expiresIn: "7d" }
+        { expiresIn: "7d" },
       );
 
       await redis.set(
         `refresh:${user.id}`,
         refreshToken,
         "EX",
-        7 * 24 * 60 * 60
+        7 * 24 * 60 * 60,
       );
 
       return {

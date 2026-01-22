@@ -11,6 +11,7 @@ import Redis from "ioredis";
 import { uploadToCloudinary } from "utils/image";
 import { publisher } from "config/redis.config";
 import { toNum } from "helpers/parser";
+import { uploadImage } from "utils/uploadS3";
 
 const redis = new Redis();
 
@@ -79,6 +80,16 @@ export class VenueServices {
     return venues;
   }
 
+  async getVenueLikedByUser(userId: string) {
+    const venues = await venueRepository.findVenueLikedByUser(userId);
+
+    if (!venues) {
+      throw new Error("No venue found");
+    }
+
+    return venues;
+  }
+
   async getVenueById(id: string) {
     try {
       const existing = await venueRepository.findVenueById(id);
@@ -111,68 +122,51 @@ export class VenueServices {
   async updateVenue(
     id: string,
     data: Partial<Venue>,
-    files?: { image?: Express.Multer.File[]; gallery?: Express.Multer.File[] },
+    files?: { image?: Express.Multer.File; gallery?: Express.Multer.File[] },
   ) {
-    try {
-      let imageUrl: string | undefined;
-      let galleryUrls: string[] | undefined;
+    const existing = await venueRepository.findVenueById(id);
+    if (!existing) {
+      throw new Error("Venue not found");
+    }
 
-      if (files?.image?.length) {
-        imageUrl = await uploadToCloudinary(files.image[0].path, "venues");
-      }
+    let imageUrl: string | null = null;
+    let galleryUrls: string[] | null = null;
 
-      if (files?.gallery?.length) {
-        galleryUrls = await Promise.all(
-          files.gallery.map((file) => uploadToCloudinary(file.path, "venues")),
-        );
-      }
+    if (files?.image) {
+      const image = await uploadImage({ file: files.image, folder: "venues" });
+      imageUrl = image.url;
+    }
 
-      const existing = await venueRepository.findVenueById(id);
-      if (!existing) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "Venue not found",
-          data: null,
-        };
-      }
-
-      const updatedVenue = await venueRepository.updateVenue(id, {
-        name: data.name,
-        address: data.address,
-        latitude: toNum(data.latitude),
-        longitude: toNum(data.longitude),
-        ...(imageUrl && { image: imageUrl }),
-        ...(galleryUrls && { gallery: galleryUrls }),
-      });
-
-      await venueBalanceRepository.ensureInitialBalance(id);
-
-      await publisher.publish(
-        "venue-events",
-        JSON.stringify({
-          event: "venue:updated",
-          payload: updatedVenue,
-        }),
+    if (files?.gallery?.length) {
+      const gallery = await Promise.all(
+        files.gallery.map((file) =>
+          uploadImage({ file: file, folder: "venues" }),
+        ),
       );
 
-      return {
-        status: true,
-        status_code: 200,
-        message: "Venue updated successfully",
-        data: {
-          ...updatedVenue,
-        },
-      };
-    } catch (error: any) {
-      console.error("Error updating venue:", error);
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error: " + error.message,
-        data: null,
-      };
+      galleryUrls = gallery.map((img) => img.url);
     }
+
+    const updatedVenue = await venueRepository.updateVenue(id, {
+      name: data.name,
+      address: data.address,
+      latitude: toNum(data.latitude),
+      longitude: toNum(data.longitude),
+      ...(imageUrl && { image: imageUrl }),
+      ...(galleryUrls && { gallery: galleryUrls }),
+    });
+
+    await venueBalanceRepository.ensureInitialBalance(id);
+
+    await publisher.publish(
+      "venue-events",
+      JSON.stringify({
+        event: "venue:updated",
+        payload: updatedVenue,
+      }),
+    );
+
+    return updatedVenue;
   }
 
   async deleteVenue(id: string) {

@@ -1,6 +1,7 @@
 import { Owner } from "@prisma/client";
 import { OwnerRepository } from "repositories";
 import { uploadToCloudinary } from "utils/image";
+import { uploadImage } from "utils/uploadS3";
 const ownerRepository = new OwnerRepository();
 
 export class OwnerServices {
@@ -8,8 +9,9 @@ export class OwnerServices {
     try {
       let imageUrl = null;
 
-      if (file && file.path) {
-        imageUrl = await uploadToCloudinary(file.path, "owners");
+      if (file) {
+        const image = await uploadImage({ file, folder: "owner" });
+        imageUrl = image.url;
       }
       const owner = await ownerRepository.findOwnerById(data.id);
 

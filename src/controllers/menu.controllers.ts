@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import { MenuServices } from "../services/menu.services";
-import { publisher } from "config/redis.config";
 
 export class MenuControllers {
   private menuService: MenuServices;
@@ -13,13 +12,15 @@ export class MenuControllers {
       const data = req.body;
       const result = await this.menuService.createMenu(data, req.file);
 
-      res.status(result.status_code).json(result);
+      res.status(201).json({
+        status: true,
+        message: "Menu created successful",
+        data: result,
+      });
     } catch (error: any) {
       res.status(500).json({
         status: false,
-        status_code: 500,
         message: error.message || "Internal Server Error",
-        data: null,
       });
     }
   }
@@ -33,9 +34,7 @@ export class MenuControllers {
     } catch (error: any) {
       res.status(500).json({
         status: false,
-        status_code: 500,
         message: error.message || "Internal Server Error",
-        data: null,
       });
     }
   }
@@ -49,9 +48,7 @@ export class MenuControllers {
     } catch (error: any) {
       res.status(500).json({
         status: false,
-        status_code: 500,
         message: error.message || "Internal Server Error",
-        data: null,
       });
     }
   }
@@ -66,9 +63,7 @@ export class MenuControllers {
     } catch (error: any) {
       res.status(500).json({
         status: false,
-        status_code: 500,
         message: error.message || "Internal Server Error",
-        data: null,
       });
     }
   }
@@ -82,9 +77,7 @@ export class MenuControllers {
     } catch (error: any) {
       res.status(500).json({
         status: false,
-        status_code: 500,
         message: error.message || "Internal Server Error",
-        data: null,
       });
     }
   }
@@ -96,9 +89,7 @@ export class MenuControllers {
     } catch (error: any) {
       res.status(500).json({
         status: false,
-        status_code: 500,
         message: error.message || "Internal Server Error",
-        data: null,
       });
     }
   }

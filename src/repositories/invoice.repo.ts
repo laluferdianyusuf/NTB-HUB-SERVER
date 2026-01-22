@@ -1,4 +1,5 @@
 import { PrismaClient, Invoice, Prisma, InvoiceStatus } from "@prisma/client";
+import { Server } from "socket.io";
 const prisma = new PrismaClient();
 
 export class InvoiceRepository {
@@ -11,9 +12,12 @@ export class InvoiceRepository {
             startTime: true,
             endTime: true,
             totalPrice: true,
-            review: {
+            user: {
               select: {
-                rating: true,
+                name: true,
+                address: true,
+                email: true,
+                photo: true,
               },
             },
             venue: {
@@ -21,10 +25,42 @@ export class InvoiceRepository {
                 name: true,
               },
             },
+            service: {
+              select: {
+                subCategory: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+            unit: {
+              select: {
+                name: true,
+                price: true,
+                type: true,
+                floor: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
             orderItems: {
               select: {
                 quantity: true,
-                menu: true,
+                subtotal: true,
+                menu: {
+                  select: {
+                    name: true,
+                    price: true,
+                  },
+                },
+              },
+            },
+            review: {
+              select: {
+                rating: true,
               },
             },
           },
@@ -47,9 +83,12 @@ export class InvoiceRepository {
             startTime: true,
             endTime: true,
             totalPrice: true,
-            review: {
+            user: {
               select: {
-                rating: true,
+                name: true,
+                address: true,
+                email: true,
+                photo: true,
               },
             },
             venue: {
@@ -57,10 +96,42 @@ export class InvoiceRepository {
                 name: true,
               },
             },
+            service: {
+              select: {
+                subCategory: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+            unit: {
+              select: {
+                name: true,
+                price: true,
+                type: true,
+                floor: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
             orderItems: {
               select: {
                 quantity: true,
-                menu: true,
+                subtotal: true,
+                menu: {
+                  select: {
+                    name: true,
+                    price: true,
+                  },
+                },
+              },
+            },
+            review: {
+              select: {
+                rating: true,
               },
             },
           },
@@ -149,6 +220,7 @@ export class InvoiceRepository {
           select: {
             id: true,
             startTime: true,
+            endTime: true,
             totalPrice: true,
             user: {
               select: {
@@ -163,10 +235,37 @@ export class InvoiceRepository {
                 name: true,
               },
             },
+            service: {
+              select: {
+                subCategory: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+            unit: {
+              select: {
+                name: true,
+                price: true,
+                type: true,
+                floor: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
             orderItems: {
               select: {
                 quantity: true,
-                menu: true,
+                subtotal: true,
+                menu: {
+                  select: {
+                    name: true,
+                    price: true,
+                  },
+                },
               },
             },
           },
@@ -177,7 +276,7 @@ export class InvoiceRepository {
 
   async create(
     data: Prisma.InvoiceUncheckedCreateInput,
-    tx?: Prisma.TransactionClient
+    tx?: Prisma.TransactionClient,
   ): Promise<Invoice> {
     const db = tx ?? prisma;
     return db.invoice.create({ data });
@@ -197,7 +296,7 @@ export class InvoiceRepository {
 
   async updateInvoiceCanceled(
     bookingId: string,
-    tx?: Prisma.TransactionClient
+    tx?: Prisma.TransactionClient,
   ) {
     const db = tx ?? prisma;
     return db.invoice.update({
@@ -212,7 +311,7 @@ export class InvoiceRepository {
   async updateInvoiceAmount(
     bookingId: string,
     totalIncrease: number,
-    tx: Prisma.TransactionClient
+    tx: Prisma.TransactionClient,
   ) {
     return tx.invoice.update({
       where: { bookingId },
@@ -241,12 +340,76 @@ export class InvoiceRepository {
       const invoice = await trx.invoice.update({
         where: { id: invoiceId },
         data: { status: "EXPIRED" },
-        select: { id: true, bookingId: true },
+        select: {
+          id: true,
+          booking: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  address: true,
+                  email: true,
+                  photo: true,
+                },
+              },
+              venue: {
+                select: {
+                  name: true,
+                },
+              },
+              service: {
+                select: {
+                  subCategory: {
+                    select: {
+                      name: true,
+                    },
+                  },
+                },
+              },
+              unit: {
+                select: {
+                  name: true,
+                  price: true,
+                  type: true,
+                  floor: {
+                    select: {
+                      name: true,
+                    },
+                  },
+                },
+              },
+              orderItems: {
+                select: {
+                  quantity: true,
+                  subtotal: true,
+                  menu: {
+                    select: {
+                      name: true,
+                      price: true,
+                    },
+                  },
+                },
+              },
+              invoice: {
+                select: {
+                  amount: true,
+                  paidAt: true,
+                  cancelledAt: true,
+                  expiredAt: true,
+                  issuedAt: true,
+                  invoiceNumber: true,
+                  status: true,
+                },
+              },
+            },
+          },
+        },
       });
 
-      if (invoice.bookingId) {
+      if (invoice.booking?.id) {
         await trx.booking.update({
-          where: { id: invoice.bookingId },
+          where: { id: invoice.booking.id },
           data: { status: "CANCELLED" },
         });
       }

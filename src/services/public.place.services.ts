@@ -6,6 +6,7 @@ import {
 } from "../repositories";
 import { PublicPlace, PublicPlaceType } from "@prisma/client";
 import { toNum } from "helpers/parser";
+import { uploadImage } from "utils/uploadS3";
 
 export class PublicPlaceService {
   private repo = new PublicPlaceRepository();
@@ -32,23 +33,29 @@ export class PublicPlaceService {
       "id" | "createdAt" | "updatedAt" | "gallery" | "image"
     >,
     files?: {
-      image?: Express.Multer.File[];
+      image?: Express.Multer.File;
       gallery?: Express.Multer.File[];
-    }
+    },
   ): Promise<PublicPlace> {
-    let imageUrl: string | undefined;
+    let imageUrl: string | null = null;
     let galleryUrls: string[] = [];
 
-    if (files?.image?.length) {
-      imageUrl = await uploadToCloudinary(files.image[0].path, "public_place");
+    if (files?.image) {
+      const image = await uploadImage({
+        file: files.image,
+        folder: "public_places",
+      });
+      imageUrl = image.url;
     }
 
     if (files?.gallery?.length) {
-      galleryUrls = await Promise.all(
+      const gallery = await Promise.all(
         files.gallery.map((file) =>
-          uploadToCloudinary(file.path, "public_place")
-        )
+          uploadImage({ file: file, folder: "public_places" }),
+        ),
       );
+
+      galleryUrls = gallery.map((img) => img.url);
     }
 
     return this.repo.create({

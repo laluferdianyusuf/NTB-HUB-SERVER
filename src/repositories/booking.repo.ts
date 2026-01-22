@@ -14,8 +14,58 @@ export class BookingRepository {
         user: {
           select: {
             name: true,
-            phone: true,
+            address: true,
             email: true,
+            photo: true,
+          },
+        },
+        venue: {
+          select: {
+            name: true,
+          },
+        },
+        service: {
+          select: {
+            subCategory: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        unit: {
+          select: {
+            name: true,
+            price: true,
+            type: true,
+            floor: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        orderItems: {
+          select: {
+            quantity: true,
+            subtotal: true,
+            menu: {
+              select: {
+                name: true,
+                price: true,
+              },
+            },
+          },
+        },
+        invoice: {
+          select: {
+            amount: true,
+            paidAt: true,
+            cancelledAt: true,
+            expiredAt: true,
+            issuedAt: true,
+            invoiceNumber: true,
+            status: true,
           },
         },
       },
@@ -25,6 +75,201 @@ export class BookingRepository {
   async findBookingByUserId(userId: string): Promise<Booking[]> {
     return await prisma.booking.findMany({
       where: { userId },
+      include: {
+        venue: {
+          select: {
+            name: true,
+          },
+        },
+        review: {
+          select: {
+            rating: true,
+          },
+        },
+        service: {
+          select: {
+            subCategory: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        unit: {
+          select: {
+            name: true,
+            price: true,
+            type: true,
+            floor: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        user: {
+          select: {
+            name: true,
+            phone: true,
+            email: true,
+          },
+        },
+        orderItems: {
+          select: {
+            quantity: true,
+            subtotal: true,
+            menu: {
+              select: {
+                name: true,
+                price: true,
+              },
+            },
+          },
+        },
+        invoice: {
+          select: {
+            amount: true,
+            paidAt: true,
+            cancelledAt: true,
+            expiredAt: true,
+            issuedAt: true,
+          },
+        },
+      },
+    });
+  }
+
+  async findBookingPaidByUserId(userId: string): Promise<Booking[]> {
+    return await prisma.booking.findMany({
+      where: { userId, status: { in: [BookingStatus.PAID] } },
+      include: {
+        venue: {
+          select: {
+            name: true,
+          },
+        },
+        review: {
+          select: {
+            rating: true,
+          },
+        },
+        service: {
+          select: {
+            subCategory: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        unit: {
+          select: {
+            name: true,
+            price: true,
+            type: true,
+            floor: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        user: {
+          select: {
+            name: true,
+            phone: true,
+            email: true,
+          },
+        },
+        orderItems: {
+          select: {
+            quantity: true,
+            subtotal: true,
+            menu: {
+              select: {
+                name: true,
+                price: true,
+              },
+            },
+          },
+        },
+        invoice: {
+          select: {
+            amount: true,
+            paidAt: true,
+            cancelledAt: true,
+            expiredAt: true,
+            issuedAt: true,
+          },
+        },
+      },
+    });
+  }
+
+  async findBookingPendingByUserId(userId: string): Promise<Booking[]> {
+    return await prisma.booking.findMany({
+      where: { userId, status: { in: [BookingStatus.PENDING] } },
+      include: {
+        venue: {
+          select: {
+            name: true,
+          },
+        },
+        review: {
+          select: {
+            rating: true,
+          },
+        },
+        service: {
+          select: {
+            subCategory: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        unit: {
+          select: {
+            name: true,
+            price: true,
+            type: true,
+            floor: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        user: {
+          select: {
+            name: true,
+            phone: true,
+            email: true,
+          },
+        },
+        orderItems: {
+          select: {
+            quantity: true,
+            subtotal: true,
+            menu: {
+              select: {
+                name: true,
+                price: true,
+              },
+            },
+          },
+        },
+        invoice: {
+          select: {
+            amount: true,
+            paidAt: true,
+            cancelledAt: true,
+            expiredAt: true,
+            issuedAt: true,
+          },
+        },
+      },
     });
   }
 
@@ -50,7 +295,7 @@ export class BookingRepository {
     });
 
     console.log(
-      `[AUTO-RESET] ${expiredBookings.length} booking expired has been completed.`
+      `[AUTO-RESET] ${expiredBookings.length} booking expired has been completed.`,
     );
 
     return expiredBookings.length;
@@ -60,7 +305,7 @@ export class BookingRepository {
     serviceId: string,
     unitId: string,
     startTime: Date,
-    endTime: Date
+    endTime: Date,
   ): Promise<Booking[]> {
     return await prisma.booking.findMany({
       where: {
@@ -99,7 +344,7 @@ export class BookingRepository {
 
   async createBooking(
     data: Booking,
-    tx: Prisma.TransactionClient
+    tx: Prisma.TransactionClient,
   ): Promise<Booking> {
     return await tx.booking.create({
       data,
@@ -108,7 +353,7 @@ export class BookingRepository {
 
   async updateBookingStatus(
     id: string,
-    status: BookingStatus
+    status: BookingStatus,
   ): Promise<Booking> {
     return await prisma.booking.update({ where: { id }, data: { status } });
   }
@@ -120,9 +365,7 @@ export class BookingRepository {
       data: { status: BookingStatus.PAID },
     });
 
-    return {
-      updatedBooking,
-    };
+    return updatedBooking;
   }
 
   async cancelBooking(id: string, tx?: Prisma.TransactionClient) {
@@ -146,7 +389,7 @@ export class BookingRepository {
   async updateBookingTotal(
     bookingId: string,
     totalIncrease: number,
-    tx?: Prisma.TransactionClient
+    tx?: Prisma.TransactionClient,
   ) {
     const db = tx ?? prisma;
     return db.booking.update({
@@ -158,7 +401,7 @@ export class BookingRepository {
 
   async recalculateBookingTotal(
     bookingId: string,
-    tx: Prisma.TransactionClient
+    tx: Prisma.TransactionClient,
   ) {
     const total = await tx.orderItem.aggregate({
       where: { bookingId },

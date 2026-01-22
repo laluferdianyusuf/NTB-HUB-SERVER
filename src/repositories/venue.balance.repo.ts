@@ -10,16 +10,18 @@ export class VenueBalanceRepository {
   }
 
   async incrementVenueBalance(venueId: string, amount: number): Promise<void> {
-    await prisma.venueBalance.update({
+    await prisma.venueBalance.upsert({
       where: { venueId },
-      data: { balance: { increment: amount } },
+      update: { balance: { increment: amount } },
+      create: { venueId, balance: amount },
     });
   }
 
   async decrementVenueBalance(venueId: string, amount: number): Promise<void> {
-    await prisma.venueBalance.update({
+    await prisma.venueBalance.upsert({
       where: { venueId },
-      data: { balance: { decrement: amount } },
+      update: { balance: { decrement: amount } },
+      create: { venueId, balance: 0 },
     });
   }
 

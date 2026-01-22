@@ -70,6 +70,42 @@ export class BookingControllers {
     }
   }
 
+  async getBookingPaidByUserId(req: Request, res: Response) {
+    try {
+      const userId = req.params.userId;
+      const result = await this.bookingService.getBookingPaidByUserId(userId);
+
+      res.status(200).json({
+        status: true,
+        message: "Booking found",
+        data: result,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        status: false,
+        message: error.message || "Internal Server Error",
+      });
+    }
+  }
+  async getBookingPendingByUserId(req: Request, res: Response) {
+    try {
+      const userId = req.params.userId;
+      const result =
+        await this.bookingService.getBookingPendingByUserId(userId);
+
+      res.status(200).json({
+        status: true,
+        message: "Booking found",
+        data: result,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        status: false,
+        message: error.message || "Internal Server Error",
+      });
+    }
+  }
+
   async processBookingPayment(req: Request, res: Response) {
     try {
       const id = req.params.id;
@@ -120,7 +156,7 @@ export class BookingControllers {
         String(serviceId),
         String(unitId),
         new Date(String(startTime)),
-        new Date(String(endTime))
+        new Date(String(endTime)),
       );
 
       res.status(result.status_code).json(result);

@@ -95,6 +95,25 @@ export class VenueControllers {
     }
   }
 
+  async getVenueLikedByUser(req: Request, res: Response) {
+    try {
+      const { userId } = req.params;
+
+      const result = await this.venueServices.getVenueLikedByUser(userId);
+
+      res.status(200).json({
+        status: true,
+        message: "Venue retrieved",
+        data: result,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        status: false,
+        message: error.message || "Internal Server Error",
+      });
+    }
+  }
+
   async activateVenue(req: Request, res: Response) {
     try {
       const { id } = req.params;
@@ -135,18 +154,20 @@ export class VenueControllers {
       const id = req.params.id;
       const data = req.body;
       const files = req.files as {
-        image?: Express.Multer.File[];
+        image?: Express.Multer.File;
         gallery?: Express.Multer.File[];
       };
       const result = await this.venueServices.updateVenue(id, data, files);
 
-      res.status(result.status_code).json(result);
+      res.status(200).json({
+        status: true,
+        message: "Venue updated successful",
+        data: result,
+      });
     } catch (error: any) {
       res.status(500).json({
         status: false,
-        status_code: 500,
         message: error.message || "Internal Server Error",
-        data: null,
       });
     }
   }

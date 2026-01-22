@@ -1,7 +1,6 @@
 import firebase from "../utils/firebase";
 import { Notification } from "@prisma/client";
 import { NotificationRepository } from "../repositories/notification.repo";
-import { publisher } from "config/redis.config";
 import { uploadToCloudinary } from "utils/image";
 import { DeviceRepository } from "repositories";
 import { error, success } from "helpers/return";
@@ -16,7 +15,7 @@ export class NotificationService {
     userId: string,
     title: string,
     body: string,
-    image?: string
+    image?: string,
   ) {
     const devices = await this.deviceRepo.findByUserId(userId);
 
@@ -73,7 +72,7 @@ export class NotificationService {
 
     if (invalidTokens.length) {
       await Promise.all(
-        invalidTokens.map((token) => this.deviceRepo.deleteByToken(token))
+        invalidTokens.map((token) => this.deviceRepo.deleteByToken(token)),
       );
       console.log("Deleted invalid tokens:", invalidTokens);
     }
@@ -85,7 +84,7 @@ export class NotificationService {
     venueId: string,
     title: string,
     body: string,
-    image?: string
+    image?: string,
   ) {
     const devices = await this.deviceRepo.findByVenueId(venueId);
 
@@ -124,7 +123,7 @@ export class NotificationService {
 
     const response = await firebase.messaging().sendEachForMulticast(message);
     console.log(
-      `FCM → Venue ${venueId}: ${response.successCount}/${tokens.length}`
+      `FCM → Venue ${venueId}: ${response.successCount}/${tokens.length}`,
     );
 
     const invalidTokens: string[] = [];
@@ -143,7 +142,7 @@ export class NotificationService {
 
     if (invalidTokens.length) {
       await Promise.all(
-        invalidTokens.map((token) => this.deviceRepo.deleteByToken(token))
+        invalidTokens.map((token) => this.deviceRepo.deleteByToken(token)),
       );
     }
 
@@ -204,7 +203,7 @@ export class NotificationService {
 
     if (invalidTokens.length) {
       await Promise.all(
-        invalidTokens.map((token) => this.deviceRepo.deleteByToken(token))
+        invalidTokens.map((token) => this.deviceRepo.deleteByToken(token)),
       );
     }
 
@@ -283,7 +282,7 @@ export class NotificationService {
       const result = await notificationRepository.findNotificationsForUser(
         userId,
         page,
-        limit
+        limit,
       );
 
       return {
@@ -337,9 +336,8 @@ export class NotificationService {
 
   async getNotificationByVenue(venueId: string) {
     try {
-      const notification = await notificationRepository.findPersonalVenue(
-        venueId
-      );
+      const notification =
+        await notificationRepository.findPersonalVenue(venueId);
 
       if (!notification) {
         return error.error404("Notification not found");

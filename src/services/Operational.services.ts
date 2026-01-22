@@ -5,15 +5,15 @@ const operationalRepository = new OperationalRepository();
 
 type OperationalHourInput = {
   dayOfWeek: number;
-  opensAt: string;
-  closesAt: string;
+  opensAt: number;
+  closesAt: number;
   isOpen: boolean;
 };
 
 export class OperationalServices {
   async createOperationalHours(
     venueId: string,
-    operationalHours: OperationalHourInput[] | string
+    operationalHours: OperationalHourInput[] | string,
   ) {
     let opHours: OperationalHourInput[] = [];
 
@@ -29,9 +29,8 @@ export class OperationalServices {
 
     if (!Array.isArray(opHours) || opHours.length === 0) return;
 
-    const existingOps = await operationalRepository.getOperationalHours(
-      venueId
-    );
+    const existingOps =
+      await operationalRepository.getOperationalHours(venueId);
 
     await Promise.all(
       opHours.map(async (op) => {
@@ -44,34 +43,30 @@ export class OperationalServices {
           return;
         }
 
-        const opensAt = parseTimeToDateUTC(op.opensAt);
-        const closesAt = parseTimeToDateUTC(op.closesAt);
-
-        if (opensAt >= closesAt) {
+        if (op.opensAt >= op.closesAt) {
           throw new Error(`Invalid time range for day ${op.dayOfWeek}`);
         }
 
         if (found) {
           await operationalRepository.update(found.id, {
-            opensAt,
-            closesAt,
+            opensAt: op.opensAt,
+            closesAt: op.closesAt,
           });
         } else {
           await operationalRepository.create(venueId, {
             dayOfWeek: op.dayOfWeek,
-            opensAt,
-            closesAt,
+            opensAt: op.opensAt,
+            closesAt: op.closesAt,
           });
         }
-      })
+      }),
     );
   }
 
   async getOperationalHours(venueId: string) {
     try {
-      const operationalHours = await operationalRepository.getOperationalHours(
-        venueId
-      );
+      const operationalHours =
+        await operationalRepository.getOperationalHours(venueId);
 
       return {
         status: true,

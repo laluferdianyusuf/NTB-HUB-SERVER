@@ -26,6 +26,11 @@ import {
   PLATFORM_BALANCE_ID,
   PLATFORM_FEE_NUMBER,
 } from "config/finance.config";
+import { cancelInvoiceExpiry, enqueueInvoiceExpiry } from "queue/invoiceQueue";
+import {
+  cancelBookingReminders,
+  enqueueBookingReminders,
+} from "queue/bookingReminderQueue";
 const bookingRepository = new BookingRepository();
 const userBalanceRepository = new UserBalanceRepository();
 const venueBalanceRepository = new VenueBalanceRepository();
@@ -160,16 +165,29 @@ export class BookingServices {
           },
         });
 
+        await enqueueInvoiceExpiry(invoice.id, invoice.expiredAt);
+
         return { booking, invoice };
       });
 
-      await notificationService.sendToUser(
+      await notificationService.sendToVenue(
         data.venueId,
-        data.userId,
-        "Booking Created",
-        `Invoice ${invoiceNumber} created`,
+        `New Booking Is Pending`,
+        `Booking with ${invoiceNumber} is created`,
         null,
       );
+
+      const pendingBookings =
+        await bookingRepository.findBookingPendingByUserId(
+          result.booking.userId,
+        );
+
+      await publishEvent("booking-events", "booking:pending", {
+        userId: result.booking.userId,
+        data: pendingBookings ?? [],
+      });
+
+      await publishEvent("invoice-events", "invoice:created", result.invoice);
 
       return success.success201("Booking created", result);
     } catch (err) {
@@ -281,6 +299,8 @@ export class BookingServices {
           tx,
         );
 
+        await cancelInvoiceExpiry(updatedInvoice.id);
+
         const notification = await notificationRepository.createNewNotification(
           {
             userId: booking.userId,
@@ -324,7 +344,31 @@ export class BookingServices {
         null,
       );
 
+      await enqueueBookingReminders(
+        booking.id,
+        booking.userId,
+        booking.startTime,
+        booking.endTime,
+      );
+      const pendingBookings =
+        await bookingRepository.findBookingPendingByUserId(booking.userId);
+
+      const paidBookings = await bookingRepository.findBookingPaidByUserId(
+        booking.userId,
+      );
+
+      await publishEvent("booking-events", "booking:pending", {
+        userId: booking.userId,
+        data: pendingBookings ?? [],
+      });
+
+      await publishEvent("booking-events", "booking:paid", {
+        userId: booking.userId,
+        data: paidBookings ?? [],
+      });
+
       await publishEvent("points-events", "point:updated", result.points);
+      await publishEvent("invoice-events", "invoice:updated", result.invoice);
       await publishEvent(
         "notification-events",
         "notification:send",
@@ -390,6 +434,26 @@ export class BookingServices {
     }
   }
 
+  async getBookingPaidByUserId(userId: string) {
+    const booking = await bookingRepository.findBookingPaidByUserId(userId);
+
+    if (!booking) {
+      throw new Error("Booking not found");
+    }
+
+    return booking;
+  }
+
+  async getBookingPendingByUserId(userId: string) {
+    const booking = await bookingRepository.findBookingPendingByUserId(userId);
+
+    if (!booking) {
+      throw new Error("Booking not found");
+    }
+
+    return booking;
+  }
+
   async cancelBooking(id: string) {
     try {
       const booking = await bookingRepository.findBookingById(id);
@@ -411,13 +475,15 @@ export class BookingServices {
         return { bookings, invoice };
       });
 
-      await publisher.publish(
-        "booking-events",
-        JSON.stringify({
-          event: "booking:updated",
-          payload: result.bookings,
-        }),
-      );
+      const pendingBookings =
+        await bookingRepository.findBookingPendingByUserId(booking.userId);
+
+      await publishEvent("booking-events", "booking:pending", {
+        userId: booking.userId,
+        data: pendingBookings ?? [],
+      });
+
+      await cancelBookingReminders(booking.id);
 
       return {
         status: true,
@@ -449,6 +515,15 @@ export class BookingServices {
       }
 
       const updated = await bookingRepository.completeBooking(id);
+
+      const paidBookings = await bookingRepository.findBookingPaidByUserId(
+        booking.userId,
+      );
+
+      await publishEvent("booking-events", "booking:paid", {
+        userId: booking.userId,
+        data: paidBookings ?? [],
+      });
 
       return {
         status: true,

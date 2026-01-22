@@ -10,6 +10,7 @@ import { publisher } from "config/redis.config";
 import { uploadToCloudinary } from "utils/image";
 import { NotificationService } from "./notification.services";
 import { error, success } from "helpers/return";
+import { uploadImage } from "utils/uploadS3";
 const prisma = new PrismaClient();
 
 const menuRepository = new MenuRepository();
@@ -29,80 +30,63 @@ export class MenuServices {
     },
     file: Express.Multer.File,
   ) {
-    try {
-      let imageUrl: string | null = null;
+    let imageUrl: string | null = null;
 
-      const service = await venueServiceRepository.findById(data.serviceId);
-
-      if (file && file.path) {
-        imageUrl = await uploadToCloudinary(file.path, "menus");
-      }
-
-      const price =
-        typeof data.price === "string" ? parseFloat(data.price) : data.price;
-
-      const result = await prisma.$transaction(async (tx) => {
-        const menu = await menuRepository.createNewMenuByService(
-          {
-            name: data.name,
-            category: data.category,
-            serviceId: data.serviceId,
-            price,
-            image: imageUrl,
-          },
-          tx,
-        );
-
-        const notification = await notificationRepository.createNewNotification(
-          {
-            title: "New Menu Release!",
-            message: `${menu.name} has been added to ${service.venue.name}`,
-            type: "Information",
-            image: imageUrl || "",
-            isGlobal: true,
-          } as Notification,
-        );
-
-        const users = await userRepository.findManyUsers(tx);
-
-        await Promise.all(
-          users.map((user) =>
-            notificationService.sendToUser(
-              service.venue.id,
-              user.id,
-              "New Menu Release!",
-              `${menu.name} has been added to ${service.venue.name}`,
-              imageUrl,
-            ),
-          ),
-        );
-
-        return { menu, notification };
-      });
-
-      await publisher.publish(
-        "notification-events",
-        JSON.stringify({
-          event: "notification:updated",
-          payload: result.notification,
-        }),
-      );
-      return {
-        status: true,
-        status_code: 201,
-        message: "Menu created successfully",
-        data: result,
-      };
-    } catch (error) {
-      console.log(error);
-
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
+    if (file) {
+      const image = await uploadImage({ file, folder: "menus" });
+      imageUrl = image.url;
     }
+
+    const service = await venueServiceRepository.findById(data.serviceId);
+
+    const price =
+      typeof data.price === "string" ? parseFloat(data.price) : data.price;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const menu = await menuRepository.createNewMenuByService(
+        {
+          name: data.name,
+          category: data.category,
+          serviceId: data.serviceId,
+          price,
+          image: imageUrl,
+        },
+        tx,
+      );
+
+      const notification = await notificationRepository.createNewNotification({
+        title: "New Menu Release!",
+        message: `${menu.name} has been added to ${service.venue.name}`,
+        type: "Information",
+        image: imageUrl || "",
+        isGlobal: true,
+      } as Notification);
+
+      const users = await userRepository.findManyUsers(tx);
+
+      await Promise.all(
+        users.map((user) =>
+          notificationService.sendToUser(
+            service.venue.id,
+            user.id,
+            "New Menu Release!",
+            `${menu.name} has been added to ${service.venue.name}`,
+            imageUrl,
+          ),
+        ),
+      );
+
+      return { menu, notification };
+    });
+
+    await publisher.publish(
+      "notification-events",
+      JSON.stringify({
+        event: "notification:updated",
+        payload: result.notification,
+      }),
+    );
+    return result;
   }
 
   async getMenuByServiceId(serviceId: string) {
@@ -157,8 +141,9 @@ export class MenuServices {
     try {
       let imageUrl: string | null = null;
 
-      if (file && file.path) {
-        imageUrl = await uploadToCloudinary(file.path, "menus");
+      if (file) {
+        const image = await uploadImage({ file, folder: "menus" });
+        imageUrl = image.url;
       }
       const existing = await menuRepository.findMenuById(id);
 

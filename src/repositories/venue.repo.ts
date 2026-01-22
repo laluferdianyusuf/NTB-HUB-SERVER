@@ -132,6 +132,26 @@ export class VenueRepository {
     });
   }
 
+  async findVenueLikedByUser(userId: string) {
+    return await prisma.venue.findMany({
+      where: {
+        likes: {
+          some: { userId: userId },
+        },
+      },
+      include: {
+        invitation: true,
+        operationalHours: true,
+        services: {
+          where: { isActive: true },
+          include: {
+            units: { where: { isActive: true } },
+          },
+        },
+      },
+    });
+  }
+
   async activateVenue(id: string) {
     return await prisma.venue.update({
       where: { id },

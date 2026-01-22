@@ -30,7 +30,7 @@ type ServiceConfig = {
 export function validateVenueServiceConfig(
   bookingType?: BookingType | null,
   unitType?: UnitType | null,
-  config?: ServiceConfig
+  config?: ServiceConfig,
 ) {
   if (!config) return;
 
@@ -41,11 +41,15 @@ export function validateVenueServiceConfig(
     sections.schedule !== true
   ) {
     throw new Error(
-      "Schedule section must be enabled for TIME or SESSION booking"
+      "Schedule section must be enabled for TIME or SESSION booking",
     );
   }
 
-  if (unitType && sections.units !== true) {
+  if (
+    unitType &&
+    bookingType !== BookingType.SESSION &&
+    sections.units !== true
+  ) {
     throw new Error("Units section must be enabled when unitType is defined");
   }
 
@@ -87,23 +91,22 @@ export class VenueServiceService {
     const venue = await this.venueRepository.findVenueById(venueId);
     if (!venue) throw new Error("Venue not found");
 
-    const subCategory = await this.venueSubCategoryRepository.findById(
-      subCategoryId
-    );
+    const subCategory =
+      await this.venueSubCategoryRepository.findById(subCategoryId);
     if (!subCategory || !subCategory.isActive) {
       throw new Error("Venue sub category not active or not found");
     }
 
     const duplicate = await this.venueServiceRepository.findDuplicate(
       venueId,
-      subCategoryId
+      subCategoryId,
     );
     if (duplicate) {
       throw new Error("Service already exists for this venue");
     }
 
     const defaultConfig = jsonToObject(
-      subCategory.defaultConfig || {}
+      subCategory.defaultConfig || {},
     ) as ServiceConfig;
 
     const mergedConfig: ServiceConfig = {
@@ -132,7 +135,7 @@ export class VenueServiceService {
       unitType?: UnitType;
       config?: Partial<ServiceConfig>;
       isActive?: boolean;
-    }
+    },
   ) {
     const service = await this.venueServiceRepository.findById(id);
     if (!service) throw new Error("Venue service not found");

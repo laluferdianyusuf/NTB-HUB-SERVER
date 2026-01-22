@@ -4,7 +4,7 @@ import {
   VenueRepository,
   BookingRepository,
 } from "repositories";
-import { uploadToCloudinary } from "utils/image";
+import { uploadImage } from "utils/uploadS3";
 const reviewRepository = new ReviewRepository();
 const venueRepository = new VenueRepository();
 const bookingRepository = new BookingRepository();
@@ -15,7 +15,8 @@ export class ReviewServices {
       let imageUrl: string | null = null;
 
       if (file && file.path) {
-        imageUrl = await uploadToCloudinary(file.path, "reviews");
+        const image = await uploadImage({ file, folder: "reviews" });
+        imageUrl = image.url;
       }
 
       const booking = await bookingRepository.findBookingById(data.bookingId);
@@ -30,7 +31,7 @@ export class ReviewServices {
       }
 
       const existingReview = await reviewRepository.findByBookingId(
-        data.bookingId
+        data.bookingId,
       );
       if (existingReview) {
         return {
@@ -43,7 +44,7 @@ export class ReviewServices {
 
       const review = await reviewRepository.create(
         { ...data, rating: Number(data.rating), image: imageUrl },
-        booking
+        booking,
       );
 
       return {

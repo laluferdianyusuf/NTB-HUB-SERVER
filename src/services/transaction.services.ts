@@ -24,7 +24,7 @@ export class TransactionServices {
       const adminFee = 4440;
       const grossAmount = data.amount + adminFee;
 
-      const topUpId = `TOPUP-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+      const topUpId = `TOPUP-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
       const expiredAt = new Date(Date.now() + 5 * 60 * 1000);
 
       const transaction = await transactionRepository.create({
@@ -122,9 +122,7 @@ export class TransactionServices {
       const fee = Math.ceil(data.amount * 0.007);
       const grossAmount = data.amount + fee;
 
-      const topUpId = `TOPUP-QRIS-${Date.now()}-${crypto
-        .randomUUID()
-        .slice(0, 8)}`;
+      const topUpId = `TOPUP-QRIS-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
 
       const transaction = await transactionRepository.create({
         userId: data.userId,
@@ -214,9 +212,7 @@ export class TransactionServices {
         };
       }
 
-      const topUpId = `TOPUP-RETAIL-${Date.now()}-${crypto
-        .randomUUID()
-        .slice(0, 8)}`;
+      const topUpId = `TOPUP-RETAIL-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
 
       const transactionData: Partial<Transaction> = {
         userId: data.userId,
@@ -228,7 +224,7 @@ export class TransactionServices {
       };
 
       const transaction = await transactionRepository.create(
-        transactionData as Transaction
+        transactionData as Transaction,
       );
 
       const parameter = {
@@ -294,7 +290,7 @@ export class TransactionServices {
       const hash = crypto
         .createHash("sha512")
         .update(
-          payload.order_id + payload.status_code + grossAmount + serverKey
+          payload.order_id + payload.status_code + grossAmount + serverKey,
         )
         .digest("hex");
 
@@ -303,7 +299,7 @@ export class TransactionServices {
       }
 
       const transaction = await transactionRepository.findByOrderId(
-        payload.order_id
+        payload.order_id,
       );
       if (!transaction) {
         return { status: false, message: "Transaction not found" };
@@ -328,7 +324,7 @@ export class TransactionServices {
           JSON.stringify({
             event: "transaction:success",
             payload: settlement.transactions,
-          })
+          }),
         );
 
         if (settlement.notification) {
@@ -337,7 +333,7 @@ export class TransactionServices {
             JSON.stringify({
               event: "notification:send",
               payload: settlement.notification,
-            })
+            }),
           );
         }
 
@@ -347,7 +343,7 @@ export class TransactionServices {
             JSON.stringify({
               event: "points:updated",
               payload: settlement.points,
-            })
+            }),
           );
         }
         return {
@@ -362,7 +358,7 @@ export class TransactionServices {
         }
 
         const expired = await transactionRepository.markTransactionExpired(
-          transaction.id
+          transaction.id,
         );
 
         await publisher.publish(
@@ -370,7 +366,7 @@ export class TransactionServices {
           JSON.stringify({
             event: "transaction:expired",
             payload: expired,
-          })
+          }),
         );
         return { status: true, message: "Transaction failed/expired" };
       }
@@ -380,16 +376,15 @@ export class TransactionServices {
           return { status: true, message: "Transaction not pending, skipping" };
         }
 
-        const cancel = await transactionRepository.processFailedTransaction(
-          transaction
-        );
+        const cancel =
+          await transactionRepository.processFailedTransaction(transaction);
 
         await publisher.publish(
           "transactions-events",
           JSON.stringify({
             event: "transaction:cancel",
             payload: cancel,
-          })
+          }),
         );
         return { status: true, message: "Transaction failed/expired" };
       }

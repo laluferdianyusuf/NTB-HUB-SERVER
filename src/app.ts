@@ -11,21 +11,11 @@ import v1Router from "./routes/index";
 import { startExpireJob } from "cron/expireJob";
 
 const app = express();
+
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-startExpireJob();
-app.use(
-  "/api-docs",
-  swaggerUiMiddleware.serve,
-  swaggerUiMiddleware.setup(swaggerSpec)
-);
-
-app.use("/", v1Router);
-
-app.get("/", (req, res) => res.send({ message: "Server is running" }));
-
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -33,5 +23,16 @@ const io = new Server(server, {
     methods: ["GET", "POST", "PUT", "DELETE"],
   },
 });
+
+startExpireJob();
+app.use(
+  "/api-docs",
+  swaggerUiMiddleware.serve,
+  swaggerUiMiddleware.setup(swaggerSpec),
+);
+
+app.use("/", v1Router);
+
+app.get("/", (req, res) => res.send({ message: "Server is running" }));
 
 export { app, server, io, Redis };

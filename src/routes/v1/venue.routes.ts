@@ -15,6 +15,11 @@ router.get("/venue/venues", auth.authorize(["ADMIN", "CUSTOMER"]), (req, res) =>
   venueController.getVenues(req, res),
 );
 router.get(
+  "/venue/liked-byUser/:userId",
+  auth.authorize(["ADMIN", "CUSTOMER"]),
+  (req, res) => venueController.getVenueLikedByUser(req, res),
+);
+router.get(
   "/venue/popular/venues",
   auth.authorize(["ADMIN", "CUSTOMER"]),
   (req, res) => venueController.getPopularVenues(req, res),
