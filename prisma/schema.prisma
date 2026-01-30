@@ -11,8 +11,10 @@ datasource db {
 enum Role {
   CUSTOMER
   ADMIN
-  VENUE_STAFF
+  COURIER
   VENUE_OWNER
+  VENUE_STAFF
+  EVENT_OWNER
 }
 
 enum BookingStatus {
@@ -34,13 +36,23 @@ enum TransactionType {
   TOPUP
   DEDUCTION
   FEE
+  BOOKING
+  WITHDRAW
+  REFUND
+  REWARD
+  COMMISSION
+  EVENT
 }
 
 enum PointActivityType {
   REGISTER
-  TOPUP
   BOOKING
+  EVENT_PURCHASE
   REVIEW
+  PAYMENT
+  PROMO
+  REFUND
+  ADMIN_GRANT
 }
 
 enum InvoiceStatus {
@@ -102,6 +114,35 @@ enum BookingType {
   NONE
 }
 
+enum NewsStatus {
+  AUTO
+  MANUAL
+  FAILED
+}
+
+enum CourierStatus {
+  OFFLINE
+  ONLINE
+  ON_DELIVERY
+  SUSPENDED
+}
+
+enum VehicleType {
+  MOTORCYCLE
+  CAR
+  BICYCLE
+  WALKING
+}
+
+enum DeliveryStatus {
+  PENDING
+  ASSIGNED
+  PICKED_UP
+  ON_THE_WAY
+  DELIVERED
+  CANCELLED
+}
+
 // #regionUSER & AUTH
 model User {
   id         String   @id @default(uuid())
@@ -130,14 +171,21 @@ model User {
   likedVenues      LikeVenue[]
   venueImpressions VenueImpression[]
 
+  events       Event[]
   likedEvents  LikeEvent[]
   eventReviews ReviewEvent[]
+  eventOrders  EventOrder[]
+  eventTickets EventTicket[]
 
   likedPlaces      LikePublicPlace[]
   placeReviews     ReviewPublicPlace[]
   placeImpressions PublicPlaceImpression[]
-  eventOrders      EventOrder[]
-  eventTickets     EventTicket[]
+
+  courier         Courier?
+  deliveries      Delivery[]
+  newsImpressions NewsImpression[]
+  newsComments    NewsComment[]
+  courierRatings  CourierRating[]
 }
 
 model UserBalance {
@@ -223,6 +271,7 @@ model Venue {
   likes            LikeVenue[]
   impressions      VenueImpression[]
   events           Event[]
+  menus            Menu[]
 }
 
 model VenueCategory {
@@ -260,7 +309,7 @@ model VenueService {
   subCategoryId String
 
   config Json
-
+  image String?
   unitType    UnitType?
   bookingType BookingType?
 
@@ -353,7 +402,7 @@ model VenueUnit {
 }
 
 model OperationalHour {
-  id        String   @id @default(uuid())
+  id        String @id @default(uuid())
   venueId   String
   dayOfWeek Int
   opensAt   Int
@@ -383,6 +432,7 @@ model Booking {
   orderItems OrderItem[]
   review     Review?
   invoice    Invoice?
+  delivery   Delivery?
 
   @@index([userId])
   @@index([venueId])
@@ -390,8 +440,8 @@ model Booking {
 }
 
 model Menu {
-  id        String @id @default(uuid())
-  serviceId String
+  id      String @id @default(uuid())
+  venueId String
 
   name        String
   price       Float
@@ -401,8 +451,10 @@ model Menu {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now()) @updatedAt
 
-  service    VenueService @relation(fields: [serviceId], references: [id])
-  orderItems OrderItem[]
+  venue          Venue         @relation(fields: [venueId], references: [id])
+  orderItems     OrderItem[]
+  venueService   VenueService? @relation(fields: [venueServiceId], references: [id])
+  venueServiceId String?
 }
 
 model OrderItem {
@@ -476,12 +528,13 @@ model Invoice {
 }
 
 model WithdrawRequest {
-  id        String         @id @default(uuid())
-  venueId   String
-  amount    Float
-  fee       Float          @default(0)
-  netAmount Float
-  status    WithdrawStatus @default(PENDING)
+  id             String         @id @default(uuid())
+  venueId        String
+  amount         Float
+  fee            Float          @default(0)
+  netAmount      Float
+  status         WithdrawStatus @default(PENDING)
+  withdrawNumber String         @unique
 
   bankCode    String
   bankAccount String
@@ -620,12 +673,14 @@ model PublicPlaceImpression {
 model Event {
   id          String      @id @default(uuid())
   venueId     String?
+  ownerId     String
   name        String
   description String
   image       String?
   startAt     DateTime
   endAt       DateTime
   capacity    Int?
+  location    String
   status      EventStatus @default(UPCOMING)
   isActive    Boolean     @default(true)
 
@@ -633,6 +688,7 @@ model Event {
   updatedAt DateTime @default(now()) @updatedAt
 
   venue   Venue?        @relation(fields: [venueId], references: [id])
+  owner   User          @relation(fields: [ownerId], references: [id])
   reviews ReviewEvent[]
   likes   LikeEvent[]
 
@@ -738,4 +794,159 @@ model Notification {
   updatedAt DateTime @default(now()) @updatedAt
 
   user User? @relation(fields: [userId], references: [id])
+}
+
+// #region NEWS
+model News {
+  id          String     @id @default(uuid())
+  sourceUrl   String
+  title       String
+  description String
+  image       String?
+  source      String
+  status      NewsStatus
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @default(now()) @updatedAt
+
+  newsImpressions NewsImpression[]
+  newsComments    NewsComment[]
+}
+
+model NewsImpression {
+  id          String   @id @default(uuid())
+  newsId      String
+  userId      String
+  ipAddress   String?
+  userAgent   String?
+  isAnonymous Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  news News  @relation(fields: [newsId], references: [id])
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([newsId, createdAt])
+}
+
+model NewsComment {
+  id        String   @id @default(uuid())
+  newsId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  news News @relation(fields: [newsId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([newsId])
+  @@index([userId])
+}
+
+// #region COURIER CORE
+model Courier {
+  id     String        @id @default(uuid())
+  userId String        @unique
+  status CourierStatus @default(OFFLINE)
+
+  vehicleType VehicleType
+  plateNumber String?
+  photo       String?
+
+  rating     Float @default(0)
+  totalTrips Int   @default(0)
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  deliveries Delivery[]
+  locations  CourierLocation[]
+
+  courierRatings          CourierRating[]
+  courierAvailabilityLogs CourierAvailabilityLog[]
+  courierEarnings         CourierEarnings[]
+}
+
+model Delivery {
+  id        String  @id @default(uuid())
+  courierId String
+  userId    String?
+  bookingId String? @unique
+
+  pickupAddress  String
+  dropoffAddress String
+
+  status DeliveryStatus @default(PENDING)
+
+  assignedAt  DateTime?
+  pickedUpAt  DateTime?
+  deliveredAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courier Courier  @relation(fields: [courierId], references: [id])
+  user    User?    @relation(fields: [userId], references: [id])
+  booking Booking? @relation(fields: [bookingId], references: [id])
+
+  @@index([courierId, status])
+  @@index([bookingId])
+}
+
+model CourierLocation {
+  id        String   @id @default(uuid())
+  courierId String
+  latitude  Float
+  longitude Float
+  updatedAt DateTime @default(now()) @updatedAt
+
+  courier Courier @relation(fields: [courierId], references: [id])
+
+  @@index([courierId, updatedAt])
+}
+
+model CourierRating {
+  id        String   @id @default(uuid())
+  courierId String
+  userId    String
+  rating    Float
+  comment   String?
+  tripId    String?
+  createdAt DateTime @default(now())
+
+  courier Courier @relation(fields: [courierId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([courierId])
+  @@index([userId])
+}
+
+model CourierAvailabilityLog {
+  id        String        @id @default(uuid())
+  courierId String
+  status    CourierStatus
+  note      String? // opsional, misal alasan OFFLINE / SUSPENDED
+  createdAt DateTime      @default(now())
+
+  courier Courier @relation(fields: [courierId], references: [id])
+
+  @@index([courierId, createdAt])
+}
+
+model CourierEarnings {
+  id            String   @id @default(uuid())
+  courierId     String
+  periodStart   DateTime // awal periode penghitungan
+  periodEnd     DateTime // akhir periode penghitungan
+  totalTrips    Int      @default(0)
+  totalEarnings Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+
+  courier Courier @relation(fields: [courierId], references: [id])
+
+  @@index([courierId, periodStart, periodEnd])
 }

@@ -7,15 +7,19 @@ const auth = new AuthMiddlewares();
 const venueSubCategoryController = new VenueSubCategoryController();
 
 router.post("/create", auth.authorize(["ADMIN"]), (req, res) =>
-  venueSubCategoryController.createSubCategory(req, res)
+  venueSubCategoryController.createSubCategory(req, res),
+);
+
+router.post("/create-many", auth.authorize(["ADMIN"]), (req, res) =>
+  venueSubCategoryController.createMany(req, res),
 );
 
 router.get("/by-category/:categoryId", (req, res) =>
-  venueSubCategoryController.getSubCategoryByCategory(req, res)
+  venueSubCategoryController.getSubCategoryByCategory(req, res),
 );
 
 router.get("/sub-all", (req, res) =>
-  venueSubCategoryController.getAllSubCategory(req, res)
+  venueSubCategoryController.getAllSubCategory(req, res),
 );
 
 export default router;

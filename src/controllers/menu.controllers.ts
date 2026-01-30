@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { MenuServices } from "../services/menu.services";
+import { log } from "console";
 
 export class MenuControllers {
   private menuService: MenuServices;
@@ -18,6 +19,8 @@ export class MenuControllers {
         data: result,
       });
     } catch (error: any) {
+      console.log(error);
+
       res.status(500).json({
         status: false,
         message: error.message || "Internal Server Error",

@@ -185,6 +185,51 @@ export class InvoiceRepository {
     });
   }
 
+  async findAllPaidByVenueId(venueId: string): Promise<Invoice[]> {
+    return prisma.invoice.findMany({
+      where: {
+        booking: {
+          venueId,
+        },
+        status: InvoiceStatus.PAID,
+      },
+      include: {
+        booking: {
+          select: {
+            id: true,
+            startTime: true,
+            endTime: true,
+            totalPrice: true,
+
+            user: {
+              select: {
+                name: true,
+              },
+            },
+            review: {
+              select: {
+                rating: true,
+              },
+            },
+            venue: {
+              select: {
+                transactions: true,
+                name: true,
+              },
+            },
+            orderItems: {
+              select: {
+                quantity: true,
+                menu: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+  }
+
   async findById(id: string): Promise<Invoice | null> {
     return prisma.invoice.findUnique({
       where: { id },
@@ -280,6 +325,21 @@ export class InvoiceRepository {
   ): Promise<Invoice> {
     const db = tx ?? prisma;
     return db.invoice.create({ data });
+  }
+
+  async updateInvoiceByEventOrderId(
+    eventOrderId: string,
+    status: InvoiceStatus,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const db = tx ?? prisma;
+    return db.invoice.update({
+      where: { eventOrderId },
+      data: {
+        status: status,
+        paidAt: new Date(),
+      },
+    });
   }
 
   async updateInvoicePaid(bookingId: string, tx?: Prisma.TransactionClient) {

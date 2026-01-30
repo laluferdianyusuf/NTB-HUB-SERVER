@@ -8,7 +8,9 @@ export class WithdrawController {
     try {
       const venueId = req.venue.id;
       const result = await withdrawService.requestWithdraw(venueId, req.body);
-      res.status(201).json(result);
+      res
+        .status(201)
+        .json({ status: true, message: "Withdraw requested", data: result });
     } catch (e: any) {
       res.status(400).json({ message: e.message });
     }
@@ -17,7 +19,11 @@ export class WithdrawController {
   async approve(req: Request, res: Response) {
     try {
       const result = await withdrawService.approveWithdraw(req.params.id);
-      res.json(result);
+      res.json({
+        status: true,
+        message: "Venues retrieved successful",
+        data: result,
+      });
     } catch (e: any) {
       res.status(400).json({ message: e.message });
     }
@@ -26,7 +32,13 @@ export class WithdrawController {
   async reject(req: Request, res: Response) {
     try {
       const result = await withdrawService.rejectWithdraw(req.params.id);
-      res.json(result);
+      res
+        .status(203)
+        .json({
+          status: true,
+          message: "Withdraw rejected successful",
+          data: result,
+        });
     } catch (e: any) {
       res.status(400).json({ message: e.message });
     }
@@ -35,20 +47,46 @@ export class WithdrawController {
   async markAsPaid(req: Request, res: Response) {
     try {
       const result = await withdrawService.markAsPaid(req.params.id);
-      res.json(result);
+      res
+        .status(200)
+        .json({
+          status: true,
+          message: "Withdraw paid successful",
+          data: result,
+        });
     } catch (e: any) {
       res.status(400).json({ message: e.message });
     }
   }
 
   async venueWithdraws(req: Request, res: Response) {
-    const venueId = req.venue.id;
-    const data = await withdrawService.getVenueWithdraws(venueId);
-    res.json(data);
+    try {
+      const venueId = req.params.venueId;
+      const data = await withdrawService.getVenueWithdraws(venueId);
+      res
+        .status(200)
+        .json({
+          status: true,
+          message: "Withdraw venue retrieved successful",
+          data: data,
+        });
+    } catch (e) {
+      res.status(400).json({ message: e.message });
+    }
   }
 
   async allWithdraws(req: Request, res: Response) {
-    const data = await withdrawService.getAllWithdraws();
-    res.json(data);
+    try {
+      const data = await withdrawService.getAllWithdraws();
+      res
+        .status(200)
+        .json({
+          status: true,
+          message: "All withdraw retrieved successful",
+          data: data,
+        });
+    } catch (e) {
+      res.status(400).json({ message: e.message });
+    }
   }
 }

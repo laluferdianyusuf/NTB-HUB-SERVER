@@ -9,8 +9,13 @@ export class PublicPlaceRepository {
         isActive: true,
         ...(type && { type }),
       },
+      include: {
+        reviews: true,
+        likes: true,
+        impressions: true,
+      },
       orderBy: {
-        createdAt: "desc",
+        updatedAt: "desc",
       },
     });
   }
@@ -33,7 +38,7 @@ export class PublicPlaceRepository {
   }
 
   create(
-    data: Omit<PublicPlace, "id" | "createdAt" | "updatedAt">
+    data: Omit<PublicPlace, "id" | "createdAt" | "updatedAt">,
   ): Promise<PublicPlace> {
     return prisma.publicPlace.create({ data });
   }

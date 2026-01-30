@@ -1,25 +1,58 @@
-import { EventOrder, PrismaClient } from "@prisma/client";
+import {
+  EventOrder,
+  EventOrderStatus,
+  Prisma,
+  PrismaClient,
+} from "@prisma/client";
 const prisma = new PrismaClient();
 
 export class EventOrderRepository {
-  createOrder(data: EventOrder) {
-    return prisma.eventOrder.create({ data });
+  createOrder(
+    tx: Prisma.TransactionClient,
+    data: {
+      userId: string;
+      eventId: string;
+      total: number;
+      status: EventOrderStatus;
+    },
+  ) {
+    return tx.eventOrder.create({ data });
   }
 
-  findOrderById(id: string) {
-    return prisma.eventOrder.findUnique({
+  findById(id: string, tx?: Prisma.TransactionClient) {
+    const db = tx ?? prisma;
+    return db.eventOrder.findUnique({
       where: { id },
       include: {
+        items: true,
         invoice: true,
         tickets: true,
       },
     });
   }
 
-  updateOrder(id: string, data: EventOrder) {
-    return prisma.eventOrder.update({
+  updateOrder(tx: Prisma.TransactionClient, id: string, data: EventOrder) {
+    return tx.eventOrder.update({
       where: { id },
       data,
+    });
+  }
+
+  updateOrderStatus(
+    tx: Prisma.TransactionClient,
+    id: string,
+    status: EventOrderStatus,
+  ) {
+    return tx.eventOrder.update({
+      where: { id },
+      data: { status: status },
+    });
+  }
+
+  markPaid(tx: Prisma.TransactionClient, id: string) {
+    return tx.eventOrder.update({
+      where: { id },
+      data: { status: "PAID" },
     });
   }
 }

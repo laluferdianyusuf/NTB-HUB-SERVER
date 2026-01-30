@@ -4,10 +4,9 @@ import { EventTicketService } from "../services";
 export class EventTicketController {
   private service = new EventTicketService();
 
-  scan = async (req: Request, res: Response) => {
+  async scan(req: Request, res: Response) {
     try {
       const { qrCode } = req.body;
-      const venueId = req.venue?.id;
 
       if (!qrCode) {
         return res.status(400).json({
@@ -16,18 +15,12 @@ export class EventTicketController {
         });
       }
 
-      const ticket = await this.service.scanTicket(qrCode, venueId);
+      const ticket = await this.service.scanTicket(qrCode);
 
       return res.status(200).json({
         status: true,
         message: "Ticket valid",
-        data: {
-          ticketId: ticket.id,
-          event: ticket.event.name,
-          ticketType: ticket.ticketType.name,
-          owner: ticket.user.name,
-          usedAt: new Date(),
-        },
+        data: ticket,
       });
     } catch (err: any) {
       const map: Record<string, number> = {
@@ -41,5 +34,100 @@ export class EventTicketController {
         message: err.message.replaceAll("_", " "),
       });
     }
-  };
+  }
+
+  async verify(req: Request, res: Response) {
+    try {
+      const { ticketId } = req.body;
+
+      if (!ticketId) {
+        return res.status(400).json({
+          message: "TICKET_ID_REQUIRED",
+        });
+      }
+
+      await this.service.verifyTicket(ticketId);
+
+      return res.status(200).json({
+        message: "TICKET_VERIFIED",
+      });
+    } catch (error: any) {
+      return res.status(400).json({
+        message: error.message || "VERIFY_FAILED",
+      });
+    }
+  }
+
+  async getTicketById(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      if (!id) {
+        return res.status(400).json({
+          message: "ID_REQUIRED",
+        });
+      }
+
+      const result = await this.service.getTicketById(id);
+
+      return res.status(200).json({
+        message: "TICKET FOUND",
+        data: result,
+      });
+    } catch (error: any) {
+      return res.status(400).json({
+        message: error.message || "TICKET NOT FOUND",
+      });
+    }
+  }
+
+  async getTicketByUserId(req: Request, res: Response) {
+    try {
+      const { userId } = req.params;
+
+      if (!userId) {
+        return res.status(400).json({
+          message: "USER_ID_REQUIRED",
+        });
+      }
+
+      const result = await this.service.getTicketByUserId(userId);
+
+      return res.status(200).json({
+        message: "TICKET FOUND",
+        data: result,
+      });
+    } catch (error: any) {
+      console.log(res);
+
+      return res.status(400).json({
+        message: error.message || "TICKET NOT FOUND",
+      });
+    }
+  }
+
+  async getTicketByOrderId(req: Request, res: Response) {
+    try {
+      const { orderId } = req.params;
+
+      if (!orderId) {
+        return res.status(400).json({
+          message: "ORDER_ID_REQUIRED",
+        });
+      }
+
+      const result = await this.service.getTicketByOrderId(orderId);
+
+      return res.status(200).json({
+        message: "TICKET FOUND",
+        data: result,
+      });
+    } catch (error: any) {
+      console.log(res);
+
+      return res.status(400).json({
+        message: error.message || "TICKET NOT FOUND",
+      });
+    }
+  }
 }

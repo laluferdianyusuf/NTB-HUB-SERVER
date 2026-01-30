@@ -16,6 +16,12 @@ router.get(
   (req, res) => venueServiceController.getServiceByVenue(req, res),
 );
 
+router.get(
+  "/services-venue/:venueId",
+  auth.authorize(["VENUE", "CUSTOMER", "ADMIN"]),
+  (req, res) => venueServiceController.getAllServiceByVenue(req, res),
+);
+
 router.get("/detail/:id", auth.authorize(["VENUE", "CUSTOMER"]), (req, res) =>
   venueServiceController.getDetailService(req, res),
 );

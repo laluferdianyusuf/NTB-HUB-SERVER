@@ -239,19 +239,21 @@ export class NotificationService {
 
   async markAllAsRead(userId: string) {
     try {
-      const notification = await notificationRepository.markAllAsRead(userId);
+      const items = await notificationRepository.markAllAsRead(userId);
 
       return {
         status: true,
         status_code: 200,
         message: "All notifications marked as read",
-        data: notification,
+        data: {
+          items,
+        },
       };
     } catch (error) {
       return {
         status: false,
         status_code: 500,
-        message: "Failed to read notification",
+        message: "Failed to mark notifications as read",
         data: null,
       };
     }
@@ -259,19 +261,21 @@ export class NotificationService {
 
   async markAllAsUnread(userId: string) {
     try {
-      const notification = await notificationRepository.markAllAsUnread(userId);
+      const items = await notificationRepository.markAllAsUnread(userId);
 
       return {
         status: true,
         status_code: 200,
         message: "All notifications marked as unread",
-        data: notification,
+        data: {
+          items,
+        },
       };
     } catch (error) {
       return {
         status: false,
         status_code: 500,
-        message: "Failed to unread notification",
+        message: "Failed to mark notifications as unread",
         data: null,
       };
     }

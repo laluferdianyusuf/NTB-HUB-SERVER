@@ -29,10 +29,17 @@ router.get("/transaction/transactions", auth.authorize(["ADMIN"]), (req, res) =>
 router.get(
   "/transaction/transactions/:id",
   auth.authorize(["CUSTOMER", "ADMIN"]),
-  (req, res) => transactionController.findAllTransactionsByUserId(req, res),
+  (req, res) => transactionController.getTransactionsByUser(req, res),
 );
+
 router.get("/transaction-venue", auth.authorize(["VENUE"]), (req, res) =>
   transactionController.findAllTransactionsByVenueId(req, res),
+);
+
+router.get(
+  "/transaction-detail/:id",
+  auth.authorize(["VENUE", "ADMIN", "CUSTOMER"]),
+  (req, res) => transactionController.findTransactionsById(req, res),
 );
 
 export default router;

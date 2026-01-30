@@ -80,6 +80,26 @@ export class VenueServiceController {
     }
   }
 
+  async getAllServiceByVenue(req: Request, res: Response) {
+    try {
+      const { venueId } = req.params;
+
+      const services =
+        await this.venueServiceService.getAllServiceByVenue(venueId);
+
+      return res.status(200).json({
+        status: true,
+        message: "Venue retrieved successful",
+        data: services,
+      });
+    } catch (err) {
+      return res.status(404).json({
+        status: false,
+        message: err.message,
+      });
+    }
+  }
+
   async getDetailService(req: Request, res: Response) {
     try {
       const { id } = req.params;

@@ -55,10 +55,6 @@ export class VenueUnitService {
       throw new Error(`Unit type must be ${service.unitType} for this service`);
     }
 
-    if (price <= 0) {
-      throw new Error("Unit price must be greater than 0");
-    }
-
     return this.venueUnitRepository.create({
       venueId,
       serviceId,

@@ -1,17 +1,17 @@
-import { ReviewServices } from "services";
+import { ReviewPublicPlaceServices, ReviewServices } from "services";
 import { Request, Response } from "express";
 
-export class ReviewControllers {
-  private reviewService: ReviewServices;
+export class ReviewPlaceControllers {
+  private reviewService: ReviewPublicPlaceServices;
 
   constructor() {
-    this.reviewService = new ReviewServices();
+    this.reviewService = new ReviewPublicPlaceServices();
   }
 
   async createReview(req: Request, res: Response) {
     try {
       const data = req.body;
-      const result = await this.reviewService.createReview(data, req.file);
+      const result = await this.reviewService.createPlaceReview(data, req.file);
       res.status(201).json({
         status: true,
         message: "Rating successful",
@@ -27,10 +27,10 @@ export class ReviewControllers {
     }
   }
 
-  async getReviewByBookingId(req: Request, res: Response) {
+  async getReviewById(req: Request, res: Response) {
     try {
-      const bookingId = req.params.bookingId;
-      const result = await this.reviewService.getReviewByBookingId(bookingId);
+      const id = req.params.id;
+      const result = await this.reviewService.getReviewPlaceById(id);
       res.status(200).json({
         status: true,
         message: "Rating retrieved successful",
@@ -44,10 +44,10 @@ export class ReviewControllers {
     }
   }
 
-  async getVenueRating(req: Request, res: Response) {
+  async getPlaceRating(req: Request, res: Response) {
     try {
-      const venueId = req.params.venueId;
-      const result = await this.reviewService.getVenueRating(venueId);
+      const placeId = req.params.placeId;
+      const result = await this.reviewService.getPlaceRating(placeId);
       res.status(200).json({
         status: true,
         message: "Rating retrieved successful",

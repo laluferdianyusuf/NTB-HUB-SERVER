@@ -15,6 +15,8 @@ export * from "./invitation.controllers";
 export * from "./user.balance.controllers";
 export * from "./venue.balance.controllers";
 export * from "./log.controllers";
+export * from "./news.controllers";
+export * from "./review.place.controllers";
 export * from "./transaction.controllers";
 export * from "./review.controllers";
 export * from "./invoice.controllers";

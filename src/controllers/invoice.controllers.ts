@@ -36,4 +36,14 @@ export class InvoiceController {
 
     res.status(result.status_code).json(result);
   }
+
+  async findAllPaidInvoiceByVenueId(req: Request, res: Response) {
+    const venueId = req.params.venueId;
+
+    const result =
+      await this.invoiceService.findAllPaidInvoiceByVenueId(venueId);
+    console.log(result);
+
+    res.status(result.status_code).json(result);
+  }
 }

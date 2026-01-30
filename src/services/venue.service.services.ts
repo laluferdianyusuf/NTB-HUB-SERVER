@@ -169,6 +169,10 @@ export class VenueServiceService {
     return this.venueServiceRepository.findByVenue(venueId);
   }
 
+  async getAllServiceByVenue(venueId: string) {
+    return this.venueServiceRepository.findAllService(venueId);
+  }
+
   async getDetail(id: string) {
     const service = await this.venueServiceRepository.findById(id);
     if (!service) {

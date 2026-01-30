@@ -9,8 +9,13 @@ export class InvitationKeyRepository {
     address: string,
     city: string,
     province: string,
+    description?: string,
+    latitude?: number,
+    longitude?: number,
     expiresAt?: Date,
-    key?: string
+    key?: string,
+    image?: string,
+    gallery?: string[],
   ) {
     if (!email) {
       throw new Error("Email is required to generate an invitation key");
@@ -23,7 +28,11 @@ export class InvitationKeyRepository {
           address: address ?? "Auto-generated address",
           city: city ?? "Auto-generated city",
           province: province ?? "Auto-generated province",
-          description: "Auto-generated description",
+          description: description ?? "Auto-generated description",
+          latitude: latitude ?? 0,
+          longitude: longitude ?? 0,
+          image: image,
+          gallery: gallery,
           isActive: false,
         },
       });
@@ -92,7 +101,7 @@ export class InvitationKeyRepository {
   }
   async updateByVenueId(
     venueId: string,
-    data: Partial<InvitationKey>
+    data: Partial<InvitationKey>,
   ): Promise<InvitationKey> {
     return prisma.invitationKey.update({
       where: { venueId },

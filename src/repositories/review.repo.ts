@@ -2,13 +2,13 @@ import { Booking, PrismaClient, Review } from "@prisma/client";
 const prisma = new PrismaClient();
 
 export class ReviewRepository {
-  async create(data: Review, booking: Booking): Promise<Review> {
+  async create(data: Review, userId: string): Promise<Review> {
     return await prisma.$transaction(async (tx) => {
       const review = await tx.review.create({ data });
 
       await tx.point.create({
         data: {
-          userId: booking.userId,
+          userId: userId,
           points: 10,
           activity: "REVIEW",
           reference: review.id,
@@ -26,14 +26,28 @@ export class ReviewRepository {
     return prisma.review.findMany();
   }
 
-  async findByBookingId(bookingId: string): Promise<Review> {
+  async findByBookingId(bookingId: string): Promise<Review | null> {
     return prisma.review.findUnique({
       where: { bookingId },
+      include: {
+        booking: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                photo: true,
+              },
+            },
+          },
+        },
+      },
     });
   }
 
-  async getVenueRating(venueId: string) {
-    const reviews = await prisma.review.findMany({
+  async findManyByVenueId(venueId: string): Promise<Review[]> {
+    return prisma.review.findMany({
       where: {
         booking: {
           venueId,
@@ -54,20 +68,5 @@ export class ReviewRepository {
         },
       },
     });
-
-    if (reviews.length === 0) {
-      return {
-        rating: 0,
-        reviewers: [],
-      };
-    }
-
-    const average =
-      reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
-
-    return {
-      rating: parseFloat(average.toFixed(2)),
-      reviewers: reviews,
-    };
   }
 }

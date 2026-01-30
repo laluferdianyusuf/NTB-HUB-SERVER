@@ -9,21 +9,47 @@ const prisma = new PrismaClient();
 export class TransactionRepository {
   async create(
     data: Prisma.TransactionUncheckedCreateInput,
-    tx?: Prisma.TransactionClient
+    tx?: Prisma.TransactionClient,
   ): Promise<Transaction> {
     const db = tx ?? prisma;
     return db.transaction.create({ data });
   }
 
-  async findById(id: string): Promise<Transaction | null> {
-    return prisma.transaction.findUnique({ where: { id } });
+  async findById(
+    id: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Transaction | null> {
+    const db = tx ?? prisma;
+    return db.transaction.findUnique({ where: { id } });
   }
 
-  async findByUserId(id: string): Promise<Transaction[] | null> {
-    return prisma.transaction.findMany({
-      where: { userId: id, status: "SUCCESS" },
+  async findByOrderId(
+    eventOrderId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Transaction | null> {
+    const db = tx ?? prisma;
+    return db.transaction.findFirst({ where: { eventOrderId } });
+  }
+
+  async findByUserId(
+    userId: string,
+    cursor?: string,
+    limit: number = 20,
+  ): Promise<Transaction[]> {
+    const where = { userId };
+    const queryOptions: any = {
+      where,
       orderBy: { createdAt: "desc" },
-    });
+      take: limit,
+    };
+
+    if (cursor) {
+      queryOptions.skip = 1;
+      queryOptions.cursor = { id: cursor };
+    }
+
+    const transactions = await prisma.transaction.findMany(queryOptions);
+    return transactions;
   }
 
   async findByVenueId(venueId: string): Promise<Transaction[] | null> {
@@ -33,16 +59,17 @@ export class TransactionRepository {
     });
   }
 
-  async findByOrderId(orderId: string): Promise<Transaction> {
-    return prisma.transaction.findFirst({ where: { orderId } });
-  }
-
   async findAll(): Promise<Transaction[]> {
     return prisma.transaction.findMany();
   }
 
-  async updateStatus(id: string, status: string): Promise<Transaction> {
-    return prisma.transaction.update({
+  async updateStatus(
+    id: string,
+    status: TransactionStatus,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Transaction> {
+    const db = tx ?? prisma;
+    return db.transaction.update({
       where: { id },
       data: { status: status as TransactionStatus },
     });
@@ -118,7 +145,7 @@ export class TransactionRepository {
 
   async updateTransaction(
     id: string,
-    data: Partial<Transaction>
+    data: Partial<Transaction>,
   ): Promise<Transaction> {
     return prisma.transaction.update({
       where: { id },

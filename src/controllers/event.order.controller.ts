@@ -6,8 +6,7 @@ export class EventOrderController {
 
   async checkout(req: Request, res: Response) {
     try {
-      const userId = req.user!.id;
-      const { eventId, items } = req.body;
+      const { eventId, userId, items } = req.body;
 
       if (!eventId || !items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({
@@ -24,6 +23,8 @@ export class EventOrderController {
         data: result,
       });
     } catch (err: any) {
+      console.log(err);
+
       const errorMap: Record<string, { code: number; message: string }> = {
         TICKET_NOT_AVAILABLE: {
           code: 404,
@@ -46,22 +47,25 @@ export class EventOrderController {
 
   async paymentWebhook(req: Request, res: Response) {
     try {
-      const { transactionId } = req.body;
+      const { eventOrderId, items } = req.body;
 
-      if (!transactionId) {
+      if (!eventOrderId) {
         return res.status(400).json({
           status: false,
-          message: "transactionId is required",
+          message: "eventOrderId is required",
         });
       }
 
-      await this.service.markPaid(transactionId);
+      const result = await this.service.markPaid(eventOrderId, items);
 
-      return res.json({
+      return res.status(201).json({
         status: true,
         message: "Payment processed",
+        data: result,
       });
     } catch (err) {
+      console.log(err);
+
       return res.status(500).json({
         status: false,
         message: "Failed to process payment",

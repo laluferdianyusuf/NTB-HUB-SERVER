@@ -1,6 +1,8 @@
 import { randomUUID } from "crypto";
+import { toNum } from "helpers/parser";
 import { InvitationKeyRepository } from "repositories";
 import { sendEmail } from "utils/mail";
+import { uploadImage } from "utils/uploadS3";
 const invitationKeyRepository = new InvitationKeyRepository();
 
 export class InvitationServices {
@@ -9,9 +11,37 @@ export class InvitationServices {
     venueName: string,
     address: string,
     city: string,
-    province: string
+    province: string,
+    description?: string,
+    latitude?: number,
+    longitude?: number,
+    files?: {
+      image?: Express.Multer.File;
+      gallery?: Express.Multer.File[];
+    },
   ) {
     try {
+      let imageUrl: string | null = null;
+      let galleryUrls: string[] = [];
+
+      if (files?.image?.[0]) {
+        const image = await uploadImage({
+          file: files.image?.[0],
+          folder: "venues",
+        });
+        imageUrl = image.url;
+      }
+
+      if (files?.gallery?.length) {
+        const gallery = await Promise.all(
+          files.gallery.map((file) =>
+            uploadImage({ file: file, folder: "venues" }),
+          ),
+        );
+
+        galleryUrls = gallery.map((img) => img.url);
+      }
+
       const key = `INVITE-${randomUUID().slice(0, 8).toUpperCase()}`;
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
@@ -21,8 +51,13 @@ export class InvitationServices {
         address,
         city,
         province,
+        description,
+        toNum(latitude),
+        toNum(longitude),
         null,
-        key
+        key,
+        imageUrl,
+        galleryUrls,
       );
 
       await sendEmail(
@@ -48,7 +83,7 @@ export class InvitationServices {
         </a>
 
         <p>Kode undangan: <b>${key}</b></p>
-      `
+      `,
       );
 
       return {
@@ -132,9 +167,8 @@ export class InvitationServices {
 
   async findInvitationKeysByVenueId(venueId: string) {
     try {
-      const invitationKeys = await invitationKeyRepository.findByVenueId(
-        venueId
-      );
+      const invitationKeys =
+        await invitationKeyRepository.findByVenueId(venueId);
 
       if (!invitationKeys) {
         return {

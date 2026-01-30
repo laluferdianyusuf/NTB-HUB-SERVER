@@ -88,9 +88,9 @@ export class TransactionServices {
         status_code: 201,
         message: "VA generated successfully",
         data: {
-          transactionId: transaction.id,
-          amount: transaction.amount, // saldo masuk
-          grossAmount, // user bayar
+          id: transaction.id,
+          amount: transaction.amount,
+          grossAmount,
           vaNumber: va_number,
           status: transaction.status,
           bank: data.bankCode,
@@ -178,9 +178,9 @@ export class TransactionServices {
         status_code: 201,
         message: "QRIS generated successfully",
         data: {
-          transactionId: transaction.id,
-          amount: transaction.amount, // saldo masuk
-          grossAmount, // user bayar
+          id: transaction.id,
+          amount: transaction.amount,
+          grossAmount,
           qrisUrl: qrUrl,
           status: transaction.status,
           bank: "QRIS",
@@ -265,7 +265,7 @@ export class TransactionServices {
         status_code: 201,
         message: `${data.store} payment code generated successfully`,
         data: {
-          transactionId: transaction.id,
+          id: transaction.id,
           amount: transaction.amount,
           paymentCode,
           status: transaction.status,
@@ -419,15 +419,30 @@ export class TransactionServices {
       };
     }
   }
-
-  async findAllTransactionsByUserId(id: string) {
+  async findAllTransactionsByUserId(
+    id: string,
+    cursor?: string,
+    limit: number = 20,
+  ) {
     try {
-      const transactions = await transactionRepository.findByUserId(id);
+      const transactions = await transactionRepository.findByUserId(
+        id,
+        cursor,
+        limit,
+      );
+      const nextCursor =
+        transactions.length === limit
+          ? transactions[transactions.length - 1].id
+          : null;
+
+      console.log(transactions);
+
       return {
         status: true,
         status_code: 200,
         message: "Transactions retrieved successfully",
         data: transactions,
+        nextCursor,
       };
     } catch (error) {
       return {
@@ -450,5 +465,14 @@ export class TransactionServices {
     } catch (err) {
       return error.error500("Internal server error" + err);
     }
+  }
+
+  async findTransactionById(id: string) {
+    const transactions = await transactionRepository.findById(id);
+
+    if (!transactions) {
+      throw new Error("Transactions not found");
+    }
+    return transactions;
   }
 }

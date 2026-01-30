@@ -9,13 +9,32 @@ export class InvitationController {
   }
 
   async generateInvitationKey(req: Request, res: Response) {
-    const { email, venueName, address, city, province } = req.body;
+    const files = req.files as {
+      image?: Express.Multer.File;
+      gallery?: Express.Multer.File[];
+    };
+
+    const {
+      email,
+      venueName,
+      address,
+      city,
+      province,
+      description,
+      latitude,
+      longitude,
+    } = req.body;
+
     const result = await this.invitationServices.generateInvitationKey(
       email,
       venueName,
       address,
       city,
-      province
+      province,
+      description,
+      latitude,
+      longitude,
+      files,
     );
     return res.status(result.status_code).json(result);
   }
@@ -33,9 +52,8 @@ export class InvitationController {
 
   async findInvitationKeyByVenueId(req: Request, res: Response) {
     const venueId = req.params.venueId;
-    const result = await this.invitationServices.findInvitationKeysByVenueId(
-      venueId
-    );
+    const result =
+      await this.invitationServices.findInvitationKeysByVenueId(venueId);
     return res.status(result.status_code).json(result);
   }
 }

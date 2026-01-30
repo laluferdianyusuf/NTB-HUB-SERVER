@@ -5,6 +5,7 @@ export class WithdrawRepository {
 
   create(data: {
     venueId: string;
+    withdrawNumber: string;
     amount: number;
     fee: number;
     netAmount: number;
@@ -29,15 +30,15 @@ export class WithdrawRepository {
 
   findAll() {
     return this.prisma.withdrawRequest.findMany({
-      orderBy: { createdAt: "desc" },
       include: { venue: true },
+      orderBy: { createdAt: "desc" },
     });
   }
 
   updateStatus(
     id: string,
     status: WithdrawStatus,
-    dateField?: "approvedAt" | "paidAt"
+    dateField?: "approvedAt" | "paidAt",
   ) {
     return this.prisma.withdrawRequest.update({
       where: { id },

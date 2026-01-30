@@ -59,13 +59,33 @@ export class BookingControllers {
       const userId = req.params.userId;
       const result = await this.bookingService.getBookingByUserId(userId);
 
-      res.status(result.status_code).json(result);
+      res.status(200).json({
+        status: true,
+        message: "Booking retrieved",
+        data: result,
+      });
     } catch (error: any) {
       res.status(500).json({
         status: false,
-        status_code: 500,
         message: error.message || "Internal Server Error",
-        data: null,
+      });
+    }
+  }
+
+  async getBookingByVenueId(req: Request, res: Response) {
+    try {
+      const venueId = req.params.venueId;
+      const result = await this.bookingService.getBookingByVenueId(venueId);
+
+      res.status(200).json({
+        status: true,
+        message: "Booking retrieved",
+        data: result,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        status: false,
+        message: error.message || "Internal Server Error",
       });
     }
   }

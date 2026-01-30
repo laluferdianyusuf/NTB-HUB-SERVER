@@ -8,7 +8,7 @@ export class VenueUnitControllers {
     try {
       const { venueId, serviceId, floorId, name, price, type } = req.body;
 
-      if (!venueId || !serviceId || !price || !type) {
+      if (!venueId || !serviceId || !type) {
         return res.status(400).json({
           status: false,
           message: "venueId,serviceId, name, price and type are required",

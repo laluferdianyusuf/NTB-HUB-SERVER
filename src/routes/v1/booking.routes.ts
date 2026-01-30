@@ -24,6 +24,12 @@ router.get(
 );
 
 router.get(
+  "/booking/by-venue/:venueId",
+  auth.authorize(["VENUE", "ADMIN"]),
+  (req, res) => bookingController.getBookingByVenueId(req, res),
+);
+
+router.get(
   "/booking/status-paid/:userId",
   auth.authorize(["CUSTOMER"]),
   (req, res) => bookingController.getBookingPaidByUserId(req, res),

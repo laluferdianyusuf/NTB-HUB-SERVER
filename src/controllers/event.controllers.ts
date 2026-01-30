@@ -6,7 +6,7 @@ export class EventController {
 
   async create(req: Request, res: Response) {
     try {
-      const event = await this.service.createEvent(req.body);
+      const event = await this.service.createEvent(req.body, req.file);
 
       return res.status(201).json({
         status: true,
@@ -22,18 +22,34 @@ export class EventController {
   }
 
   async listEvent(_: Request, res: Response) {
-    const events = await this.service.getEvents();
-    return res.json({ status: true, data: events });
+    try {
+      const events = await this.service.getEvents();
+
+      if (!events) {
+        return res.status(404).json({
+          status: true,
+          message: "Event not found",
+          data: events,
+        });
+      }
+
+      return res.json({ status: true, data: events });
+    } catch (error) {
+      return res.status(500).json({
+        status: false,
+        message: error.message || "Internal server error",
+      });
+    }
   }
 
   async detailEvent(req: Request, res: Response) {
     try {
       const event = await this.service.getEventDetail(req.params.id);
       return res.json({ status: true, data: event });
-    } catch (err: any) {
-      return res.status(404).json({
+    } catch (error) {
+      return res.status(500).json({
         status: false,
-        message: err.message,
+        message: error.message || "Internal server error",
       });
     }
   }
@@ -42,7 +58,7 @@ export class EventController {
     const { status } = req.body;
     const event = await this.service.changeStatus(req.params.id, status);
 
-    return res.json({
+    return res.status(200).json({
       status: true,
       message: "Status updated",
       data: event,
@@ -51,7 +67,8 @@ export class EventController {
 
   async removeEvent(req: Request, res: Response) {
     await this.service.deleteEvent(req.params.id);
-    return res.json({
+
+    return res.status(203).json({
       status: true,
       message: "Event removed",
     });

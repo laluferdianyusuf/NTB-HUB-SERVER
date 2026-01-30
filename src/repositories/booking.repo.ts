@@ -4,7 +4,11 @@ const prisma = new PrismaClient();
 
 export class BookingRepository {
   async findAllBooking(): Promise<Booking[]> {
-    return await prisma.booking.findMany();
+    return await prisma.booking.findMany({
+      orderBy: {
+        updatedAt: "desc",
+      },
+    });
   }
 
   async findBookingById(id: string): Promise<Booking | null> {
@@ -136,12 +140,15 @@ export class BookingRepository {
           },
         },
       },
+      orderBy: {
+        updatedAt: "desc",
+      },
     });
   }
 
-  async findBookingPaidByUserId(userId: string): Promise<Booking[]> {
+  async findBookingByVenueId(venueId: string): Promise<Booking[]> {
     return await prisma.booking.findMany({
-      where: { userId, status: { in: [BookingStatus.PAID] } },
+      where: { venueId },
       include: {
         venue: {
           select: {
@@ -202,6 +209,82 @@ export class BookingRepository {
             issuedAt: true,
           },
         },
+      },
+      orderBy: {
+        updatedAt: "desc",
+      },
+    });
+  }
+
+  async findBookingPaidByUserId(userId: string): Promise<Booking[]> {
+    return await prisma.booking.findMany({
+      where: {
+        userId,
+        status: { in: [BookingStatus.PAID, BookingStatus.COMPLETED] },
+      },
+      include: {
+        venue: {
+          select: {
+            name: true,
+          },
+        },
+        review: {
+          select: {
+            rating: true,
+          },
+        },
+        service: {
+          select: {
+            subCategory: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        unit: {
+          select: {
+            name: true,
+            price: true,
+            type: true,
+            floor: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        user: {
+          select: {
+            name: true,
+            phone: true,
+            email: true,
+          },
+        },
+        orderItems: {
+          select: {
+            quantity: true,
+            subtotal: true,
+            menu: {
+              select: {
+                name: true,
+                price: true,
+              },
+            },
+          },
+        },
+        invoice: {
+          select: {
+            amount: true,
+            paidAt: true,
+            cancelledAt: true,
+            expiredAt: true,
+            issuedAt: true,
+          },
+        },
+      },
+      orderBy: {
+        updatedAt: "desc",
       },
     });
   }
@@ -269,6 +352,9 @@ export class BookingRepository {
             issuedAt: true,
           },
         },
+      },
+      orderBy: {
+        updatedAt: "desc",
       },
     });
   }

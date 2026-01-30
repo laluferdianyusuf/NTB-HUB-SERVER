@@ -10,3 +10,5 @@ node_modules
 /minio
 
 firebase-admin.json
+
+FILE.JSON

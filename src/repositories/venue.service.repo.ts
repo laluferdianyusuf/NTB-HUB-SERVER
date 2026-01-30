@@ -49,6 +49,18 @@ export class VenueServiceRepository {
     });
   }
 
+  findAllService(venueId: string) {
+    return prisma.venueService.findMany({
+      where: {
+        venueId,
+      },
+      include: {
+        subCategory: true,
+        units: true,
+      },
+    });
+  }
+
   findBySubCategory(subCategoryId: string) {
     return prisma.venueService.findMany({
       where: {

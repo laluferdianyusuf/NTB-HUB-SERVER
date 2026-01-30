@@ -1,24 +1,40 @@
-import { PrismaClient } from "@prisma/client";
-import { EventOrderRepository } from "../repositories";
+import { PointActivityType, PrismaClient } from "@prisma/client";
+import {
+  EventOrderRepository,
+  EventTicketRepository,
+  EventTicketTypeRepository,
+  InvoiceRepository,
+  PointsRepository,
+  TransactionRepository,
+  UserBalanceRepository,
+} from "../repositories";
 import crypto from "crypto";
+import { generateTicketQR } from "helpers/qrCodeHelper";
 
 const prisma = new PrismaClient();
 
 export class EventOrderService {
   private eventOrderRepo = new EventOrderRepository();
+  private eventTicketRepo = new EventTicketRepository();
+  private eventTicketTypeRepo = new EventTicketTypeRepository();
+  private invoiceRepo = new InvoiceRepository();
+  private transRepo = new TransactionRepository();
+  private userBalanceRepo = new UserBalanceRepository();
+  private pointRepo = new PointsRepository();
 
   async checkout(
     userId: string,
     eventId: string,
-    items: { ticketTypeId: string; qty: number }[]
+    items: { ticketTypeId: string; qty: number }[],
   ) {
     return prisma.$transaction(async (tx) => {
       let total = 0;
 
       for (const item of items) {
-        const type = await tx.eventTicketType.findUnique({
-          where: { id: item.ticketTypeId },
-        });
+        const type = await this.eventTicketTypeRepo.findById(
+          tx,
+          item.ticketTypeId,
+        );
 
         if (!type || !type.isActive) {
           throw new Error("TICKET_NOT_AVAILABLE");
@@ -31,97 +47,126 @@ export class EventOrderService {
         total += type.price * item.qty;
       }
 
-      const order = await tx.eventOrder.create({
-        data: {
-          userId,
-          eventId,
-          total,
-          status: "PENDING",
-        },
+      const order = await this.eventOrderRepo.createOrder(tx, {
+        userId,
+        eventId,
+        total,
+        status: "PENDING",
       });
 
-      const invoice = await tx.invoice.create({
-        data: {
+      const eventNumber = `EVT-${crypto
+        .randomUUID()
+        .slice(0, 8)
+        .toUpperCase()}`;
+
+      await this.invoiceRepo.create(
+        {
           eventOrderId: order.id,
-          invoiceNumber: `EVT-${Date.now()}`,
+          invoiceNumber: eventNumber,
           amount: total,
           status: "PENDING",
           expiredAt: new Date(Date.now() + 15 * 60 * 1000),
         },
-      });
+        tx,
+      );
 
-      const transaction = await tx.transaction.create({
-        data: {
+      await this.transRepo.create(
+        {
           userId,
           eventOrderId: order.id,
           amount: total,
           status: "PENDING",
-          type: "DEDUCTION",
+          type: "EVENT",
+          reference: order.id,
+          orderId: eventNumber,
         },
-      });
+        tx,
+      );
 
-      return {
-        order,
-        invoice,
-        transaction,
-      };
+      return order;
     });
   }
 
-  async markPaid(transactionId: string) {
+  async markPaid(
+    eventOrderId: string,
+    items: { ticketTypeId: string; qty: number }[],
+  ) {
     return prisma.$transaction(async (tx) => {
-      const trx = await tx.transaction.findUnique({
-        where: { id: transactionId },
-      });
-
+      const trx = await this.transRepo.findByOrderId(eventOrderId, tx);
       if (!trx) throw new Error("TRANSACTION_NOT_FOUND");
       if (trx.status === "SUCCESS") return;
 
-      await tx.transaction.update({
-        where: { id: transactionId },
-        data: { status: "SUCCESS" },
-      });
+      await this.transRepo.updateStatus(trx.id, "SUCCESS", tx);
 
-      const order = await tx.eventOrder.update({
-        where: { id: trx.eventOrderId! },
-        data: { status: "PAID" },
-      });
+      const order = await this.eventOrderRepo.updateOrderStatus(
+        tx,
+        eventOrderId,
+        "PAID",
+      );
 
-      await tx.invoice.update({
-        where: { eventOrderId: order.id },
-        data: {
-          status: "PAID",
-          paidAt: new Date(),
+      await this.invoiceRepo.updateInvoiceByEventOrderId(order.id, "PAID", tx);
+
+      const ticketTypes = await this.eventTicketTypeRepo.findByEvent(
+        order.eventId,
+        tx,
+      );
+
+      await this.userBalanceRepo.decrementBalance(
+        order.userId,
+        order.total,
+        tx,
+      );
+
+      await this.pointRepo.generatePoints(
+        {
+          userId: order.userId,
+          activity: "EVENT_PURCHASE",
+          points: 10,
+          reference: order.id,
         },
-      });
+        tx,
+      );
 
-      const ticketTypes = await tx.eventTicketType.findMany({
-        where: { eventId: order.eventId },
-      });
+      const ticketsPayload: {
+        userId: string;
+        eventId: string;
+        orderId: string;
+        ticketTypeId: string;
+        qrCode: string;
+      }[] = [];
 
-      for (const type of ticketTypes) {
-        const qty = Math.floor(order.total / type.price);
-        if (qty <= 0) continue;
+      for (const item of items) {
+        const type = ticketTypes.find((t) => t.id === item.ticketTypeId);
 
-        await tx.eventTicket.createMany({
-          data: Array.from({ length: qty }).map(() => ({
+        if (!type) continue;
+
+        for (let i = 0; i < item.qty; i++) {
+          const ticketId = crypto.randomUUID();
+          ticketsPayload.push({
             userId: order.userId,
             eventId: order.eventId,
             orderId: order.id,
             ticketTypeId: type.id,
-            qrCode: crypto.randomUUID(),
-          })),
-        });
+            qrCode: generateTicketQR({
+              ticketId,
+              userId: order.userId,
+              eventId: order.eventId,
+            }),
+          });
+        }
 
-        await tx.eventTicketType.update({
-          where: { id: type.id },
-          data: { sold: { increment: qty } },
-        });
+        await this.eventTicketTypeRepo.updateSold(type.id, item.qty, tx);
       }
+
+      await this.eventTicketRepo.createMany(ticketsPayload, tx);
+
+      const tickets = await this.eventTicketRepo.findByOrderId(order.id, tx);
+
+      return { order, tickets };
     });
   }
 
   async getOrderDetail(orderId: string) {
-    return this.eventOrderRepo.findOrderById(orderId);
+    return this.eventOrderRepo.findById(orderId);
   }
 }

@@ -120,4 +120,23 @@ export class InvoiceServices {
       return error.error500("internal server error" + err);
     }
   }
+
+  async findAllPaidInvoiceByVenueId(venueId: string) {
+    try {
+      const venue = await venueRepository.findVenueById(venueId);
+
+      if (!venue) {
+        return error.error404("Venue not found");
+      }
+
+      const invoice = await invoiceRepository.findAllPaidByVenueId(venueId);
+
+      if (!invoice) {
+        return error.error404("Invoice not found");
+      }
+      return success.success200("Invoice retrieved", invoice);
+    } catch (err) {
+      return error.error500("internal server error" + err);
+    }
+  }
 }

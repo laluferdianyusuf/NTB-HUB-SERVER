@@ -8,6 +8,7 @@ export class EventTicketTypeService {
     name: string;
     price: number;
     quota: number;
+    description: string;
   }) {
     if (input.price <= 0) throw new Error("INVALID_PRICE");
     if (input.quota <= 0) throw new Error("INVALID_QUOTA");
@@ -26,7 +27,7 @@ export class EventTicketTypeService {
       price?: number;
       quota?: number;
       isActive?: boolean;
-    }
+    },
   ) {
     return this.repo.update(id, data);
   }

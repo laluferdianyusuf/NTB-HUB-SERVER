@@ -6,13 +6,14 @@ export class EventTicketTypeController {
 
   async create(req: Request, res: Response) {
     try {
-      const { eventId, name, price, quota } = req.body;
+      const { eventId, name, price, quota, description } = req.body;
 
       const ticketType = await this.service.createTicketType({
         eventId,
         name,
         price,
         quota,
+        description,
       });
 
       res.status(201).json({

@@ -1,6 +1,27 @@
+import { BookingType } from "@prisma/client";
 import { VenueSubCategoryRepository } from "../repositories";
 import { VenueCategoryRepository } from "../repositories";
 
+type ServiceConfig = {
+  sections?: {
+    schedule?: boolean;
+    units?: boolean;
+    menu?: boolean;
+  };
+
+  durationStepMinutes?: number;
+  minDurationMinutes?: number;
+  maxDurationMinutes?: number;
+
+  sessions?: Array<{
+    id: string;
+    label: string;
+    start: string;
+    end: string;
+    price?: number;
+    quota?: number;
+  }>;
+};
 export class VenueSubCategoryService {
   private venueCategoryRepository = new VenueCategoryRepository();
   private venueSubCategoryRepository = new VenueSubCategoryRepository();
@@ -10,12 +31,12 @@ export class VenueSubCategoryService {
     name: string;
     code: string;
     description?: string;
-    defaultConfig: Record<string, any>;
+    defaultConfig: ServiceConfig;
   }) {
     const code = input.code.toUpperCase().trim();
 
     const category = await this.venueCategoryRepository.findById(
-      input.categoryId
+      input.categoryId,
     );
     if (!category || !category.isActive) {
       throw new Error("Venue category not found or inactive");
@@ -41,5 +62,21 @@ export class VenueSubCategoryService {
 
   async getAllSubCategory() {
     return this.venueSubCategoryRepository.findAll();
+  }
+
+  async createMany(
+    categoryId: string,
+    items: Array<{
+      name: string;
+      code: string;
+      description?: string;
+      defaultConfig: ServiceConfig;
+    }>,
+  ) {
+    if (!items || items.length === 0) {
+      throw new Error("Items cannot be empty");
+    }
+
+    return this.venueSubCategoryRepository.createMany(categoryId, items);
   }
 }

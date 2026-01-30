@@ -220,8 +220,6 @@ export class BookingServices {
         booking.userId,
       );
 
-      const paymentId = `PAY-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
-
       const platformFee = Number(PLATFORM_FEE_NUMBER);
       const venueAmount = invoice.amount - platformFee;
 
@@ -232,12 +230,19 @@ export class BookingServices {
       if (!userBalance || userBalance < invoice.amount) {
         return error.error400("Insufficient balance");
       }
-
       const result = await prisma.$transaction(async (tx) => {
         const processedBooking = await bookingRepository.processBookingPayment(
           booking.id,
           tx,
         );
+
+        const paymentId = `PAY-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+
+        const platformFee = Number(PLATFORM_FEE_NUMBER);
+        const venueAmount = invoice.amount - platformFee;
+
+        if (venueAmount < 0)
+          throw new Error("Invoice amount must be greater than fee");
 
         await transactionRepository.create({
           userId: booking.userId,
@@ -281,7 +286,6 @@ export class BookingServices {
           invoice.amount,
           tx,
         );
-
         await venueBalanceRepository.incrementVenueBalance(
           booking.venueId,
           venueAmount,
@@ -289,9 +293,7 @@ export class BookingServices {
 
         await tx.platformBalance.update({
           where: { id: PLATFORM_BALANCE_ID },
-          data: {
-            balance: { increment: platformFee },
-          },
+          data: { balance: { increment: platformFee } },
         });
 
         const updatedInvoice = await invoiceRepository.updateInvoicePaid(
@@ -301,22 +303,30 @@ export class BookingServices {
 
         await cancelInvoiceExpiry(updatedInvoice.id);
 
-        const notification = await notificationRepository.createNewNotification(
-          {
+        const userNotification =
+          await notificationRepository.createNewNotification({
             userId: booking.userId,
             title: "Payment Successful",
-            message: `Thank you! Your payment of ${invoice.amount} has been successfully received.`,
+            message: `Your payment of ${invoice.amount} for booking ${invoice.invoiceNumber} has been successfully received. Thank you!`,
             type: "Booking",
             isGlobal: false,
-          } as Notification,
-        );
+          } as Notification);
 
-        const venueNotification =
+        const venueBookingNotification =
           await notificationRepository.createNewNotification({
             venueId: booking.venueId,
-            title: "Payment Successful",
-            message: `A payment of ${invoice.amount} has been received for invoice ${invoice.invoiceNumber}.`,
+            title: "Booking Paid",
+            message: `Booking ${invoice.invoiceNumber} has been paid. Total received: ${venueAmount}`,
             type: "Booking",
+            isGlobal: false,
+          } as Notification);
+
+        const venueFeeNotification =
+          await notificationRepository.createNewNotification({
+            venueId: booking.venueId,
+            title: "Platform Fee Collected",
+            message: `A platform fee of ${platformFee} has been collected from booking ${invoice.invoiceNumber}.`,
+            type: "Payment",
             isGlobal: false,
           } as Notification);
 
@@ -324,23 +334,31 @@ export class BookingServices {
           booking: processedBooking,
           points,
           invoice: updatedInvoice,
-          notification,
-          venueNotification,
+          userNotification,
+          venueBookingNotification,
+          venueFeeNotification,
         };
       });
 
       await notificationService.sendToUser(
         booking.venueId,
         booking.userId,
-        result.notification.title,
-        result.notification.message,
+        result.userNotification.title,
+        result.userNotification.message,
         null,
       );
 
       await notificationService.sendToVenue(
         booking.venueId,
-        result.venueNotification.title,
-        result.venueNotification.message,
+        result.venueBookingNotification.title,
+        result.venueBookingNotification.message,
+        null,
+      );
+
+      await notificationService.sendToVenue(
+        booking.venueId,
+        result.venueFeeNotification.title,
+        result.venueFeeNotification.message,
         null,
       );
 
@@ -372,7 +390,7 @@ export class BookingServices {
       await publishEvent(
         "notification-events",
         "notification:send",
-        result.notification,
+        result.userNotification,
       );
 
       return success.success200("Booking payment processed", result);
@@ -406,32 +424,23 @@ export class BookingServices {
   }
 
   async getBookingByUserId(userId: string) {
-    try {
-      const booking = await bookingRepository.findBookingByUserId(userId);
+    const booking = await bookingRepository.findBookingByUserId(userId);
 
-      if (!booking) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "booking not found",
-          data: null,
-        };
-      }
-
-      return {
-        status: true,
-        status_code: 200,
-        message: "Booking founded",
-        data: booking,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
+    if (!booking) {
+      throw new Error("booking not found");
     }
+
+    return booking;
+  }
+
+  async getBookingByVenueId(venueId: string) {
+    const booking = await bookingRepository.findBookingByVenueId(venueId);
+
+    if (!booking) {
+      throw new Error("booking not found");
+    }
+
+    return booking;
   }
 
   async getBookingPaidByUserId(userId: string) {

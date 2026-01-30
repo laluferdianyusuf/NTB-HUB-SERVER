@@ -1,4 +1,9 @@
-import { PrismaClient, Prisma, VenueSubCategory } from "@prisma/client";
+import {
+  PrismaClient,
+  Prisma,
+  VenueSubCategory,
+  BookingType,
+} from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -51,7 +56,7 @@ export class VenueSubCategoryRepository {
       description?: string;
       defaultConfig?: Prisma.JsonObject;
       isActive?: boolean;
-    }
+    },
   ) {
     return prisma.venueSubCategory.update({
       where: { id },
@@ -63,6 +68,26 @@ export class VenueSubCategoryRepository {
     return prisma.venueSubCategory.update({
       where: { id },
       data: { isActive: false },
+    });
+  }
+
+  createMany(
+    categoryId: string,
+    items: Array<{
+      name: string;
+      code: string;
+      description?: string;
+      defaultConfig: Prisma.JsonObject;
+    }>,
+  ) {
+    const data = items.map((item) => ({
+      ...item,
+      categoryId,
+    }));
+
+    return prisma.venueSubCategory.createMany({
+      data,
+      skipDuplicates: true,
     });
   }
 }
