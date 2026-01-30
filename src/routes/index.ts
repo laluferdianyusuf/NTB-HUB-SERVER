@@ -29,6 +29,7 @@ import venueCategoryRouter from "./v1/venue.category.routes";
 import venueSubCategoryRouter from "./v1/venue.subCategory.routes";
 import venueServiceRouter from "./v1/venue.service.routes";
 import venueUnitRouter from "./v1/venue.units.routes";
+import venueStaffRouter from "./v1/venue.staff.routes";
 
 import { deprecatedRouters } from "./deprecated";
 
@@ -65,6 +66,7 @@ v1.use("/venue-category", venueCategoryRouter);
 v1.use("/venue-service", venueServiceRouter);
 v1.use("/venue-sub-category", venueSubCategoryRouter);
 v1.use("/venue-unit", venueUnitRouter);
+v1.use("/venue-staff", venueStaffRouter);
 v1.use("/withdraw", withdrawRouter);
 
 // mount v1 API

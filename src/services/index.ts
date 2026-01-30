@@ -12,6 +12,7 @@ export * from "./venue.subCategory.services";
 export * from "./venue.service.services";
 export * from "./venue.units.services";
 export * from "./review.services";
+export * from "./venue.staff.services";
 export * from "./invitation.services";
 export * from "./news.services";
 export * from "./user.balance.services";

@@ -92,7 +92,6 @@ export class UserService {
         const newUser = await userRepository.create(
           {
             ...data,
-            name: "Set your name",
             password: hashedPassword,
             photo: imageUrl,
           },

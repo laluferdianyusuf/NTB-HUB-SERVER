@@ -143,6 +143,22 @@ enum DeliveryStatus {
   CANCELLED
 }
 
+enum StaffPosition {
+  MANAGER
+  CASHIER
+  RECEPTIONIST
+  CLEANING
+  SECURITY
+  TECHNICIAN
+  OTHER
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
 // #regionUSER & AUTH
 model User {
   id         String   @id @default(uuid())
@@ -151,7 +167,7 @@ model User {
   email      String   @unique
   password   String
   address    String?
-  role       Role     @default(CUSTOMER)
+  roles UserRole[]
   phone      String?
   photo      String?
   googleId   String?  @unique
@@ -187,6 +203,27 @@ model User {
   newsComments    NewsComment[]
   courierRatings  CourierRating[]
 }
+
+model UserRole {
+  id      String @id @default(uuid())
+  userId  String
+  role    Role
+
+  venueId String?
+  eventId String?
+
+  isActive Boolean @default(true)
+  assignedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  venue Venue? @relation(fields: [venueId], references: [id])
+  event Event? @relation(fields: [eventId], references: [id])
+
+  @@unique([userId, role, venueId, eventId])
+  @@index([userId])
+  @@index([role])
+}
+
 
 model UserBalance {
   id        String   @id @default(uuid())
@@ -272,6 +309,49 @@ model Venue {
   impressions      VenueImpression[]
   events           Event[]
   menus            Menu[]
+  staffs            VenueStaff[]
+}
+
+model Owner {
+  id             String   @id @default(uuid())
+  venueId        String?  @unique
+  name           String
+  email          String?  
+  phone          String?
+  gender         Gender?
+  birthDate      DateTime?
+  address        String?
+  identityNumber String?  
+  taxNumber      String?  
+  image          String?
+  note           String?  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  venue Venue? @relation(fields: [venueId], references: [id])
+}
+
+model VenueStaff {
+  id        String        @id @default(uuid())
+  venueId   String
+  name      String
+  email     String?       @unique
+  phone     String?
+  position  StaffPosition @default(OTHER)
+  gender    Gender?
+  birthDate DateTime?
+  address   String?
+  emergencyContact String? 
+  photo     String?
+  note      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  venue Venue @relation(fields: [venueId], references: [id])
+
+  @@index([venueId])
 }
 
 model VenueCategory {
@@ -328,21 +408,6 @@ model VenueService {
   @@unique([venueId, subCategoryId])
   @@index([venueId])
   @@index([subCategoryId])
-}
-
-model Owner {
-  id             String   @id @default(uuid())
-  venueId        String?  @unique
-  name           String
-  email          String?
-  address        String?
-  identityNumber String?
-  taxNumber      String?
-  image          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @default(now()) @updatedAt
-
-  venue Venue? @relation(fields: [venueId], references: [id])
 }
 
 model InvitationKey {

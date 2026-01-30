@@ -14,6 +14,7 @@ export * from "./venue.subCategory.controllers";
 export * from "./invitation.controllers";
 export * from "./user.balance.controllers";
 export * from "./venue.balance.controllers";
+export * from "./venue.staff.controllers";
 export * from "./log.controllers";
 export * from "./news.controllers";
 export * from "./review.place.controllers";
