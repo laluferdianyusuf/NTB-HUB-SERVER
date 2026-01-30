@@ -6,8 +6,11 @@ const router = Router();
 const auth = new AuthMiddlewares();
 const userBalanceController = new UserBalanceController();
 
-router.get("/balance/user/:userId", auth.authorize(["CUSTOMER"]), (req, res) =>
-  userBalanceController.getUserBalance(req, res)
+router.get(
+  "/balance/user/:userId",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["CUSTOMER"]),
+  (req, res) => userBalanceController.getUserBalance(req, res),
 );
 
 export default router;

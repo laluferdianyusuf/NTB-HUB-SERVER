@@ -6,40 +6,53 @@ const router = Router();
 const auth = new AuthMiddlewares();
 const venueUnitController = new VenueUnitControllers();
 
-router.post("/create", auth.authorize(["VENUE"]), (req, res) =>
-  venueUnitController.createVenueUnit(req, res),
+router.post(
+  "/create",
+  auth.authenticate,
+  auth.authorizeVenueRole(["VENUE_OWNER"]),
+  (req, res) => venueUnitController.createVenueUnit(req, res),
 );
 
 router.get(
   "/by-service/:serviceId",
-  auth.authorize(["VENUE", "CUSTOMER", "ADMIN"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["VENUE_OWNER", "CUSTOMER", "ADMIN"]),
   (req, res) => venueUnitController.getUnitByService(req, res),
 );
 
 router.get(
   "/by-venue/:venueId",
-  auth.authorize(["VENUE", "CUSTOMER"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["VENUE_OWNER", "CUSTOMER"]),
   (req, res) => venueUnitController.getUnitByVenue(req, res),
 );
 
 router.get(
   "/unit-availability/:venueId",
-  auth.authorize(["VENUE", "CUSTOMER"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["VENUE_OWNER", "CUSTOMER"]),
   (req, res) => venueUnitController.getAvailabilityUnits(req, res),
 );
 
 router.get(
   "/detail/:id",
-  auth.authorize(["VENUE", "ADMIN", "CUSTOMER"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["VENUE_OWNER", "ADMIN", "CUSTOMER"]),
   (req, res) => venueUnitController.getDetailUnit(req, res),
 );
 
-router.put("/update/:id", auth.authorize(["VENUE"]), (req, res) =>
-  venueUnitController.updateVenueUnit(req, res),
+router.put(
+  "/update/:id",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["VENUE_OWNER"]),
+  (req, res) => venueUnitController.updateVenueUnit(req, res),
 );
 
-router.delete("/delete:id", auth.authorize(["VENUE"]), (req, res) =>
-  venueUnitController.deactivateVenueUnit(req, res),
+router.delete(
+  "/delete:id",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["VENUE_OWNER"]),
+  (req, res) => venueUnitController.deactivateVenueUnit(req, res),
 );
 
 export default router;

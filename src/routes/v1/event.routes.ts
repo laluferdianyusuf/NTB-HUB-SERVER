@@ -24,72 +24,83 @@ router.get("/detail-event/:id", (req, res) =>
 // ADMIN
 router.post(
   "/create-event",
-  auth.authorize(["ADMIN", "EVENT_OWNER"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["ADMIN", "EVENT_OWNER"]),
   upload.single("image"),
   (req, res) => eventController.create(req, res),
 );
 
 router.put(
   "/update/:id/status",
-  auth.authorize(["ADMIN", "EVENT_OWNER"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["ADMIN", "EVENT_OWNER"]),
   (req, res) => eventController.updateStatusEvent(req, res),
 );
 
 router.delete(
   "/remove/:id",
-  auth.authorize(["ADMIN", "EVENT_OWNER"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["ADMIN", "EVENT_OWNER"]),
   (req, res) => eventController.removeEvent(req, res),
 );
 
 // event scan ticket
 router.post(
   "/scan-ticket",
-  auth.authorize(["VENUE", "EVENT_OWNER", "ADMIN"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["VENUE_OWNER", "EVENT_OWNER", "ADMIN"]),
   (req, res) => eventTicketController.scan(req, res),
 );
 
 // event verify ticket
 router.post(
   "/verify-ticket",
-  auth.authorize(["VENUE", "EVENT_OWNER", "ADMIN"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["VENUE_OWNER", "EVENT_OWNER", "ADMIN"]),
   (req, res) => eventTicketController.verify(req, res),
 );
 
 // event ticket DETAIL
 router.get(
   "/detail-ticket/:id",
-  auth.authorize(["VENUE", "EVENT_OWNER", "ADMIN", "CUSTOMER"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["VENUE_OWNER", "EVENT_OWNER", "ADMIN", "CUSTOMER"]),
   (req, res) => eventTicketController.getTicketById(req, res),
 );
 
 router.get(
   "/tickets-user/:userId",
-  auth.authorize(["VENUE", "EVENT_OWNER", "ADMIN", "CUSTOMER"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["VENUE_OWNER", "EVENT_OWNER", "ADMIN", "CUSTOMER"]),
   (req, res) => eventTicketController.getTicketByUserId(req, res),
 );
 
 router.get(
   "/orders-tickets/:orderId",
-  auth.authorize(["VENUE", "EVENT_OWNER", "ADMIN", "CUSTOMER"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["VENUE_OWNER", "EVENT_OWNER", "ADMIN", "CUSTOMER"]),
   (req, res) => eventTicketController.getTicketByOrderId(req, res),
 );
 
 // event ticket type
 router.post(
   "/ticket/type/create",
-  auth.authorize(["ADMIN", "EVENT_OWNER"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["ADMIN", "EVENT_OWNER"]),
   (req, res) => eventTicketTypeController.create(req, res),
 );
 
 router.put(
   "/ticket/type/update/:id",
-  auth.authorize(["ADMIN", "EVENT_OWNER"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["ADMIN", "EVENT_OWNER"]),
   (req, res) => eventTicketTypeController.update(req, res),
 );
 
 router.delete(
   "/ticket/type/delete/:id",
-  auth.authorize(["ADMIN", "EVENT_OWNER"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["ADMIN", "EVENT_OWNER"]),
   (req, res) => eventTicketTypeController.delete(req, res),
 );
 
@@ -100,7 +111,8 @@ router.get("/ticket/type/event/:eventId", (req, res) =>
 // event order
 router.post(
   "/order/checkout-ticket",
-  auth.authorize(["CUSTOMER"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["CUSTOMER"]),
   (req, res) => eventOrderController.checkout(req, res),
 );
 
@@ -108,8 +120,11 @@ router.post("/order/ticket-payment/webhook", (req, res) =>
   eventOrderController.paymentWebhook(req, res),
 );
 
-router.get("/detail-order/:id", auth.authorize(["CUSTOMER"]), (req, res) =>
-  eventOrderController.getDetail(req, res),
+router.get(
+  "/detail-order/:id",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["CUSTOMER"]),
+  (req, res) => eventOrderController.getDetail(req, res),
 );
 
 export default router;

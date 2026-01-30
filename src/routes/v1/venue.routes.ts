@@ -7,39 +7,53 @@ const router = Router();
 const auth = new AuthMiddlewares();
 const venueController = new VenueControllers();
 
-router.post("/venue/sign", (req, res) =>
-  venueController.signInWithInvitationKey(req, res),
+router.post(
+  "/create-venue",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["ADMIN"]),
+  upload.fields([
+    { name: "image", maxCount: 1 },
+    { name: "gallery", maxCount: 5 },
+  ]),
+  (req, res) => venueController.createVenue(req, res),
 );
-router.post("/venue/refresh", (req, res) => venueController.refresh(req, res));
-router.get("/venue/venues", auth.authorize(["ADMIN", "CUSTOMER"]), (req, res) =>
-  venueController.getVenues(req, res),
+router.get(
+  "/venue/venues",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["ADMIN", "CUSTOMER"]),
+  (req, res) => venueController.getVenues(req, res),
 );
 router.get(
   "/venue/liked-byUser/:userId",
-  auth.authorize(["ADMIN", "CUSTOMER"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["ADMIN", "CUSTOMER"]),
   (req, res) => venueController.getVenueLikedByUser(req, res),
 );
 router.get(
   "/venue/popular/venues",
-  auth.authorize(["ADMIN", "CUSTOMER"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["ADMIN", "CUSTOMER"]),
   (req, res) => venueController.getPopularVenues(req, res),
 );
 
 router.get(
   "/venue/by-category/:categoryId",
-  auth.authorize(["ADMIN", "CUSTOMER"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["ADMIN", "CUSTOMER"]),
   (req, res) => venueController.getVenuesByCategory(req, res),
 );
 
 router.get(
   "/venue/popular/by-category/:categoryId",
-  auth.authorize(["ADMIN", "CUSTOMER"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["ADMIN", "CUSTOMER"]),
   (req, res) => venueController.getPopularVenuesByCategory(req, res),
 );
 
 router.get(
   "/active/venues",
-  auth.authorize(["ADMIN", "CUSTOMER"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["ADMIN", "CUSTOMER"]),
   (req, res) => venueController.getActiveVenues(req, res),
 );
 router.get("/venue/:id", (req, res) => venueController.getVenueById(req, res));
@@ -56,35 +70,45 @@ router.delete("/venue/delete/:id", (req, res) =>
   venueController.deleteVenue(req, res),
 );
 
-router.post("/venue/logout", auth.authorize(["VENUE"]), (req, res) =>
-  auth.logoutVenue(req, res),
+router.get(
+  "/me",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["VENUE_OWNER"]),
+  (req, res) => venueController.currentVenue(req, res),
 );
 
-router.get("/me", auth.authorize(["VENUE"]), (req, res) =>
-  venueController.currentVenue(req, res),
+router.get(
+  "/venue/current/venue",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["VENUE_OWNER"]),
+  (req, res) => venueController.currentVenue(req, res),
 );
 
-router.get("/venue/current/venue", auth.authorize(["VENUE"]), (req, res) =>
-  venueController.currentVenue(req, res),
-);
-
-router.put("/activate/:id", auth.authorize(["VENUE", "ADMIN"]), (req, res) =>
-  venueController.activateVenue(req, res),
+router.put(
+  "/activate/:id",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["VENUE_OWNER", "ADMIN"]),
+  (req, res) => venueController.activateVenue(req, res),
 );
 
 // interactions with venues
-router.post("/venue/:venueId/like", auth.authorize(["CUSTOMER"]), (req, res) =>
-  venueController.toggleLike(req, res),
+router.post(
+  "/venue/:venueId/like",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["CUSTOMER"]),
+  (req, res) => venueController.toggleLike(req, res),
 );
 router.post(
   "/venue/:venueId/impression",
-  auth.authorize(["CUSTOMER"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["CUSTOMER"]),
   (req, res) => venueController.createImpression(req, res),
 );
 
 router.get(
   "/venue/:venueId/likes/count",
-  auth.authorize(["ADMIN", "CUSTOMER", "VENUE"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["ADMIN", "CUSTOMER", "VENUE_OWNER"]),
   (req, res) => venueController.getLikeCount(req, res),
 );
 router.get("/venue/:venueId/impressions/count", (req, res) =>

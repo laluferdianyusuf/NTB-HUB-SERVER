@@ -1,469 +1,265 @@
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import Redis from "ioredis";
+import { OAuth2Client } from "google-auth-library";
+import { PrismaClient, Point, Role } from "@prisma/client";
+
 import {
   UserRepository,
   PointsRepository,
   UserBalanceRepository,
+  UserRoleRepository,
 } from "../repositories";
-import jwt from "jsonwebtoken";
-import { Point, User, PrismaClient } from "@prisma/client";
-import Redis from "ioredis";
-import { publisher } from "config/redis.config";
-import { uploadToCloudinary } from "utils/image";
-import { OAuth2Client } from "google-auth-library";
 import { uploadImage } from "utils/uploadS3";
+import { publisher } from "config/redis.config";
 
 const prisma = new PrismaClient();
-
 const redis = new Redis();
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const userRepository = new UserRepository();
 const pointRepository = new PointsRepository();
 const userBalanceRepository = new UserBalanceRepository();
+const userRoleRepository = new UserRoleRepository();
 
 export class UserService {
-  async getAllUsers() {
-    try {
-      const users = await userRepository.findAll();
-      return {
-        status: true,
-        status_code: 200,
-        message: "Users retrieved successfully",
-        data: users,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Server error: " + error,
-        data: null,
-      };
+  async register(data: {
+    email: string;
+    name: string;
+    password: string;
+    role: Role;
+    file?: Express.Multer.File;
+  }) {
+    const existing = await userRepository.findByEmail(data.email);
+    if (existing) throw new Error("EMAIL_ALREADY_REGISTERED");
+
+    let photo: string | null = null;
+    if (data.file) {
+      const img = await uploadImage({ file: data.file, folder: "users" });
+      photo = img.url;
     }
-  }
 
-  async getUserById(id: string) {
-    try {
-      const user = await userRepository.findById(id);
-      if (!user) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "User not found",
-          data: null,
-        };
-      }
-      const points = await pointRepository.getTotalPoints(id);
-      return {
-        status: true,
-        status_code: 200,
-        message: "User retrieved successfully",
-        data: { ...user, points },
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Server error: " + error,
-        data: null,
-      };
-    }
-  }
+    const hashedPassword = await bcrypt.hash(data.password, 10);
 
-  async createUser(data: User, file?: Express.Multer.File) {
-    try {
-      let imageUrl = null;
-
-      if (file) {
-        const image = await uploadImage({ file, folder: "users" });
-        imageUrl = image.url;
-      }
-
-      const existing = await userRepository.findByEmail(data.email);
-      if (existing) {
-        return {
-          status: false,
-          status_code: 400,
-          message: "Email already registered",
-          data: null,
-        };
-      }
-      const hashedPassword = await bcrypt.hash(data.password, 10);
-      const result = await prisma.$transaction(async (tx) => {
-        const newUser = await userRepository.create(
-          {
-            ...data,
-            password: hashedPassword,
-            photo: imageUrl,
-          },
-          tx,
-        );
-        const balance = await userBalanceRepository.generateInitialBalance(
-          newUser.id,
-          tx,
-        );
-
-        const point = await pointRepository.generatePoints(
-          {
-            userId: newUser.id,
-            points: 0,
-            activity: "REGISTER",
-            reference: newUser.id,
-          } as Point,
-          tx,
-        );
-
-        return { newUser, balance, point };
-      });
-      await publisher.publish(
-        "point-events",
-        JSON.stringify({
-          event: "point:updated",
-          payload: result.point,
-        }),
-      );
-
-      await publisher.publish(
-        "balance-events",
-        JSON.stringify({
-          event: "balance:updated",
-          payload: result.balance,
-        }),
-      );
-
-      return {
-        status: true,
-        status_code: 201,
-        message: "User created successfully",
-        data: result,
-      };
-    } catch (error) {
-      console.log(error);
-
-      return {
-        status: false,
-        status_code: 500,
-        message: "Server error: " + error,
-        data: null,
-      };
-    }
-  }
-
-  async login(data: User) {
-    try {
-      const existing = await userRepository.findByEmail(data.email);
-      if (!existing) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "User not found",
-          data: null,
-        };
-      }
-
-      if (data.email !== existing.email) {
-        return {
-          status: false,
-          status_code: 400,
-          message: "Wrong email",
-          data: null,
-        };
-      }
-
-      const isPasswordCorrect = bcrypt.compareSync(
-        data.password,
-        existing.password,
-      );
-
-      if (!isPasswordCorrect) {
-        return {
-          status: false,
-          status_code: 400,
-          message: "Password doesn't match",
-          data: null,
-        };
-      }
-
-      const accessToken = jwt.sign(
+    const result = await prisma.$transaction(async (tx) => {
+      const user = await userRepository.create(
         {
-          id: existing.id,
-          name: existing.name,
-          email: existing.email,
-          role: existing.role,
+          email: data.email,
+          name: data.name,
+          password: hashedPassword,
+          photo,
         },
-        process.env.ACCESS_SECRET,
-        { expiresIn: "15m" },
+        tx,
       );
 
-      const refreshToken = jwt.sign(
+      const balance = await userBalanceRepository.generateInitialBalance(
+        user.id,
+        tx,
+      );
+
+      const point = await pointRepository.generatePoints(
         {
-          id: existing.id,
-          name: existing.name,
-          email: existing.email,
-          role: existing.role,
-        },
-        process.env.REFRESH_SECRET,
-        { expiresIn: "7d" },
+          userId: user.id,
+          points: 0,
+          activity: "REGISTER",
+          reference: user.id,
+        } as Point,
+        tx,
       );
 
-      await redis.set(
-        `refresh:${existing.id}`,
-        refreshToken,
-        "EX",
-        7 * 24 * 60 * 60,
+      await userRoleRepository.assignGlobalRole(
+        {
+          userId: user.id,
+          role: data.role,
+        },
+        tx,
       );
-      return {
-        status: true,
-        status_code: 201,
-        message: "Logged in successfully",
-        data: { accessToken, refreshToken, user: existing },
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Server error: " + error,
-        data: null,
-      };
-    }
+
+      return { user, balance, point };
+    });
+
+    await publisher.publish(
+      "point-events",
+      JSON.stringify({ event: "point:updated", payload: result.point }),
+    );
+
+    await publisher.publish(
+      "balance-events",
+      JSON.stringify({ event: "balance:updated", payload: result.balance }),
+    );
+
+    const tokens = await this.generateTokens(result.user.id);
+
+    return {
+      user: result.user,
+      ...tokens,
+    };
   }
 
-  async refreshToken(token: string) {
-    try {
-      if (!token) {
-        return {
-          status: false,
-          status_code: 400,
-          message: "Missing user refresh token",
-          data: null,
-        };
-      }
+  async login(email: string, password: string) {
+    const user = await userRepository.findByEmail(email);
+    if (!user) throw new Error("USER_NOT_FOUND");
 
-      const decoded = jwt.verify(token, process.env.REFRESH_SECRET) as any;
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) throw new Error("INVALID_PASSWORD");
 
-      const storedToken = await redis.get(`refresh:${decoded.id}`);
-      if (!storedToken || storedToken !== token) {
-        return {
-          status: false,
-          status_code: 403,
-          message: "Invalid or expired refresh token",
-          data: null,
-        };
-      }
+    const tokens = await this.generateTokens(user.id);
 
-      const user = await userRepository.findById(decoded.id);
-      if (!user) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "User not found",
-          data: null,
-        };
-      }
-
-      const newAccessToken = jwt.sign(
-        {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
-        process.env.ACCESS_SECRET,
-        { expiresIn: "15m" },
-      );
-
-      const newRefreshToken = jwt.sign(
-        {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          createdAt: user.createdAt,
-        },
-        process.env.REFRESH_SECRET,
-        { expiresIn: "7d" },
-      );
-
-      await redis.set(
-        `refresh:${user.id}`,
-        newRefreshToken,
-        "EX",
-        7 * 24 * 60 * 60,
-      );
-
-      return {
-        status: true,
-        status_code: 200,
-        message: "Access token refreshed successfully",
-        data: { accessToken: newAccessToken, refreshToken: newRefreshToken },
-      };
-    } catch (error: any) {
-      if (error.name === "TokenExpiredError") {
-        return {
-          status: false,
-          status_code: 401,
-          message: "Refresh token expired, please login again",
-          data: null,
-        };
-      }
-
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
-    }
-  }
-
-  async updateUser(
-    id: string,
-    data: Partial<User>,
-    file?: Express.Multer.File,
-  ) {
-    try {
-      let imageUrl: string | null = null;
-
-      if (file && file.path) {
-        const image = await uploadImage({ file, folder: "users" });
-        imageUrl = image.url;
-      }
-
-      const user = await userRepository.findById(id);
-      if (!user) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "User not found",
-          data: null,
-        };
-      }
-
-      if (data.password) {
-        data.password = await bcrypt.hash(data.password, 10);
-      }
-
-      if (imageUrl) {
-        data.photo = imageUrl;
-      }
-
-      const updatedUser = await userRepository.update(id, data);
-
-      return {
-        status: true,
-        status_code: 200,
-        message: "User updated successfully",
-        data: updatedUser,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Server error: " + error,
-        data: null,
-      };
-    }
-  }
-
-  async deleteUser(id: string) {
-    try {
-      const user = await userRepository.findById(id);
-      if (!user) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "User not found",
-          data: null,
-        };
-      }
-
-      const deletedUser = await userRepository.delete(id);
-
-      return {
-        status: true,
-        status_code: 200,
-        message: "User deleted successfully",
-        data: deletedUser,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Server error: " + error,
-        data: null,
-      };
-    }
+    return { user, ...tokens };
   }
 
   async googleLogin(idToken: string) {
-    try {
-      const ticket = await client.verifyIdToken({
-        idToken,
-        audience: process.env.GOOGLE_CLIENT_ID,
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload) throw new Error("INVALID_GOOGLE_TOKEN");
+
+    const { email, name, picture, sub } = payload;
+
+    let user = await userRepository.findByEmail(email);
+
+    if (!user) {
+      user = await userRepository.create({
+        email,
+        name: name || "Google User",
+        password: "",
+        photo: picture,
+        googleId: sub,
       });
 
-      const payload = ticket.getPayload();
-
-      if (!payload) {
-        return {
-          status: false,
-          status_code: 400,
-          message: "Invalid Google token",
-          data: null,
-        };
-      }
-
-      const { email, name, picture, sub: googleId } = payload;
-
-      let user = await userRepository.findByEmail(email);
-
-      if (!user) {
-        user = await userRepository.create({
-          name: name || "Google User",
-          email,
-          password: "",
-          photo: picture,
-          googleId,
-          role: "CUSTOMER",
-        } as User);
-      }
-
-      const accessToken = jwt.sign(
-        { id: user.id, email: user.email },
-        process.env.ACCESS_SECRET!,
-        { expiresIn: "15m" },
-      );
-
-      const refreshToken = jwt.sign(
-        { id: user.id, email: user.email },
-        process.env.REFRESH_SECRET!,
-        { expiresIn: "7d" },
-      );
-
-      await redis.set(
-        `refresh:${user.id}`,
-        refreshToken,
-        "EX",
-        7 * 24 * 60 * 60,
-      );
-
-      return {
-        status: true,
-        status_code: 200,
-        message: "Login with Google successful",
-        data: {
-          accessToken,
-          refreshToken,
-          user,
-        },
-      };
-    } catch (error) {
-      console.log(error);
-
-      return {
-        status: false,
-        status_code: 500,
-        message: "Google login failed: " + error.message,
-        data: null,
-      };
+      await userRoleRepository.assignGlobalRole({
+        userId: user.id,
+        role: Role.CUSTOMER,
+      });
     }
+
+    const tokens = await this.generateTokens(user.id);
+
+    return { user, ...tokens };
+  }
+
+  async refresh(refreshToken: string) {
+    if (!refreshToken) throw new Error("MISSING_REFRESH_TOKEN");
+
+    const decoded = jwt.verify(
+      refreshToken,
+      process.env.REFRESH_SECRET!,
+    ) as any;
+
+    const stored = await redis.get(`refresh:${decoded.sub}`);
+    if (!stored || stored !== refreshToken)
+      throw new Error("INVALID_REFRESH_TOKEN");
+
+    return this.generateTokens(decoded.sub);
+  }
+
+  private async generateTokens(userId: string) {
+    const accessToken = jwt.sign({ sub: userId }, process.env.ACCESS_SECRET!, {
+      expiresIn: "15m",
+    });
+
+    const refreshToken = jwt.sign(
+      { sub: userId },
+      process.env.REFRESH_SECRET!,
+      { expiresIn: "7d" },
+    );
+
+    await redis.set(`refresh:${userId}`, refreshToken, "EX", 7 * 86400);
+
+    return { accessToken, refreshToken };
+  }
+
+  async getCurrentUser(userId: string) {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new Error("USER_NOT_FOUND");
+    }
+
+    const roles = await userRoleRepository.findByUserId(userId);
+
+    const globalRoles = roles
+      .filter((r) => !r.venueId && !r.eventId && r.isActive)
+      .map((r) => r.role);
+
+    const venueRoles = roles
+      .filter((r) => r.venueId && r.isActive)
+      .map((r) => ({
+        venueId: r.venueId!,
+        role: r.role,
+      }));
+
+    const eventRoles = roles
+      .filter((r) => r.eventId && r.isActive)
+      .map((r) => ({
+        eventId: r.eventId!,
+        role: r.role,
+      }));
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      avatar: user.photo,
+      isVerified: user.isVerified,
+      roles: {
+        global: globalRoles,
+        venues: venueRoles,
+        events: eventRoles,
+      },
+    };
+  }
+
+  async findAllUsers() {
+    return userRepository.findAll();
+  }
+
+  async findDetailUser(userId: string) {
+    if (!userId) throw new Error("User id is required");
+
+    return userRepository.findById(userId);
+  }
+
+  async updateUser(
+    userId: string,
+    data: {
+      name?: string;
+      email?: string;
+      password?: string;
+      isVerified?: boolean;
+    },
+    file?: Express.Multer.File,
+  ) {
+    const user = await userRepository.findById(userId);
+    if (!user) throw new Error("USER_NOT_FOUND");
+
+    let photo = user.photo;
+
+    if (file) {
+      const img = await uploadImage({ file: file, folder: "users" });
+      photo = img.url;
+    }
+
+    let password = user.password;
+    if (data.password) {
+      password = await bcrypt.hash(data.password, 10);
+    }
+
+    return userRepository.update(userId, {
+      name: data.name,
+      email: data.email,
+      password,
+      photo,
+      isVerified: data.isVerified,
+    });
+  }
+
+  async deleteUser(userId: string) {
+    const user = await userRepository.findById(userId);
+    if (!user) throw new Error("USER_NOT_FOUND");
+
+    return userRepository.delete(userId);
   }
 }

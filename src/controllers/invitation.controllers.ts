@@ -9,51 +9,84 @@ export class InvitationController {
   }
 
   async generateInvitationKey(req: Request, res: Response) {
-    const files = req.files as {
-      image?: Express.Multer.File;
-      gallery?: Express.Multer.File[];
-    };
+    try {
+      const { email, venueId } = req.body;
 
-    const {
-      email,
-      venueName,
-      address,
-      city,
-      province,
-      description,
-      latitude,
-      longitude,
-    } = req.body;
-
-    const result = await this.invitationServices.generateInvitationKey(
-      email,
-      venueName,
-      address,
-      city,
-      province,
-      description,
-      latitude,
-      longitude,
-      files,
-    );
-    return res.status(result.status_code).json(result);
+      const result = await this.invitationServices.generateInvitationKey(
+        email,
+        venueId,
+      );
+      return res.status(200).json({
+        status: true,
+        message: "Invitation created",
+        data: result,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        status: false,
+        message: error.message,
+      });
+    }
   }
 
-  async findAllInvitationKeys(req: Request, res: Response) {
-    const result = await this.invitationServices.findAllInvitationKeys();
-    return res.status(result.status_code).json(result);
+  async generateEventInvitationKey(req: Request, res: Response) {
+    try {
+      const { email, eventId } = req.body;
+
+      const result = await this.invitationServices.generateEventInvitationKey(
+        email,
+        eventId,
+      );
+      return res.status(200).json({
+        status: true,
+        message: "Invitation created",
+        data: result,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        status: false,
+        message: error.message,
+      });
+    }
   }
 
-  async findInvitationKey(req: Request, res: Response) {
-    const key = req.params.key;
-    const result = await this.invitationServices.findInvitationKey(key);
-    return res.status(result.status_code).json(result);
+  async claimInvitation(req: Request, res: Response) {
+    try {
+      const result = await this.invitationServices.claimInvitation(
+        req.body.key,
+        req.user.id,
+      );
+
+      return res.status(200).json({
+        status: true,
+        message: "Invitation claimed",
+        data: result,
+      });
+    } catch (err) {
+      return res.status(400).json({
+        status: false,
+        message: err.message,
+      });
+    }
   }
 
-  async findInvitationKeyByVenueId(req: Request, res: Response) {
-    const venueId = req.params.venueId;
-    const result =
-      await this.invitationServices.findInvitationKeysByVenueId(venueId);
-    return res.status(result.status_code).json(result);
+  async claimEventInvitation(req: Request, res: Response) {
+    try {
+      const result = await this.invitationServices.claimEventInvitation(
+        req.body.key,
+        req.user.id,
+      );
+
+      return res.status(200).json({
+        status: true,
+        message: "Invitation claimed",
+        data: result,
+      });
+    } catch (err) {
+      return res.status(400).json({
+        status: false,
+        message: err.message,
+      });
+    }
   }
 }

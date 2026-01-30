@@ -1,111 +1,78 @@
-import { PrismaClient, InvitationKey } from "@prisma/client";
+import { Prisma, PrismaClient, Role } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 export class InvitationKeyRepository {
-  async generate(
-    email: string,
-    venueName: string,
-    address: string,
-    city: string,
-    province: string,
-    description?: string,
-    latitude?: number,
-    longitude?: number,
-    expiresAt?: Date,
-    key?: string,
-    image?: string,
-    gallery?: string[],
+  private db(tx?: Prisma.TransactionClient) {
+    return tx ?? prisma;
+  }
+
+  async generateEvent(
+    params: {
+      email: string;
+      key: string;
+      role: Role;
+      eventId: string;
+      expiresAt?: Date;
+    },
+    tx?: Prisma.TransactionClient,
   ) {
-    if (!email) {
-      throw new Error("Email is required to generate an invitation key");
-    }
+    const db = this.db(tx);
 
-    return await prisma.$transaction(async (tx) => {
-      const venue = await tx.venue.create({
-        data: {
-          name: venueName,
-          address: address ?? "Auto-generated address",
-          city: city ?? "Auto-generated city",
-          province: province ?? "Auto-generated province",
-          description: description ?? "Auto-generated description",
-          latitude: latitude ?? 0,
-          longitude: longitude ?? 0,
-          image: image,
-          gallery: gallery,
-          isActive: false,
-        },
-      });
-      const owners = await tx.owner.create({
-        data: { venueId: venue.id, email, name: "Auto-generated name" } as any,
-      });
+    return db.invitationKey.create({
+      data: {
+        email: params.email,
+        key: params.key,
+        role: params.role,
 
-      const generatedKey = key ?? crypto.randomUUID();
+        eventId: params.eventId,
+        venueId: null,
 
-      const newKey = await tx.invitationKey.create({
-        data: {
-          venueId: venue.id,
-          key: generatedKey,
-          expiresAt: expiresAt ?? null,
-        },
-      });
-
-      return { invitation: newKey, venue, owners };
+        expiresAt: params.expiresAt ?? null,
+      },
     });
   }
 
-  async findByKey(key: string): Promise<InvitationKey | null> {
-    return prisma.invitationKey.findUnique({
+  async generateVenue(
+    params: {
+      email: string;
+      key: string;
+      role: Role;
+      venueId: string;
+      expiresAt?: Date;
+    },
+    tx?: Prisma.TransactionClient,
+  ) {
+    const db = this.db(tx);
+
+    return db.invitationKey.create({
+      data: {
+        email: params.email,
+        key: params.key,
+        role: params.role,
+
+        venueId: params.venueId,
+        eventId: null,
+
+        expiresAt: params.expiresAt ?? null,
+      },
+    });
+  }
+
+  async findByKey(key: string, tx?: Prisma.TransactionClient) {
+    const db = this.db(tx);
+
+    return db.invitationKey.findUnique({
       where: { key },
     });
   }
 
-  async findByVenueId(venueId: string): Promise<InvitationKey | null> {
-    return prisma.invitationKey.findUnique({
-      where: { venueId },
-    });
-  }
+  async markUsed(id: string, tx?: Prisma.TransactionClient) {
+    const db = this.db(tx);
 
-  async deleteByVenueId(venueId: string): Promise<InvitationKey | null> {
-    return prisma.invitationKey.delete({
-      where: { venueId },
-    });
-  }
-
-  async markAsUsed(key: string): Promise<InvitationKey> {
-    const updatedKey = await prisma.invitationKey.update({
-      where: { key },
+    return db.invitationKey.update({
+      where: { id },
       data: { usedAt: new Date() },
-    });
-    return updatedKey;
-  }
-
-  async deleteExpired(): Promise<number> {
-    const result = await prisma.invitationKey.deleteMany({
-      where: {
-        expiresAt: { lt: new Date() },
-      },
-    });
-    return result.count;
-  }
-
-  async findAll(): Promise<InvitationKey[]> {
-    return prisma.invitationKey.findMany({
-      include: {
-        venue: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-  }
-  async updateByVenueId(
-    venueId: string,
-    data: Partial<InvitationKey>,
-  ): Promise<InvitationKey> {
-    return prisma.invitationKey.update({
-      where: { venueId },
-      data,
     });
   }
 }

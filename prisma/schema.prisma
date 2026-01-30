@@ -161,20 +161,20 @@ enum Gender {
 
 // #regionUSER & AUTH
 model User {
-  id         String   @id @default(uuid())
+  id         String     @id @default(uuid())
   name       String
   username   String?
-  email      String   @unique
+  email      String     @unique
   password   String
   address    String?
-  roles UserRole[]
+  roles      UserRole[]
   phone      String?
   photo      String?
-  googleId   String?  @unique
-  isVerified Boolean  @default(false)
+  googleId   String?    @unique
+  isVerified Boolean    @default(false)
   devices    Device[]
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @default(now()) @updatedAt
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @default(now()) @updatedAt
 
   // Relations
   bookings         Booking[]
@@ -205,25 +205,24 @@ model User {
 }
 
 model UserRole {
-  id      String @id @default(uuid())
-  userId  String
-  role    Role
+  id     String @id @default(uuid())
+  userId String
+  role   Role
 
   venueId String?
   eventId String?
 
-  isActive Boolean @default(true)
+  isActive   Boolean  @default(true)
   assignedAt DateTime @default(now())
 
-  user  User  @relation(fields: [userId], references: [id])
+  user  User   @relation(fields: [userId], references: [id])
   venue Venue? @relation(fields: [venueId], references: [id])
   event Event? @relation(fields: [eventId], references: [id])
 
-  @@unique([userId, role, venueId, eventId])
-  @@index([userId])
-  @@index([role])
+  @@unique([userId, role], map: "unique_global_role")
+  @@unique([userId, role, venueId], map: "unique_venue_role")
+  @@unique([userId, role, eventId], map: "unique_event_role")
 }
-
 
 model UserBalance {
   id        String   @id @default(uuid())
@@ -300,54 +299,35 @@ model Venue {
   floors           Floor[]
   bookings         Booking[]
   operationalHours OperationalHour[]
-  invitation       InvitationKey?
+  invitation       InvitationKey[]
   balance          VenueBalance?
   transactions     Transaction[]
-  owner            Owner?
   withdrawRequests WithdrawRequest[]
   likes            LikeVenue[]
   impressions      VenueImpression[]
   events           Event[]
   menus            Menu[]
-  staffs            VenueStaff[]
-}
-
-model Owner {
-  id             String   @id @default(uuid())
-  venueId        String?  @unique
-  name           String
-  email          String?  
-  phone          String?
-  gender         Gender?
-  birthDate      DateTime?
-  address        String?
-  identityNumber String?  
-  taxNumber      String?  
-  image          String?
-  note           String?  
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-
-  venue Venue? @relation(fields: [venueId], references: [id])
+  staffs           VenueStaff[]
+  userRoles        UserRole[]
 }
 
 model VenueStaff {
-  id        String        @id @default(uuid())
-  venueId   String
-  name      String
-  email     String?       @unique
-  phone     String?
-  position  StaffPosition @default(OTHER)
-  gender    Gender?
-  birthDate DateTime?
-  address   String?
-  emergencyContact String? 
-  photo     String?
-  note      String?
+  id      String @id @default(uuid())
+  venueId String
+
+  name     String
+  phone    String?
+  position StaffPosition @default(OTHER)
+
+  gender           Gender?
+  birthDate        DateTime?
+  address          String?
+  emergencyContact String?
+  photo            String?
+  note             String?
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  updatedAt DateTime @updatedAt
 
   venue Venue @relation(fields: [venueId], references: [id])
 
@@ -388,8 +368,8 @@ model VenueService {
   venueId       String
   subCategoryId String
 
-  config Json
-  image String?
+  config      Json
+  image       String?
   unitType    UnitType?
   bookingType BookingType?
 
@@ -411,15 +391,19 @@ model VenueService {
 }
 
 model InvitationKey {
-  id        String    @id @default(uuid())
-  venueId   String    @unique
-  key       String    @unique
-  expiresAt DateTime?
-  usedAt    DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @default(now()) @updatedAt
+  id    String @id @default(uuid())
+  key   String @unique
+  email String
+  role  Role
 
-  venue Venue @relation(fields: [venueId], references: [id])
+  venueId String?
+  eventId String?
+
+  usedAt    DateTime?
+  expiresAt DateTime?
+
+  venue Venue? @relation(fields: [venueId], references: [id])
+  event Event? @relation(fields: [eventId], references: [id])
 }
 
 model VenueBalance {
@@ -757,9 +741,11 @@ model Event {
   reviews ReviewEvent[]
   likes   LikeEvent[]
 
-  ticketTypes EventTicketType[]
-  orders      EventOrder[]
-  tickets     EventTicket[]
+  ticketTypes    EventTicketType[]
+  orders         EventOrder[]
+  tickets        EventTicket[]
+  userRoles      UserRole[]
+  invitationKeys InvitationKey[]
 }
 
 model EventTicketType {

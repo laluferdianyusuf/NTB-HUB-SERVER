@@ -8,22 +8,31 @@ const auth = new AuthMiddlewares();
 const invitationController = new InvitationController();
 
 router.post(
-  "/create-invitation",
-  upload.fields([
-    { name: "image", maxCount: 1 },
-    { name: "gallery", maxCount: 10 },
-  ]),
-  auth.authorize(["ADMIN"]),
+  "/venue/create-invitation",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["ADMIN"]),
   (req, res) => invitationController.generateInvitationKey(req, res),
 );
-router.get("/invitation/invitations", (req, res) =>
-  invitationController.findAllInvitationKeys(req, res),
+
+router.post(
+  "/event/create-invitation",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["ADMIN"]),
+  (req, res) => invitationController.generateEventInvitationKey(req, res),
 );
-router.get("/invitation/:key", (req, res) =>
-  invitationController.findInvitationKey(req, res),
+
+router.post(
+  "/venue/claim-invitation",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["CUSTOMER"]),
+  (req, res) => invitationController.claimInvitation(req, res),
 );
-router.get("/invitation/:venueId", (req, res) =>
-  invitationController.findInvitationKeyByVenueId(req, res),
+
+router.post(
+  "/event/claim-invitation",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["CUSTOMER"]),
+  (req, res) => invitationController.claimEventInvitation(req, res),
 );
 
 export default router;

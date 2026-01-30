@@ -2,6 +2,14 @@ import { Prisma, PrismaClient, User } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+export type CreateUserInput = {
+  name: string;
+  email: string;
+  password: string;
+  photo?: string | null;
+  googleId?: string | null;
+};
+
 export class UserRepository {
   async findAll(): Promise<User[]> {
     const res = await prisma.user.findMany();
@@ -17,7 +25,10 @@ export class UserRepository {
     return prisma.user.findUnique({ where: { email } });
   }
 
-  async create(data: User, tx?: Prisma.TransactionClient): Promise<User> {
+  async create(
+    data: CreateUserInput,
+    tx?: Prisma.TransactionClient,
+  ): Promise<User> {
     const db = tx ?? prisma;
     return db.user.create({ data });
   }

@@ -10,35 +10,45 @@ const venueServiceController = new VenueServiceController();
 router.post(
   "/create",
   upload.single("image"),
-  auth.authorize(["VENUE"]),
+  auth.authenticate,
+  auth.authorizeVenueRole(["VENUE_OWNER"]),
   (req, res) => venueServiceController.createVenueService(req, res),
 );
 
 router.get(
   "/by-venue/:venueId",
-  auth.authorize(["VENUE", "CUSTOMER", "ADMIN"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["VENUE_OWNER", "CUSTOMER", "ADMIN"]),
   (req, res) => venueServiceController.getServiceByVenue(req, res),
 );
 
 router.get(
   "/services-venue/:venueId",
-  auth.authorize(["VENUE", "CUSTOMER", "ADMIN"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["VENUE_OWNER", "CUSTOMER", "ADMIN"]),
   (req, res) => venueServiceController.getAllServiceByVenue(req, res),
 );
 
-router.get("/detail/:id", auth.authorize(["VENUE", "CUSTOMER"]), (req, res) =>
-  venueServiceController.getDetailService(req, res),
+router.get(
+  "/detail/:id",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["VENUE_OWNER", "CUSTOMER"]),
+  (req, res) => venueServiceController.getDetailService(req, res),
 );
 
 router.put(
   "/update/:id",
   upload.single("image"),
-  auth.authorize(["VENUE"]),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["VENUE_OWNER"]),
   (req, res) => venueServiceController.updateVenueService(req, res),
 );
 
-router.delete("/deactivate/:id", auth.authorize(["VENUE"]), (req, res) =>
-  venueServiceController.deactivateVenueService(req, res),
+router.delete(
+  "/deactivate/:id",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["VENUE_OWNER"]),
+  (req, res) => venueServiceController.deactivateVenueService(req, res),
 );
 
 export default router;

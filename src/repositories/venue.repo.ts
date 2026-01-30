@@ -1,8 +1,16 @@
-import { PrismaClient, Venue } from "@prisma/client";
+import { Prisma, PrismaClient, Venue } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 export class VenueRepository {
+  async createVenue(
+    data: Venue,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Venue> {
+    const db = tx ?? prisma;
+    return db.venue.create({ data });
+  }
+
   async findAllVenue(): Promise<Venue[]> {
     return await prisma.venue.findMany({
       include: {

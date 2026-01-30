@@ -13,6 +13,7 @@ export * from "./venue.category.repo";
 export * from "./venue.subCategory.repo";
 export * from "./invitation.repo";
 export * from "./venue.staff.repo";
+export * from "./user.role.repo";
 export * from "./user.balance.repo";
 export * from "./venue.balance.repo";
 export * from "./review.public.place.repo";

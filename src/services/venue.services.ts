@@ -1,27 +1,66 @@
 import { Venue } from "@prisma/client";
 import {
   VenueRepository,
-  InvitationKeyRepository,
   VenueBalanceRepository,
   VenueLikeRepository,
   VenueImpressionRepository,
 } from "../repositories";
-import jwt from "jsonwebtoken";
-import Redis from "ioredis";
-import { uploadToCloudinary } from "utils/image";
 import { publisher } from "config/redis.config";
 import { toNum } from "helpers/parser";
 import { uploadImage } from "utils/uploadS3";
 
-const redis = new Redis();
-
 const venueRepository = new VenueRepository();
-const invitationRepository = new InvitationKeyRepository();
 const venueBalanceRepository = new VenueBalanceRepository();
 const venueLikeRepository = new VenueLikeRepository();
 const venueImpressionRepository = new VenueImpressionRepository();
 
 export class VenueServices {
+  async createVenue(
+    payload: Venue,
+    files?: {
+      image?: Express.Multer.File;
+      gallery?: Express.Multer.File[];
+    },
+  ): Promise<Venue> {
+    let imageUrl: string | null = null;
+    let galleryUrls: string[] = [];
+
+    if (files?.image?.[0]) {
+      const image = await uploadImage({
+        file: files.image?.[0],
+        folder: "public_places",
+      });
+      imageUrl = image.url;
+    }
+
+    if (files?.gallery?.length) {
+      const gallery = await Promise.all(
+        files.gallery.map((file) =>
+          uploadImage({ file: file, folder: "public_places" }),
+        ),
+      );
+
+      galleryUrls = gallery.map((img) => img.url);
+    }
+
+    if (
+      !payload.name ||
+      !payload.address ||
+      !payload.city ||
+      !payload.province
+    ) {
+      throw new Error("Required fields are missing");
+    }
+
+    return venueRepository.createVenue({
+      ...payload,
+      latitude: toNum(payload.latitude),
+      longitude: toNum(payload.longitude),
+      image: imageUrl,
+      gallery: galleryUrls,
+    });
+  }
+
   async activateVenue(venueId: string) {
     const venue = await venueRepository.findVenueById(venueId);
 
@@ -195,182 +234,6 @@ export class VenueServices {
         status_code: 500,
         message: "Internal server error",
         data: null,
-      };
-    }
-  }
-
-  async signInWithInvitationKey(invitationKey: string) {
-    try {
-      const invitation = await invitationRepository.findByKey(invitationKey);
-      if (!invitation) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "Invalid or unknown invitation key",
-          data: null,
-        };
-      }
-
-      if (invitation.expiresAt && new Date() > new Date(invitation.expiresAt)) {
-        return {
-          status: false,
-          status_code: 400,
-          message: "Invitation key has expired",
-          data: null,
-        };
-      }
-
-      const venue = await venueRepository.findVenueById(invitation.venueId);
-      if (!venue) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "Venue not found for this invitation",
-          data: null,
-        };
-      }
-      let accessToken = null;
-      let refreshToken = null;
-      if (venue.isActive === true) {
-        accessToken = jwt.sign(
-          {
-            venueId: venue.id,
-            name: venue.name,
-            role: "VENUE",
-            createdAt: venue.createdAt,
-          },
-          process.env.ACCESS_SECRET,
-          { expiresIn: "15m" },
-        );
-
-        refreshToken = jwt.sign(
-          {
-            venueId: venue.id,
-            name: venue.name,
-            role: "VENUE",
-            createdAt: venue.createdAt,
-          },
-          process.env.REFRESH_SECRET,
-          { expiresIn: "7d" },
-        );
-      } else {
-        accessToken = jwt.sign(
-          {
-            venueId: venue.id,
-          },
-          process.env.ACCESS_SECRET,
-          { expiresIn: "15m" },
-        );
-
-        refreshToken = jwt.sign(
-          {
-            venueId: venue.id,
-          },
-          process.env.REFRESH_SECRET,
-          { expiresIn: "7d" },
-        );
-      }
-
-      await redis.set(
-        `venue:refresh:${venue.id}`,
-        refreshToken,
-        "EX",
-        7 * 24 * 60 * 60,
-      );
-
-      return {
-        status: true,
-        status_code: 200,
-        message: "Login successful using invitation key",
-        data: {
-          accessToken,
-          refreshToken,
-          venue: {
-            ...venue,
-            role: "VENUE",
-          },
-        },
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
-    }
-  }
-
-  async refreshVenueToken(refreshToken: string) {
-    try {
-      if (!refreshToken) {
-        return {
-          status: false,
-          status_code: 400,
-          message: "Missing venue refresh token",
-        };
-      }
-
-      const decoded = jwt.verify(
-        refreshToken,
-        process.env.REFRESH_SECRET,
-      ) as any;
-      const storedToken = await redis.get(`venue:refresh:${decoded.venueId}`);
-
-      if (!storedToken || storedToken !== refreshToken) {
-        return {
-          status: false,
-          status_code: 403,
-          message: "Invalid or expired refresh token",
-        };
-      }
-
-      const venue = await venueRepository.findVenueById(decoded.venueId);
-
-      if (!venue) {
-        return { status: false, status_code: 404, message: "Venue not found" };
-      }
-
-      const newAccessToken = jwt.sign(
-        { venueId: venue.id, name: venue.name },
-        process.env.ACCESS_SECRET,
-        { expiresIn: "15m" },
-      );
-
-      const newRefreshToken = jwt.sign(
-        { venueId: venue.id, name: venue.name },
-        process.env.REFRESH_SECRET,
-        { expiresIn: "7d" },
-      );
-
-      await redis.set(
-        `venue:refresh:${venue.id}`,
-        newRefreshToken,
-        "EX",
-        7 * 24 * 60 * 60,
-      );
-
-      return {
-        status: true,
-        status_code: 200,
-        message: "Access token refreshed successfully",
-        data: {
-          accessToken: newAccessToken,
-          refreshToken: newRefreshToken,
-        },
-      };
-    } catch (error: any) {
-      if (error.name === "TokenExpiredError") {
-        return {
-          status: false,
-          status_code: 401,
-          message: "Refresh token expired, please login again",
-        };
-      }
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
       };
     }
   }

@@ -7,18 +7,27 @@ const router = Router();
 const auth = new AuthMiddlewares();
 const userController = new UserController();
 
-router.get("/user/users", auth.authorize(["ADMIN", "CUSTOMER"]), (req, res) =>
-  userController.getAll(req, res),
+router.get(
+  "/all-users",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["ADMIN", "CUSTOMER"]),
+  (req, res) => userController.findAllUsers(req, res),
 );
-router.get("/user/:id", (req, res) => userController.getById(req, res));
+router.get("/detail-user/:userId", (req, res) =>
+  userController.findDetailUser(req, res),
+);
 router.put(
-  "/user/update/:id",
+  "/update-user/:id",
   upload.single("image"),
-  auth.authorize(["CUSTOMER"]),
-  (req, res) => userController.update(req, res),
+  auth.authenticate,
+  auth.authorizeGlobalRole(["CUSTOMER"]),
+  (req, res) => userController.updateUser(req, res),
 );
-router.delete("/user/delete/:id", auth.authorize(["ADMIN"]), (req, res) =>
-  userController.delete(req, res),
+router.delete(
+  "/delete-user/:id",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["ADMIN"]),
+  (req, res) => userController.deleteUser(req, res),
 );
 
 export default router;

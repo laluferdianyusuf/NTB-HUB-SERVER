@@ -7,6 +7,28 @@ export class VenueControllers {
   constructor() {
     this.venueServices = new VenueServices();
   }
+  async createVenue(req: Request, res: Response) {
+    try {
+      const files = req.files as {
+        image?: Express.Multer.File;
+        gallery?: Express.Multer.File[];
+      };
+
+      const venue = await this.venueServices.createVenue(req.body, files);
+
+      return res.status(201).json({
+        status: true,
+        message: "Venue created successfully",
+        data: venue,
+      });
+    } catch (error: any) {
+      return res.status(400).json({
+        status: false,
+        message: error.message || "Failed to create venue",
+      });
+    }
+  }
+
   async getVenues(req: Request, res: Response) {
     try {
       const result = await this.venueServices.getVenues();
@@ -179,39 +201,6 @@ export class VenueControllers {
 
       res.status(result.status_code).json(result);
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        status_code: 500,
-        message: error.message || "Internal Server Error",
-        data: null,
-      });
-    }
-  }
-
-  async signInWithInvitationKey(req: Request, res: Response) {
-    try {
-      const { invitationKey } = req.body;
-      const result =
-        await this.venueServices.signInWithInvitationKey(invitationKey);
-
-      res.status(result.status_code).json(result);
-    } catch (error) {
-      res.status(500).json({
-        status: false,
-        status_code: 500,
-        message: error.message || "Internal Server Error",
-        data: null,
-      });
-    }
-  }
-
-  async refresh(req: Request, res: Response) {
-    try {
-      const { refreshToken } = req.body;
-
-      const result = await this.venueServices.refreshVenueToken(refreshToken);
-      return res.status(result.status_code).json(result);
-    } catch (error) {
       res.status(500).json({
         status: false,
         status_code: 500,

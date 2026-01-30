@@ -1,71 +1,30 @@
+import { PrismaClient, Role } from "@prisma/client";
+import { prisma } from "config/prisma";
 import { randomUUID } from "crypto";
-import { toNum } from "helpers/parser";
-import { InvitationKeyRepository } from "repositories";
+import { InvitationKeyRepository, UserRoleRepository } from "repositories";
 import { sendEmail } from "utils/mail";
-import { uploadImage } from "utils/uploadS3";
 const invitationKeyRepository = new InvitationKeyRepository();
+const userRoleRepository = new UserRoleRepository();
 
 export class InvitationServices {
-  async generateInvitationKey(
-    email: string,
-    venueName: string,
-    address: string,
-    city: string,
-    province: string,
-    description?: string,
-    latitude?: number,
-    longitude?: number,
-    files?: {
-      image?: Express.Multer.File;
-      gallery?: Express.Multer.File[];
-    },
-  ) {
-    try {
-      let imageUrl: string | null = null;
-      let galleryUrls: string[] = [];
+  async generateInvitationKey(email: string, venueId: string) {
+    const key = `INVITE-${randomUUID().slice(0, 8).toUpperCase()}`;
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-      if (files?.image?.[0]) {
-        const image = await uploadImage({
-          file: files.image?.[0],
-          folder: "venues",
-        });
-        imageUrl = image.url;
-      }
+    const result = await invitationKeyRepository.generateVenue({
+      email,
+      key,
+      role: Role.VENUE_OWNER,
+      venueId,
+      expiresAt,
+    });
 
-      if (files?.gallery?.length) {
-        const gallery = await Promise.all(
-          files.gallery.map((file) =>
-            uploadImage({ file: file, folder: "venues" }),
-          ),
-        );
-
-        galleryUrls = gallery.map((img) => img.url);
-      }
-
-      const key = `INVITE-${randomUUID().slice(0, 8).toUpperCase()}`;
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-      const newKey = await invitationKeyRepository.generate(
-        email,
-        venueName,
-        address,
-        city,
-        province,
-        description,
-        toNum(latitude),
-        toNum(longitude),
-        null,
-        key,
-        imageUrl,
-        galleryUrls,
-      );
-
-      await sendEmail(
-        email,
-        "Undangan Pendaftaran Venue – NTB Hub Apps",
-        `
+    await sendEmail(
+      email,
+      "Undangan Pendaftaran Venue – NTB Hub Apps",
+      `
         <p>Halo,</p>
-        <p>Anda diundang untuk mendaftarkan venue <b>${venueName}</b>.</p>
+        <p>Anda diundang untuk mendaftarkan venue.</p>
 
         <a
           href="com.laluferdian.ntbhubapps://venue?key=${key}"
@@ -84,114 +43,88 @@ export class InvitationServices {
 
         <p>Kode undangan: <b>${key}</b></p>
       `,
+    );
+
+    return result;
+  }
+
+  async generateEventInvitationKey(email: string, eventId: string) {
+    const key = `INVITE-${randomUUID().slice(0, 8).toUpperCase()}`;
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    const invitation = await invitationKeyRepository.generateEvent({
+      email,
+      key,
+      role: Role.EVENT_OWNER,
+      eventId,
+      expiresAt,
+    });
+
+    await sendEmail(
+      email,
+      "Undangan Event – NTB Hub Apps",
+      `
+    <p>Anda diundang untuk bergabung ke event.</p>
+    <p>Kode: <b>${key}</b></p>
+    `,
+    );
+
+    return invitation;
+  }
+
+  async claimInvitation(key: string, userId: string) {
+    return prisma.$transaction(async (tx) => {
+      const invitation = await invitationKeyRepository.findByKey(key, tx);
+
+      if (!invitation) throw new Error("INVALID_INVITATION");
+      if (invitation.usedAt) throw new Error("INVITATION_USED");
+      if (invitation.expiresAt && new Date() > invitation.expiresAt)
+        throw new Error("INVITATION_EXPIRED");
+
+      await userRoleRepository.assignVenueRole(
+        {
+          userId,
+          venueId: invitation.venueId!,
+          role: invitation.role,
+        },
+        tx,
       );
 
+      await invitationKeyRepository.markUsed(invitation.id, tx);
+
       return {
-        status: true,
-        status_code: 201,
-        message: "Invitation key generated successfully",
-        data: {
-          id: newKey.invitation.id,
-          email: email,
-          venueName: newKey.venue.name,
+        venueId: invitation.venueId,
+        role: invitation.role,
+      };
+    });
+  }
+
+  async claimEventInvitation(key: string, userId: string) {
+    return prisma.$transaction(async (tx) => {
+      const invitation = await invitationKeyRepository.findByKey(key, tx);
+
+      if (!invitation) throw new Error("INVALID_INVITATION");
+      if (invitation.usedAt) throw new Error("INVITATION_USED");
+      if (invitation.expiresAt && new Date() > invitation.expiresAt)
+        throw new Error("INVITATION_EXPIRED");
+
+      if (!invitation.eventId) throw new Error("INVALID_EVENT_INVITATION");
+
+      await userRoleRepository.assignEventRole(
+        {
+          userId,
+          eventId: invitation.eventId,
+          role: invitation.role,
         },
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message:
-          "Internal server error: " +
-          (error instanceof Error ? error.message : String(error)),
-        data: null,
-      };
-    }
-  }
+        tx,
+      );
 
-  async findAllInvitationKeys() {
-    try {
-      const invitationKeys = await invitationKeyRepository.findAll();
-      if (!invitationKeys || invitationKeys.length === 0) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "No invitation keys found",
-          data: null,
-        };
-      }
-      return {
-        status: true,
-        status_code: 200,
-        message: "Invitation keys retrieved successfully",
-        data: invitationKeys,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message:
-          "Internal server error: " +
-          (error instanceof Error ? error.message : String(error)),
-        data: null,
-      };
-    }
-  }
-
-  async findInvitationKey(key: string) {
-    try {
-      const invitationKey = await invitationKeyRepository.findByKey(key);
-      if (!invitationKey) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "Invitation key not found",
-          data: null,
-        };
-      }
+      await invitationKeyRepository.markUsed(invitation.id, tx);
 
       return {
-        status: true,
-        status_code: 200,
-        message: "Invitation key found",
-        data: invitationKey,
+        eventId: invitation.eventId,
+        role: invitation.role,
       };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error" + error.message,
-        data: null,
-      };
-    }
-  }
-
-  async findInvitationKeysByVenueId(venueId: string) {
-    try {
-      const invitationKeys =
-        await invitationKeyRepository.findByVenueId(venueId);
-
-      if (!invitationKeys) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "No invitation keys found for this venue",
-          data: null,
-        };
-      }
-
-      return {
-        status: true,
-        status_code: 200,
-        message: "Invitation keys retrieved successfully",
-        data: invitationKeys,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error" + error.message,
-        data: null,
-      };
-    }
+    });
   }
 }
