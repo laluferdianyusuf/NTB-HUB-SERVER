@@ -8,6 +8,7 @@ export class VenueServiceController {
     try {
       const { venueId, subCategoryId, bookingType, unitType, config } =
         req.body;
+      const file = req.file;
 
       if (!subCategoryId) {
         return res.status(400).json({
@@ -15,13 +16,16 @@ export class VenueServiceController {
         });
       }
 
-      const service = await this.venueServiceService.create({
-        venueId,
-        subCategoryId,
-        bookingType,
-        unitType,
-        config,
-      });
+      const service = await this.venueServiceService.create(
+        {
+          venueId,
+          subCategoryId,
+          bookingType,
+          unitType,
+          config,
+        },
+        file,
+      );
 
       return res.status(201).json({
         status: true,
@@ -40,13 +44,17 @@ export class VenueServiceController {
     try {
       const { id } = req.params;
       const { bookingType, unitType, config, isActive } = req.body;
-
-      const service = await this.venueServiceService.update(id, {
-        bookingType,
-        unitType,
-        config,
-        isActive,
-      });
+      const file = req.file;
+      const service = await this.venueServiceService.update(
+        id,
+        {
+          bookingType,
+          unitType,
+          config,
+          isActive,
+        },
+        file,
+      );
 
       return res.status(200).json({
         status: true,

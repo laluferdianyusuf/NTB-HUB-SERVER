@@ -5,6 +5,7 @@ import {
   VenueServiceRepository,
 } from "../repositories";
 import { jsonToObject } from "helpers/parser";
+import { uploadImage } from "utils/uploadS3";
 
 type ServiceConfig = {
   sections?: {
@@ -79,14 +80,24 @@ export class VenueServiceService {
   private venueSubCategoryRepository = new VenueSubCategoryRepository();
   private venueServiceRepository = new VenueServiceRepository();
 
-  async create(input: {
-    venueId: string;
-    subCategoryId: string;
-    bookingType?: BookingType;
-    unitType?: UnitType;
-    config?: Partial<ServiceConfig>;
-  }) {
+  async create(
+    input: {
+      venueId: string;
+      subCategoryId: string;
+      bookingType?: BookingType;
+      unitType?: UnitType;
+      config?: Partial<ServiceConfig>;
+    },
+    file?: Express.Multer.File,
+  ) {
     const { venueId, subCategoryId } = input;
+
+    let imageUrl: string | null = null;
+
+    if (file) {
+      const image = await uploadImage({ file, folder: "venue-services" });
+      imageUrl = image.url;
+    }
 
     const venue = await this.venueRepository.findVenueById(venueId);
     if (!venue) throw new Error("Venue not found");
@@ -125,6 +136,7 @@ export class VenueServiceService {
       bookingType,
       unitType,
       config: mergedConfig,
+      image: imageUrl,
     });
   }
 
@@ -136,7 +148,15 @@ export class VenueServiceService {
       config?: Partial<ServiceConfig>;
       isActive?: boolean;
     },
+    file?: Express.Multer.File,
   ) {
+    let imageUrl: string | null = null;
+
+    if (file) {
+      const image = await uploadImage({ file, folder: "venue-services" });
+      imageUrl = image.url;
+    }
+
     const service = await this.venueServiceRepository.findById(id);
     if (!service) throw new Error("Venue service not found");
 
@@ -162,6 +182,7 @@ export class VenueServiceService {
     return this.venueServiceRepository.update(id, {
       ...input,
       config: mergedConfig,
+      image: imageUrl,
     });
   }
 

@@ -26,7 +26,7 @@ export class MenuServices {
       name: string;
       price: number | string;
       category: string;
-      serviceId: string;
+      venueId: string;
     },
     file: Express.Multer.File,
   ) {
@@ -37,7 +37,7 @@ export class MenuServices {
       imageUrl = image.url;
     }
 
-    const service = await venueServiceRepository.findById(data.serviceId);
+    const service = await venueServiceRepository.findById(data.venueId);
 
     const price =
       typeof data.price === "string" ? parseFloat(data.price) : data.price;
@@ -47,7 +47,7 @@ export class MenuServices {
         {
           name: data.name,
           category: data.category,
-          serviceId: data.serviceId,
+          venueId: data.venueId,
           price,
           image: imageUrl,
         },
@@ -89,140 +89,65 @@ export class MenuServices {
     return result;
   }
 
-  async getMenuByServiceId(serviceId: string) {
-    try {
-      const menus = await menuRepository.findMenuByServiceId(serviceId);
-      return {
-        status: true,
-        status_code: 200,
-        message: "Menus retrieved",
-        data: menus,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
-    }
+  async getMenuByVenueId(venueId: string) {
+    const menus = await menuRepository.findMenuByVenueId(venueId);
+    return menus;
   }
 
   async getMenuById(id: string) {
-    try {
-      const existing = await menuRepository.findMenuById(id);
+    const existing = await menuRepository.findMenuById(id);
 
-      if (!existing) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "Menu not found",
-          data: null,
-        };
-      }
-
-      return {
-        status: true,
-        status_code: 200,
-        message: "Menu founded",
-        data: existing,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
+    if (!existing) {
+      throw new Error("Menu not found");
     }
+
+    return existing;
   }
 
   async updateMenu(id: string, data: Menu, file: Express.Multer.File) {
-    try {
-      let imageUrl: string | null = null;
+    let imageUrl: string | null = null;
 
-      if (file) {
-        const image = await uploadImage({ file, folder: "menus" });
-        imageUrl = image.url;
-      }
-      const existing = await menuRepository.findMenuById(id);
-
-      if (!existing) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "Menu not found",
-          data: null,
-        };
-      }
-
-      if (imageUrl) {
-        data.image = imageUrl;
-      }
-
-      const updated = await menuRepository.updateMenu(id, {
-        ...data,
-        image: imageUrl,
-      });
-
-      return {
-        status: true,
-        status_code: 200,
-        message: "Menu updated",
-        data: updated,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
+    if (file) {
+      const image = await uploadImage({ file, folder: "menus" });
+      imageUrl = image.url;
     }
+    const existing = await menuRepository.findMenuById(id);
+
+    if (!existing) {
+      throw new Error("Menu not found");
+    }
+
+    if (imageUrl) {
+      data.image = imageUrl;
+    }
+
+    const updated = await menuRepository.updateMenu(id, {
+      ...data,
+      image: imageUrl,
+    });
+
+    return updated;
   }
 
   async deleteMenu(id: string) {
-    try {
-      const existing = await menuRepository.findMenuById(id);
+    const existing = await menuRepository.findMenuById(id);
 
-      if (!existing) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "Menu not found",
-          data: null,
-        };
-      }
-
-      const deleted = await menuRepository.deleteMenu(id);
-
-      return {
-        status: true,
-        status_code: 200,
-        message: "Menu deleted",
-        data: deleted,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
+    if (!existing) {
+      throw new Error("Menu not found");
     }
+
+    const deleted = await menuRepository.deleteMenu(id);
+
+    return deleted;
   }
 
   async getAllMenus() {
-    try {
-      const menus = await menuRepository.findAllMenus();
+    const menus = await menuRepository.findAllMenus();
 
-      if (menus.length < 1) {
-        return error.error404("Menus not found");
-      }
-
-      return success.success200("Menus retrieved", menus);
-    } catch (err) {
-      return error.error500("Internal server error" + err);
+    if (menus.length < 1) {
+      throw new Error("Menus not found");
     }
+
+    return menus;
   }
 }

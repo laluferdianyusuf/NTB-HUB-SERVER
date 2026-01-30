@@ -9,6 +9,7 @@ export class VenueServiceRepository {
     bookingType?: BookingType;
     unitType?: UnitType;
     config: Record<string, any>;
+    image?: string;
   }) {
     return prisma.venueService.create({
       data,
@@ -80,6 +81,7 @@ export class VenueServiceRepository {
       unitType?: UnitType;
       config?: Record<string, any>;
       isActive?: boolean;
+      image?: string;
     },
   ) {
     return prisma.venueService.update({

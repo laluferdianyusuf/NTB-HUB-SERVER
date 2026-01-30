@@ -4,6 +4,7 @@ import { TransactionRepository, UserRepository } from "../repositories";
 import { midtrans } from "config/midtrans.config";
 import { publisher } from "config/redis.config";
 import { error, success } from "helpers/return";
+import { enqueueTransactionExpiry } from "queue/transactionQueue";
 
 const transactionRepository = new TransactionRepository();
 const userRepository = new UserRepository();
@@ -83,6 +84,8 @@ export class TransactionServices {
         expiredAt,
       });
 
+      await enqueueTransactionExpiry(transaction.id, transaction.expiredAt);
+
       return {
         status: true,
         status_code: 201,
@@ -146,6 +149,10 @@ export class TransactionServices {
           first_name: user.name,
           email: user.email,
         },
+        custom_expiry: {
+          expiry_duration: 5,
+          unit: "minute",
+        },
         item_details: [
           {
             id: transaction.id,
@@ -172,6 +179,8 @@ export class TransactionServices {
         qrisUrl: qrUrl,
         expiredAt: charge.expired_time,
       });
+
+      await enqueueTransactionExpiry(transaction.id, transaction.expiredAt);
 
       return {
         status: true,
@@ -242,6 +251,10 @@ export class TransactionServices {
           first_name: user.name,
           email: user.email,
         },
+        custom_expiry: {
+          expiry_duration: 5,
+          unit: "minute",
+        },
         item_details: [
           {
             id: transaction.id,
@@ -259,6 +272,8 @@ export class TransactionServices {
       await transactionRepository.updateTransaction(transaction.id, {
         paymentCode,
       });
+
+      await enqueueTransactionExpiry(transaction.id, transaction.expiredAt);
 
       return {
         status: true,

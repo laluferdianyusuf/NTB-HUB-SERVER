@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import { MenuServices } from "../services/menu.services";
-import { log } from "console";
 
 export class MenuControllers {
   private menuService: MenuServices;
@@ -28,12 +27,16 @@ export class MenuControllers {
     }
   }
 
-  async getMenuByServiceId(req: Request, res: Response) {
+  async getMenuByVenueId(req: Request, res: Response) {
     try {
-      const serviceId = req.params.serviceId;
-      const result = await this.menuService.getMenuByServiceId(serviceId);
+      const venueId = req.params.venueId;
+      const result = await this.menuService.getMenuByVenueId(venueId);
 
-      res.status(result.status_code).json(result);
+      res.status(200).json({
+        status: true,
+        message: "Menu created successful",
+        data: result,
+      });
     } catch (error: any) {
       res.status(500).json({
         status: false,
@@ -47,7 +50,11 @@ export class MenuControllers {
       const id = req.params.id;
       const result = await this.menuService.getMenuById(id);
 
-      res.status(result.status_code).json(result);
+      res.status(200).json({
+        status: true,
+        message: "Menu created successful",
+        data: result,
+      });
     } catch (error: any) {
       res.status(500).json({
         status: false,
@@ -62,7 +69,11 @@ export class MenuControllers {
       const data = req.body;
       const result = await this.menuService.updateMenu(id, data, req.file);
 
-      res.status(result.status_code).json(result);
+      res.status(200).json({
+        status: true,
+        message: "Menu created successful",
+        data: result,
+      });
     } catch (error: any) {
       res.status(500).json({
         status: false,
@@ -76,7 +87,11 @@ export class MenuControllers {
       const id = req.params.id;
       const result = await this.menuService.deleteMenu(id);
 
-      res.status(result.status_code).json(result);
+      res.status(203).json({
+        status: true,
+        message: "Menu created successful",
+        data: result,
+      });
     } catch (error: any) {
       res.status(500).json({
         status: false,
@@ -88,7 +103,11 @@ export class MenuControllers {
     try {
       const result = await this.menuService.getAllMenus();
 
-      res.status(result.status_code).json(result);
+      res.status(200).json({
+        status: true,
+        message: "Menu created successful",
+        data: result,
+      });
     } catch (error: any) {
       res.status(500).json({
         status: false,

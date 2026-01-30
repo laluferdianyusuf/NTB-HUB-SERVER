@@ -1,13 +1,17 @@
 import { VenueServiceController } from "controllers";
 import { Router } from "express";
 import { AuthMiddlewares } from "middlewares/auth.middleware";
+import { upload } from "middlewares/upload";
 
 const router = Router();
 const auth = new AuthMiddlewares();
 const venueServiceController = new VenueServiceController();
 
-router.post("/create", auth.authorize(["VENUE"]), (req, res) =>
-  venueServiceController.createVenueService(req, res),
+router.post(
+  "/create",
+  upload.single("image"),
+  auth.authorize(["VENUE"]),
+  (req, res) => venueServiceController.createVenueService(req, res),
 );
 
 router.get(
@@ -26,8 +30,11 @@ router.get("/detail/:id", auth.authorize(["VENUE", "CUSTOMER"]), (req, res) =>
   venueServiceController.getDetailService(req, res),
 );
 
-router.put("/update/:id", auth.authorize(["VENUE"]), (req, res) =>
-  venueServiceController.updateVenueService(req, res),
+router.put(
+  "/update/:id",
+  upload.single("image"),
+  auth.authorize(["VENUE"]),
+  (req, res) => venueServiceController.updateVenueService(req, res),
 );
 
 router.delete("/deactivate/:id", auth.authorize(["VENUE"]), (req, res) =>

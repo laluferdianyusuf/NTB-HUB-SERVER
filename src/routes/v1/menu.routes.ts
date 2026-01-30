@@ -17,9 +17,9 @@ router.post(
   (req, res) => menuController.createMenu(req, res),
 );
 router.get(
-  "/menu/venues/:serviceId",
+  "/menu/venues/:venueId",
   auth.authorize(["CUSTOMER", "VENUE"]),
-  (req, res) => menuController.getMenuByServiceId(req, res),
+  (req, res) => menuController.getMenuByVenueId(req, res),
 );
 router.get("/menu/:id", (req, res) => menuController.getMenuById(req, res));
 router.put(
