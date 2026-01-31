@@ -156,22 +156,6 @@ export class UserService {
     return this.generateTokens(decoded.sub);
   }
 
-  private async generateTokens(userId: string) {
-    const accessToken = jwt.sign({ sub: userId }, process.env.ACCESS_SECRET!, {
-      expiresIn: "15m",
-    });
-
-    const refreshToken = jwt.sign(
-      { sub: userId },
-      process.env.REFRESH_SECRET!,
-      { expiresIn: "7d" },
-    );
-
-    await redis.set(`refresh:${userId}`, refreshToken, "EX", 7 * 86400);
-
-    return { accessToken, refreshToken };
-  }
-
   async getCurrentUser(userId: string) {
     const user = await userRepository.findById(userId);
     if (!user) {
@@ -261,5 +245,21 @@ export class UserService {
     if (!user) throw new Error("USER_NOT_FOUND");
 
     return userRepository.delete(userId);
+  }
+
+  private async generateTokens(userId: string) {
+    const accessToken = jwt.sign({ sub: userId }, process.env.ACCESS_SECRET!, {
+      expiresIn: "15m",
+    });
+
+    const refreshToken = jwt.sign(
+      { sub: userId },
+      process.env.REFRESH_SECRET!,
+      { expiresIn: "7d" },
+    );
+
+    await redis.set(`refresh:${userId}`, refreshToken, "EX", 7 * 86400);
+
+    return { accessToken, refreshToken };
   }
 }
