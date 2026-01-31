@@ -62,6 +62,8 @@ export class VenueUnitControllers {
     try {
       const { venueId } = req.params;
       const { serviceId, date } = req.query;
+      console.log(date);
+
       const result = await this.venueUnitServices.getAvailabilityUnits(
         venueId,
         serviceId as string,

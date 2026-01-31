@@ -42,9 +42,9 @@ router.get(
 );
 
 router.get(
-  "/transaction-venue",
+  "/transaction-venue/:venueId",
   auth.authenticate,
-  auth.authorizeGlobalRole(["VENUE_OWNER"]),
+  auth.authorizeVenueRole(["VENUE_OWNER"]),
   (req, res) => transactionController.findAllTransactionsByVenueId(req, res),
 );
 

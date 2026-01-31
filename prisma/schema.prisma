@@ -202,6 +202,10 @@ model User {
   newsImpressions NewsImpression[]
   newsComments    NewsComment[]
   courierRatings  CourierRating[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([createdAt])
 }
 
 model UserRole {
@@ -222,6 +226,10 @@ model UserRole {
   @@unique([userId, role], map: "unique_global_role")
   @@unique([userId, role, venueId], map: "unique_venue_role")
   @@unique([userId, role, eventId], map: "unique_event_role")
+  @@index([userId])
+  @@index([role])
+  @@index([venueId])
+  @@index([eventId])
 }
 
 model UserBalance {
@@ -309,6 +317,11 @@ model Venue {
   menus            Menu[]
   staffs           VenueStaff[]
   userRoles        UserRole[]
+
+  @@index([city])
+  @@index([province])
+  @@index([isActive])
+  @@index([createdAt])
 }
 
 model VenueStaff {
@@ -345,6 +358,8 @@ model VenueCategory {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([isActive])
 }
 
 model VenueSubCategory {
@@ -361,6 +376,9 @@ model VenueSubCategory {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([isActive])
 }
 
 model VenueService {
@@ -388,6 +406,7 @@ model VenueService {
   @@unique([venueId, subCategoryId])
   @@index([venueId])
   @@index([subCategoryId])
+  @@index([isActive])
 }
 
 model InvitationKey {
@@ -448,6 +467,7 @@ model VenueUnit {
 
   @@index([venueId])
   @@index([serviceId])
+  @@index([isActive])
 }
 
 model OperationalHour {
@@ -458,6 +478,8 @@ model OperationalHour {
   closesAt  Int
 
   venue Venue @relation(fields: [venueId], references: [id])
+
+  @@index([venueId, dayOfWeek])
 }
 
 // #region BOOKING & ORDER
@@ -486,6 +508,9 @@ model Booking {
   @@index([userId])
   @@index([venueId])
   @@index([serviceId])
+  @@index([status])
+  @@index([startTime, endTime])
+  @@index([venueId, startTime, endTime])
 }
 
 model Menu {
@@ -504,6 +529,8 @@ model Menu {
   orderItems     OrderItem[]
   venueService   VenueService? @relation(fields: [venueServiceId], references: [id])
   venueServiceId String?
+
+  @@index([venueId])
 }
 
 model OrderItem {
@@ -517,6 +544,9 @@ model OrderItem {
 
   booking Booking @relation(fields: [bookingId], references: [id])
   menu    Menu    @relation(fields: [menuId], references: [id])
+
+  @@index([bookingId])
+  @@index([menuId])
 }
 
 model Review {
@@ -529,6 +559,9 @@ model Review {
   updatedAt DateTime @default(now()) @updatedAt
 
   booking Booking @relation(fields: [bookingId], references: [id])
+
+  @@index([rating])
+  @@index([bookingId])
 }
 
 // #region FINANCIAL / PAYMENT
@@ -553,6 +586,12 @@ model Transaction {
 
   user  User?  @relation(fields: [userId], references: [id])
   venue Venue? @relation(fields: [venueId], references: [id])
+
+  @@index([userId])
+  @@index([venueId])
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
 }
 
 model Invoice {
@@ -574,6 +613,10 @@ model Invoice {
 
   booking    Booking?    @relation(fields: [bookingId], references: [id])
   eventOrder EventOrder? @relation(fields: [eventOrderId], references: [id])
+
+  @@index([status])
+  @@index([issuedAt])
+  @@index([paidAt])
 }
 
 model WithdrawRequest {
@@ -600,6 +643,7 @@ model WithdrawRequest {
   venue Venue @relation(fields: [venueId], references: [id])
 
   @@index([venueId, status])
+  @@index([status])
 }
 
 model PlatformBalance {
@@ -631,6 +675,8 @@ model LikeVenue {
   venue Venue @relation(fields: [venueId], references: [id])
 
   @@unique([userId, venueId])
+  @@index([userId])
+  @@index([venueId])
 }
 
 model VenueImpression {
@@ -674,6 +720,8 @@ model LikeEvent {
   event Event @relation(fields: [eventId], references: [id])
 
   @@unique([userId, eventId])
+  @@index([userId])
+  @@index([eventId])
 }
 
 // #region PUBLIC PLACE INTERACTIONS
@@ -703,6 +751,8 @@ model LikePublicPlace {
   place PublicPlace @relation(fields: [placeId], references: [id])
 
   @@unique([userId, placeId])
+  @@index([userId])
+  @@index([placeId])
 }
 
 model PublicPlaceImpression {
@@ -746,6 +796,11 @@ model Event {
   tickets        EventTicket[]
   userRoles      UserRole[]
   invitationKeys InvitationKey[]
+
+  @@index([ownerId])
+  @@index([venueId])
+  @@index([status])
+  @@index([startAt, endAt])
 }
 
 model EventTicketType {
@@ -784,6 +839,7 @@ model EventOrder {
 
   @@index([userId])
   @@index([eventId])
+  @@index([status])
 }
 
 model EventTicket {
@@ -805,8 +861,9 @@ model EventTicket {
   order      EventOrder      @relation(fields: [orderId], references: [id])
   ticketType EventTicketType @relation(fields: [ticketTypeId], references: [id])
 
-  @@index([eventId])
   @@index([userId])
+  @@index([eventId])
+  @@index([status])
 }
 
 model PublicPlace {
@@ -861,6 +918,9 @@ model News {
 
   newsImpressions NewsImpression[]
   newsComments    NewsComment[]
+
+  @@index([status])
+  @@index([createdAt])
 }
 
 model NewsImpression {
@@ -919,6 +979,9 @@ model Courier {
   courierRatings          CourierRating[]
   courierAvailabilityLogs CourierAvailabilityLog[]
   courierEarnings         CourierEarnings[]
+
+  @@index([status])
+  @@index([vehicleType])
 }
 
 model Delivery {
@@ -945,6 +1008,7 @@ model Delivery {
 
   @@index([courierId, status])
   @@index([bookingId])
+  @@index([status])
 }
 
 model CourierLocation {

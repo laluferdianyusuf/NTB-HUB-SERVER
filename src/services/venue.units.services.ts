@@ -82,9 +82,45 @@ export class VenueUnitService {
     return unit;
   }
 
-  async getAvailabilityUnits(venueId: string, serviceId: string, date: string) {
-    const dayOfWeek = new Date(date).getDay();
+  async getAvailabilityUnits(
+    venueId: string,
+    serviceId: string,
+    date: string, // format: "YYYY-MM-DD"
+  ) {
+    // trim dan cek kosong
+    if (!date || typeof date !== "string") {
+      throw new Error("Date is required");
+    }
 
+    // Split dan parse angka
+    const parts = date.trim().split("-");
+    if (parts.length !== 3) {
+      throw new Error("Invalid date format");
+    }
+
+    const year = Number(parts[0]);
+    const month = Number(parts[1]);
+    const day = Number(parts[2]);
+
+    if (
+      isNaN(year) ||
+      isNaN(month) ||
+      isNaN(day) ||
+      year < 1000 ||
+      month < 1 ||
+      month > 12 ||
+      day < 1 ||
+      day > 31
+    ) {
+      throw new Error("Invalid date numbers");
+    }
+
+    // Buat objek tanggal UTC
+    const dayObj = new Date(Date.UTC(year, month - 1, day));
+    const dayOfWeek = dayObj.getUTCDay();
+    console.log("dayOfWeek", dayOfWeek);
+
+    // Ambil jam operasional
     const operational =
       await this.operationalRepository.getOperationalHourOfWeek(
         venueId,
@@ -98,13 +134,12 @@ export class VenueUnitService {
     const { opensAt, closesAt } = operational;
 
     const hours: number[] = [];
-
     for (let h = opensAt; h < closesAt; h++) {
       hours.push(h);
     }
 
-    const dayStart = new Date(`${date}T00:00:00`);
-    const dayEnd = new Date(`${date}T23:59:59`);
+    const dayStart = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
+    const dayEnd = new Date(Date.UTC(year, month - 1, day, 23, 59, 59));
 
     const units = await this.venueUnitRepository.getUnitsWithBookings(
       venueId,
@@ -115,11 +150,9 @@ export class VenueUnitService {
 
     return units.map((u) => {
       const slots = hours.map((hour) => {
-        const slotStart = new Date(
-          `${date}T${String(hour).padStart(2, "0")}:00:00`,
-        );
+        const slotStart = new Date(Date.UTC(year, month - 1, day, hour, 0, 0));
         const slotEnd = new Date(
-          `${date}T${String(hour + 1).padStart(2, "0")}:00:00`,
+          Date.UTC(year, month - 1, day, hour + 1, 0, 0),
         );
 
         const isBooked = u.booking.some(

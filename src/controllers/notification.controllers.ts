@@ -12,7 +12,7 @@ export class NotificationController {
   async createNotification(req: Request, res: Response) {
     const result = await this.notificationService.sendNotification(
       req.body,
-      req.file
+      req.file,
     );
 
     res.status(result.status_code).json(result);
@@ -27,7 +27,7 @@ export class NotificationController {
     const result = await this.notificationService.getUserNotifications(
       userId,
       page,
-      limit
+      limit,
     );
 
     res.status(result.status_code).json(result);
@@ -69,9 +69,8 @@ export class NotificationController {
     try {
       const userId = req.user?.id;
 
-      const result = await this.notificationService.getGroupedNotifications(
-        userId
-      );
+      const result =
+        await this.notificationService.getGroupedNotifications(userId);
 
       res.status(200).json(result);
     } catch (error) {
@@ -86,11 +85,10 @@ export class NotificationController {
 
   async getNotificationByVenue(req: Request, res: Response) {
     try {
-      const venueId = req.venue?.id;
+      const venueId = req.params.venueId;
 
-      const result = await this.notificationService.getNotificationByVenue(
-        venueId
-      );
+      const result =
+        await this.notificationService.getNotificationByVenue(venueId);
 
       res.status(200).json(result);
     } catch (error) {

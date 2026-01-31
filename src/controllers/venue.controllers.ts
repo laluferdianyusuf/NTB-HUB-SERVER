@@ -66,6 +66,8 @@ export class VenueControllers {
   async getVenuesByCategory(req: Request, res: Response) {
     try {
       const { categoryId } = req.params;
+      console.log(categoryId);
+
       const result = await this.venueServices.getVenuesByCategoryId(categoryId);
 
       res.status(200).json({

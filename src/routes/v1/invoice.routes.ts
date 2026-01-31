@@ -22,15 +22,15 @@ router.get(
   (req, res) => invoiceController.findAllInvoiceByUserId(req, res),
 );
 router.get(
-  "/venue/invoices",
+  "/venue/invoices/:venueId",
   auth.authenticate,
-  auth.authorizeGlobalRole(["VENUE_OWNER"]),
+  auth.authorizeVenueRole(["VENUE_OWNER"]),
   (req, res) => invoiceController.findAllInvoiceByVenueId(req, res),
 );
 router.get(
   "/venue/paid-invoices/:venueId",
   auth.authenticate,
-  auth.authorizeGlobalRole(["VENUE_OWNER"]),
+  auth.authorizeVenueRole(["VENUE_OWNER"]),
   (req, res) => invoiceController.findAllPaidInvoiceByVenueId(req, res),
 );
 

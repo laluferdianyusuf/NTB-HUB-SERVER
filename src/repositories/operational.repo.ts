@@ -10,8 +10,11 @@ export class OperationalRepository {
   }
 
   getOperationalHourOfWeek(venueId: string, dayOfWeek: number) {
+    if (dayOfWeek === undefined || dayOfWeek === null) {
+      throw new Error("dayOfWeek is required");
+    }
     return prisma.operationalHour.findFirst({
-      where: { venueId, dayOfWeek },
+      where: { venueId, dayOfWeek: { equals: dayOfWeek } },
     });
   }
 

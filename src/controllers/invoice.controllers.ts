@@ -30,7 +30,7 @@ export class InvoiceController {
   }
 
   async findAllInvoiceByVenueId(req: Request, res: Response) {
-    const venueId = req.venue?.id;
+    const venueId = req.params.venueId;
 
     const result = await this.invoiceService.findAllInvoiceByVenueId(venueId);
 

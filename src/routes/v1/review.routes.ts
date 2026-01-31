@@ -10,7 +10,6 @@ const reviewController = new ReviewControllers();
 router.post(
   "/review/create",
   auth.authenticate,
-  auth.authorizeGlobalRole(["CUSTOMER"]),
   upload.single("image"),
   (req, res) => reviewController.createReview(req, res),
 );

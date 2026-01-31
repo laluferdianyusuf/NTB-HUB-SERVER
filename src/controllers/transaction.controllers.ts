@@ -77,7 +77,7 @@ export class TransactionController {
   }
 
   async findAllTransactionsByVenueId(req: Request, res: Response) {
-    const venueId = req.venue?.id;
+    const venueId = req.params.venueId;
 
     const result =
       await this.transactionServices.findAllTransactionsByVenueId(venueId);

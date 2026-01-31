@@ -32,10 +32,17 @@ router.get(
 );
 
 router.get(
-  "/booking/by-venue/:venueId",
+  "/booking/by-venue/:venueId/admin",
   auth.authenticate,
-  auth.authorizeGlobalRole(["VENUE_OWNER", "ADMIN"]),
+  auth.authorizeGlobalRole(["ADMIN"]),
   (req, res) => bookingController.getBookingByVenueId(req, res),
+);
+
+router.get(
+  "/booking/by-venue/:venueId/venue-owner",
+  auth.authenticate,
+  auth.authorizeVenueRole(["VENUE_OWNER"]),
+  bookingController.getBookingByVenueId,
 );
 
 router.get(

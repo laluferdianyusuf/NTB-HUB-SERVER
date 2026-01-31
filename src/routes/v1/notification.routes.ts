@@ -24,9 +24,9 @@ router.get(
   (req, res) => notificationController.getGroupedNotifications(req, res),
 );
 router.get(
-  "/notification/venue",
+  "/notification/venue/:venueId",
   auth.authenticate,
-  auth.authorizeGlobalRole(["VENUE_OWNER"]),
+  auth.authorizeVenueRole(["VENUE_OWNER"]),
   (req, res) => notificationController.getNotificationByVenue(req, res),
 );
 router.put(

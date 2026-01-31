@@ -5,19 +5,6 @@ import { withAccelerate } from "@prisma/extension-accelerate";
 const prisma = new PrismaClient().$extends(withAccelerate());
 
 async function main() {
-  const adminPassword = await bcrypt.hash("admin123", 10);
-
-  await prisma.user.upsert({
-    where: { email: "admin@billiard.com" },
-    update: {},
-    create: {
-      name: "Admin",
-      email: "admin@billiard.com",
-      password: adminPassword,
-      role: "ADMIN",
-    },
-  });
-
   const venues = await prisma.venue.findMany();
 
   if (venues.length === 0) {

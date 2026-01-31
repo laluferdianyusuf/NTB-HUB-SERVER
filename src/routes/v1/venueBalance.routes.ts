@@ -8,7 +8,7 @@ const auth = new AuthMiddlewares();
 router.get(
   "/balance/venue/:venueId",
   auth.authenticate,
-  auth.authorizeGlobalRole(["VENUE_OWNER"]),
+  auth.authorizeVenueRole(["VENUE_OWNER"]),
   (req, res) => venueBalanceController.getVenueBalance(req, res),
 );
 
