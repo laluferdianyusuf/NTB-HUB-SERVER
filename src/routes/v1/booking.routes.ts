@@ -42,7 +42,7 @@ router.get(
   "/booking/by-venue/:venueId/venue-owner",
   auth.authenticate,
   auth.authorizeVenueRole(["VENUE_OWNER"]),
-  bookingController.getBookingByVenueId,
+  (req, res) => bookingController.getBookingByVenueId(req, res),
 );
 
 router.get(

@@ -89,13 +89,6 @@ export class DeviceRepository {
     });
   }
 
-  async findAdmins() {
-    return prisma.device.findMany({
-      where: { user: { role: "ADMIN" } },
-      include: { user: true },
-    });
-  }
-
   async deleteByToken(token: string) {
     return prisma.device.deleteMany({ where: { token } });
   }

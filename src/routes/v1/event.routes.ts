@@ -16,8 +16,13 @@ const eventOrderController = new EventOrderController();
 const auth = new AuthMiddlewares();
 
 // PUBLIC
-router.get("/list-events", (req, res) => eventController.listEvent(req, res));
-router.get("/detail-event/:id", (req, res) =>
+router.get("/list-events", auth.authenticate, (req, res) =>
+  eventController.listEvent(req, res),
+);
+router.get("/list-merged-events", auth.authenticate, (req, res) =>
+  eventController.listMergedEvent(req, res),
+);
+router.get("/detail-event/:id", auth.authenticate, (req, res) =>
   eventController.detailEvent(req, res),
 );
 

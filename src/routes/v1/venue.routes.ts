@@ -29,6 +29,7 @@ router.get(
   auth.authorizeGlobalRole(["ADMIN", "CUSTOMER"]),
   (req, res) => venueController.getVenueLikedByUser(req, res),
 );
+
 router.get(
   "/venue/popular/venues",
   auth.authenticate,
@@ -37,26 +38,14 @@ router.get(
 );
 
 router.get(
-  "/venue/by-category/:categoryId",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["ADMIN", "CUSTOMER"]),
-  (req, res) => venueController.getVenuesByCategory(req, res),
-);
-
-router.get(
-  "/venue/popular/by-category/:categoryId",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["ADMIN", "CUSTOMER"]),
-  (req, res) => venueController.getPopularVenuesByCategory(req, res),
-);
-
-router.get(
   "/active/venues",
   auth.authenticate,
   auth.authorizeGlobalRole(["ADMIN", "CUSTOMER"]),
   (req, res) => venueController.getActiveVenues(req, res),
 );
-router.get("/venue/:id", (req, res) => venueController.getVenueById(req, res));
+router.get("/venue/:id", (req, res) =>
+  venueController.getVenueDetail(req, res),
+);
 router.put(
   "/venue/update/:id",
   upload.fields([
@@ -68,20 +57,6 @@ router.put(
 
 router.delete("/venue/delete/:id", (req, res) =>
   venueController.deleteVenue(req, res),
-);
-
-router.get(
-  "/me",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["VENUE_OWNER"]),
-  (req, res) => venueController.currentVenue(req, res),
-);
-
-router.get(
-  "/venue/current/venue",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["VENUE_OWNER"]),
-  (req, res) => venueController.currentVenue(req, res),
 );
 
 router.put(

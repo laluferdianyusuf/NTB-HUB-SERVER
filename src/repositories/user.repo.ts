@@ -11,10 +11,43 @@ export type CreateUserInput = {
 };
 
 export class UserRepository {
-  async findAll(): Promise<User[]> {
-    const res = await prisma.user.findMany();
-
-    return res;
+  private transaction(tx?: Prisma.TransactionClient) {
+    const client = tx ?? prisma;
+    return client;
+  }
+  async findAllUsers() {
+    return prisma.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        photo: true,
+        address: true,
+        eventOrders: {
+          include: {
+            event: {
+              select: {
+                id: true,
+                name: true,
+                startAt: true,
+                endAt: true,
+              },
+            },
+          },
+        },
+        communityMemberships: {
+          where: { status: "APPROVED" },
+          include: {
+            community: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
   }
 
   async findById(id: string): Promise<User | null> {
@@ -37,6 +70,34 @@ export class UserRepository {
     return prisma.user.update({
       where: { id },
       data,
+    });
+  }
+
+  async updateTransactionPin(
+    id: string,
+    pin: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = this.transaction(tx);
+    await client.user.update({
+      where: { id },
+      data: {
+        transactionPin: pin,
+      },
+    });
+  }
+
+  async updateBiometric(
+    id: string,
+    biometric: boolean,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = this.transaction(tx);
+    await client.user.update({
+      where: { id },
+      data: {
+        biometricEnabled: biometric,
+      },
     });
   }
 

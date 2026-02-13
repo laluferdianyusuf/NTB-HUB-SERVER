@@ -3,24 +3,32 @@ import { PrismaClient, LocationTracking } from "@prisma/client";
 const prisma = new PrismaClient();
 
 export class LocationRepository {
-  //   create new location tracking
-  async createNewTracking(
-    data: Omit<LocationTracking, "id" | "updatedAt">
+  async save(
+    userId: string,
+    latitude: number,
+    longitude: number,
   ): Promise<LocationTracking> {
     return await prisma.locationTracking.create({
       data: {
-        userId: data.userId,
-        latitude: data.latitude,
-        longitude: data.longitude,
+        userId,
+        latitude,
+        longitude,
       },
     });
   }
 
-  // Find last location of a user (by userId)
-  async findLocationTracking(userId: string): Promise<LocationTracking | null> {
-    return prisma.locationTracking.findFirst({
+  async getLast(userId: string, limit = 10): Promise<LocationTracking[]> {
+    return await prisma.locationTracking.findMany({
       where: { userId },
-      orderBy: { updatedAt: "desc" },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
+  }
+
+  async getLatest(userId: string): Promise<LocationTracking | null> {
+    return await prisma.locationTracking.findFirst({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
     });
   }
 }

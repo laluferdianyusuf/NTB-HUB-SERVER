@@ -117,7 +117,7 @@ export class TransactionRepository {
         data: {
           userId: transaction.userId,
           points: Math.floor(transaction.amount / 1000),
-          activity: "TOPUP",
+          activity: "PAYMENT",
           reference: transaction.id,
         },
       });

@@ -2,14 +2,28 @@ import { PrismaClient, UserBalance, Prisma } from "@prisma/client";
 const prisma = new PrismaClient();
 
 export class UserBalanceRepository {
-  async getBalanceByUserId(userId: string): Promise<number | null> {
-    const userBalance = await prisma.userBalance.findUnique({
+  private transaction(tx?: Prisma.TransactionClient) {
+    return tx ?? prisma;
+  }
+
+  async getBalanceByUserId(
+    userId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<number | null> {
+    const client = this.transaction(tx);
+
+    const userBalance = await client.userBalance.findUnique({
       where: { userId },
     });
     return userBalance ? userBalance.balance : null;
   }
 
-  async updateBalance(userId: string, amount: number): Promise<void> {
+  async updateBalance(
+    userId: string,
+    amount: number,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const client = this.transaction(tx);
     await prisma.userBalance.update({
       where: { userId },
       data: { balance: { increment: amount } },
@@ -19,16 +33,21 @@ export class UserBalanceRepository {
   async decrementBalance(
     userId: string,
     amount: number,
-    tx: Prisma.TransactionClient
+    tx?: Prisma.TransactionClient,
   ): Promise<void> {
-    await tx.userBalance.update({
+    const client = this.transaction(tx);
+    await client.userBalance.update({
       where: { userId },
       data: { balance: { decrement: amount } },
     });
   }
 
-  async createBalance(data: UserBalance): Promise<UserBalance> {
-    return prisma.userBalance.upsert({
+  async createBalance(
+    data: UserBalance,
+    tx?: Prisma.TransactionClient,
+  ): Promise<UserBalance> {
+    const client = this.transaction(tx);
+    return await client.userBalance.upsert({
       where: { userId: data.userId },
       update: { balance: data.balance },
       create: data,
@@ -37,9 +56,10 @@ export class UserBalanceRepository {
 
   async generateInitialBalance(
     userId: string,
-    tx: Prisma.TransactionClient
+    tx?: Prisma.TransactionClient,
   ): Promise<void> {
-    await tx.userBalance.create({
+    const client = this.transaction(tx);
+    await client.userBalance.create({
       data: {
         userId,
         balance: 0,

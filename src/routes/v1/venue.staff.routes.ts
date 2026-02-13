@@ -8,28 +8,28 @@ const auth = new AuthMiddlewares();
 
 // Venue Staff routes
 router.post(
-  "/create-staff",
+  "/create-staff/:venueId",
   auth.authenticate,
-  auth.authorizeGlobalRole(["VENUE_OWNER"]),
-  staffController.addStaff,
+  auth.authorizeVenueRole(["VENUE_OWNER"]),
+  (req, res) => staffController.addStaff(req, res),
 );
 router.get(
   "/list-staffs",
   auth.authenticate,
-  auth.authorizeGlobalRole(["VENUE_OWNER"]),
-  staffController.listStaff,
+  auth.authorizeVenueRole(["VENUE_OWNER"]),
+  (req, res) => staffController.listStaff(req, res),
 );
 router.put(
   "/update-staff/:staffId",
   auth.authenticate,
-  auth.authorizeGlobalRole(["VENUE_OWNER"]),
-  staffController.updateStaff,
+  auth.authorizeVenueRole(["VENUE_OWNER"]),
+  (req, res) => staffController.updateStaff(req, res),
 );
 router.delete(
   "/delete-staff/:staffId",
   auth.authenticate,
-  auth.authorizeGlobalRole(["VENUE_OWNER"]),
-  staffController.deleteStaff,
+  auth.authorizeVenueRole(["VENUE_OWNER"]),
+  (req, res) => staffController.deleteStaff(req, res),
 );
 
 export default router;

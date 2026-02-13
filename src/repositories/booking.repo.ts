@@ -3,8 +3,20 @@ import { PrismaClient, Booking, BookingStatus, Prisma } from "@prisma/client";
 const prisma = new PrismaClient();
 
 export class BookingRepository {
-  async findAllBooking(): Promise<Booking[]> {
+  private transaction(tx?: Prisma.TransactionClient) {
+    return tx ?? prisma;
+  }
+
+  async findAllBooking() {
     return await prisma.booking.findMany({
+      where: {
+        status: { in: [BookingStatus.PAID, BookingStatus.COMPLETED] },
+      },
+      select: {
+        userId: true,
+        venueId: true,
+        totalPrice: true,
+      },
       orderBy: {
         updatedAt: "desc",
       },
@@ -428,12 +440,24 @@ export class BookingRepository {
     return count > 0;
   }
 
-  async createBooking(
-    data: Booking,
-    tx: Prisma.TransactionClient,
-  ): Promise<Booking> {
-    return await tx.booking.create({
-      data,
+  async createBooking({
+    data,
+    tx,
+  }: {
+    data: {
+      userId: string;
+      venueId: string;
+      serviceId: string;
+      unitId: string;
+      startTime: Date;
+      endTime: Date;
+      totalPrice: number;
+    };
+    tx?: Prisma.TransactionClient;
+  }) {
+    const client = this.transaction(tx);
+    return await client.booking.create({
+      data: data,
     });
   }
 

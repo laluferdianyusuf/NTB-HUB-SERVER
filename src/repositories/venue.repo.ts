@@ -1,6 +1,20 @@
+import { FindVenuesParams } from "./../types/venues.params";
 import { Prisma, PrismaClient, Venue } from "@prisma/client";
+import { GetVenuesParams } from "types/venues.params";
 
 const prisma = new PrismaClient();
+
+type VenueWithServices = Prisma.VenueGetPayload<{
+  include: {
+    services: {
+      include: {
+        subCategory: {
+          include: { category: true };
+        };
+      };
+    };
+  };
+}>;
 
 export class VenueRepository {
   async createVenue(
@@ -11,16 +25,81 @@ export class VenueRepository {
     return db.venue.create({ data });
   }
 
-  async findAllVenue(): Promise<Venue[]> {
-    return await prisma.venue.findMany({
+  async findAllVenues(params: FindVenuesParams = {}) {
+    const {
+      search,
+      category = "all",
+      subCategory = "all",
+      skip = 0,
+      take = 20,
+    } = params;
+
+    const where: any = {};
+
+    if (search) {
+      const words = search.split(" ");
+      where.OR = [
+        ...words.map((word) => ({
+          name: { contains: word, mode: "insensitive" },
+        })),
+        ...words.map((word) => ({
+          address: { contains: word, mode: "insensitive" },
+        })),
+        ...words.map((word) => ({
+          city: { contains: word, mode: "insensitive" },
+        })),
+        ...words.map((word) => ({
+          services: {
+            some: {
+              isActive: true,
+              subCategory: { name: { contains: word, mode: "insensitive" } },
+            },
+          },
+        })),
+        ...words.map((word) => ({
+          services: {
+            some: {
+              isActive: true,
+              subCategory: {
+                category: { name: { contains: word, mode: "insensitive" } },
+              },
+            },
+          },
+        })),
+      ];
+    }
+
+    if (category !== "all") {
+      where.services = {
+        some: {
+          isActive: true,
+          subCategory: {
+            category: { id: category },
+          },
+        },
+      };
+    }
+
+    if (subCategory !== "all") {
+      where.services = {
+        some: {
+          isActive: true,
+          subCategory: { id: subCategory },
+        },
+      };
+    }
+
+    return prisma.venue.findMany({
+      where,
+      skip,
+      take,
+      orderBy: { updatedAt: "desc" },
       include: {
         services: {
           where: { isActive: true },
           include: {
             subCategory: {
-              include: {
-                category: true,
-              },
+              include: { category: true },
             },
           },
         },
@@ -28,79 +107,150 @@ export class VenueRepository {
     });
   }
 
-  async findVenueByCategory(categoryId: string): Promise<Venue[]> {
-    return await prisma.venue.findMany({
-      where: {
-        services: {
-          some: {
-            subCategory: {
-              category: {
-                id: categoryId,
-                isActive: true,
+  async countVenues(params: Omit<FindVenuesParams, "skip" | "take"> = {}) {
+    const { search, category = "all", subCategory = "all" } = params;
+
+    const where: any = {};
+
+    if (search) {
+      const words = search.split(" ");
+      where.OR = [
+        ...words.map((word) => ({
+          name: { contains: word, mode: "insensitive" },
+        })),
+        ...words.map((word) => ({
+          address: { contains: word, mode: "insensitive" },
+        })),
+        ...words.map((word) => ({
+          city: { contains: word, mode: "insensitive" },
+        })),
+        ...words.map((word) => ({
+          services: {
+            some: {
+              isActive: true,
+              subCategory: { name: { contains: word, mode: "insensitive" } },
+            },
+          },
+        })),
+        ...words.map((word) => ({
+          services: {
+            some: {
+              isActive: true,
+              subCategory: {
+                category: { name: { contains: word, mode: "insensitive" } },
               },
             },
           },
+        })),
+      ];
+    }
+
+    if (category !== "all") {
+      where.services = {
+        some: {
+          isActive: true,
+          subCategory: {
+            category: { id: category },
+          },
+        },
+      };
+    }
+
+    if (subCategory !== "all") {
+      where.services = {
+        some: {
+          isActive: true,
+          subCategory: { id: subCategory },
+        },
+      };
+    }
+
+    return prisma.venue.count({ where });
+  }
+
+  async findPopularVenues(params: FindVenuesParams = {}) {
+    const {
+      search,
+      category = "all",
+      subCategory = "all",
+      skip = 0,
+      take = 10,
+    } = params;
+
+    const where: any = { isActive: true };
+
+    if (search) {
+      const words = search.split(" ");
+      where.OR = [
+        ...words.map((word) => ({
+          name: { contains: word, mode: "insensitive" },
+        })),
+        ...words.map((word) => ({
+          address: { contains: word, mode: "insensitive" },
+        })),
+        ...words.map((word) => ({
+          city: { contains: word, mode: "insensitive" },
+        })),
+        ...words.map((word) => ({
+          services: {
+            some: {
+              isActive: true,
+              subCategory: { name: { contains: word, mode: "insensitive" } },
+            },
+          },
+        })),
+        ...words.map((word) => ({
+          services: {
+            some: {
+              isActive: true,
+              subCategory: {
+                category: { name: { contains: word, mode: "insensitive" } },
+              },
+            },
+          },
+        })),
+      ];
+    }
+
+    if (category !== "all") {
+      where.services = {
+        some: {
+          isActive: true,
+          subCategory: {
+            category: { id: category },
+          },
+        },
+      };
+    }
+
+    if (subCategory !== "all") {
+      where.services = {
+        some: {
+          isActive: true,
+          subCategory: { id: subCategory },
+        },
+      };
+    }
+
+    return prisma.venue.findMany({
+      where,
+      skip,
+      take,
+      orderBy: {
+        impressions: {
+          _count: "desc",
         },
       },
       include: {
         services: {
+          where: { isActive: true },
           include: {
             subCategory: {
-              include: {
-                category: true,
-              },
+              include: { category: true },
             },
           },
         },
       },
-    });
-  }
-
-  async findPopularVenueByCategory(categoryId: string): Promise<Venue[]> {
-    return await prisma.venue.findMany({
-      where: {
-        services: {
-          some: {
-            subCategory: {
-              category: {
-                id: categoryId,
-                isActive: true,
-              },
-            },
-          },
-        },
-      },
-      include: {
-        _count: {
-          select: {
-            impressions: true,
-          },
-        },
-      },
-      orderBy: {
-        impressions: {
-          _count: "desc",
-        },
-      },
-      take: 10,
-    });
-  }
-
-  async findPopularVenues(): Promise<Venue[]> {
-    return await prisma.venue.findMany({
-      include: {
-        _count: {
-          select: {
-            impressions: true,
-          },
-        },
-      },
-      orderBy: {
-        impressions: {
-          _count: "desc",
-        },
-      },
-      take: 10,
     });
   }
 

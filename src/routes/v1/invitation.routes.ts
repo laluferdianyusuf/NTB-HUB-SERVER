@@ -22,6 +22,13 @@ router.post(
 );
 
 router.post(
+  "/community/create-invitation",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["ADMIN"]),
+  (req, res) => invitationController.generateCommunityInvitationKey(req, res),
+);
+
+router.post(
   "/venue/claim-invitation",
   auth.authenticate,
   auth.authorizeGlobalRole(["CUSTOMER"]),
@@ -33,6 +40,13 @@ router.post(
   auth.authenticate,
   auth.authorizeGlobalRole(["CUSTOMER"]),
   (req, res) => invitationController.claimEventInvitation(req, res),
+);
+
+router.post(
+  "/community/claim-invitation",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["CUSTOMER"]),
+  (req, res) => invitationController.claimCommunityInvitation(req, res),
 );
 
 export default router;

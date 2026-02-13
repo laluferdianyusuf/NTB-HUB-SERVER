@@ -15,6 +15,7 @@ enum Role {
   VENUE_OWNER
   VENUE_STAFF
   EVENT_OWNER
+  COMMUNITY_OWNER
 }
 
 enum BookingStatus {
@@ -159,22 +160,78 @@ enum Gender {
   OTHER
 }
 
+enum CommunityMemberStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CommunityMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum CommunityEventType {
+  MEETUP
+  ONLINE
+  ANNOUNCEMENT
+  WORKSHOP
+  OTHER
+}
+
+enum CommunityEventStatus {
+  UPCOMING
+  ONGOING
+  FINISHED
+  CANCELLED
+}
+
+enum CommentEntityType {
+  COMMUNITY
+  EVENT
+  PUBLIC_PLACE
+}
+
+enum TaskEntityType {
+  COMMUNITY
+  EVENT
+  PUBLIC_PLACE
+}
+
+enum TaskType {
+  ATTEND_EVENT
+  CHECK_IN
+  RATE_PLACE
+  CUSTOM
+}
+
+enum TaskExecutionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
 // #regionUSER & AUTH
 model User {
-  id         String     @id @default(uuid())
-  name       String
-  username   String?
-  email      String     @unique
-  password   String
-  address    String?
-  roles      UserRole[]
-  phone      String?
-  photo      String?
-  googleId   String?    @unique
-  isVerified Boolean    @default(false)
-  devices    Device[]
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @default(now()) @updatedAt
+  id               String     @id @default(uuid())
+  name             String
+  username         String?
+  email            String     @unique
+  password         String
+  address          String?
+  roles            UserRole[]
+  phone            String?
+  photo            String?
+  googleId         String?    @unique
+  isVerified       Boolean    @default(false)
+  transactionPin   String?
+  pinFailedCount   Int        @default(0)
+  pinLockedUntil   DateTime?
+  biometricEnabled Boolean    @default(false)
+  devices          Device[]
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @default(now()) @updatedAt
 
   // Relations
   bookings         Booking[]
@@ -187,7 +244,6 @@ model User {
   likedVenues      LikeVenue[]
   venueImpressions VenueImpression[]
 
-  events       Event[]
   likedEvents  LikeEvent[]
   eventReviews ReviewEvent[]
   eventOrders  EventOrder[]
@@ -202,6 +258,20 @@ model User {
   newsImpressions NewsImpression[]
   newsComments    NewsComment[]
   courierRatings  CourierRating[]
+
+  ownedCommunities     Community[]
+  communityMemberships CommunityMember[]
+  communityPosts       CommunityPost[]
+  communityReactions   CommunityReaction[]
+  twibbons             CommunityTwibbon[]
+
+  communityEvents       CommunityEvent[]
+  comments              Comment[]
+  commentLikes          CommentLike[]
+  commentReports        CommentReport[]
+  taskExecutions        TaskExecution[]
+  communityPostMentions CommunityPostMention[]
+  events                Event[]
 
   @@index([email])
   @@index([phone])
@@ -242,18 +312,20 @@ model UserBalance {
 }
 
 model Device {
-  id          String   @id @default(uuid())
-  userId      String?
-  venueId     String?
-  token       String
-  expoToken   String
-  platform    String?
-  osName      String?
-  buildId     String?
-  osVersion   String?
-  deviceModel String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String    @id @default(uuid())
+  userId       String?
+  venueId      String?
+  token        String
+  expoToken    String
+  platform     String?
+  osName       String?
+  buildId      String?
+  osVersion    String?
+  deviceModel  String?
+  isOnline     Boolean   @default(false)
+  lastActiveAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   user  User?  @relation(fields: [userId], references: [id])
   venue Venue? @relation(fields: [venueId], references: [id])
@@ -267,9 +339,12 @@ model LocationTracking {
   userId    String
   latitude  Float
   longitude Float
+  createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
   user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
 }
 
 model Log {
@@ -415,14 +490,16 @@ model InvitationKey {
   email String
   role  Role
 
-  venueId String?
-  eventId String?
+  venueId     String?
+  eventId     String?
+  communityId String?
 
   usedAt    DateTime?
   expiresAt DateTime?
 
-  venue Venue? @relation(fields: [venueId], references: [id])
-  event Event? @relation(fields: [eventId], references: [id])
+  venue     Venue?     @relation(fields: [venueId], references: [id])
+  event     Event?     @relation(fields: [eventId], references: [id])
+  community Community? @relation(fields: [communityId], references: [id])
 }
 
 model VenueBalance {
@@ -569,6 +646,7 @@ model Transaction {
   id           String             @id @default(uuid())
   userId       String?
   venueId      String?
+  eventOrderId String?
   amount       Float
   type         TransactionType
   reference    String?
@@ -579,14 +657,17 @@ model Transaction {
   orderId      String?
   expiredAt    DateTime?
   status       TransactionStatus? @default(PENDING)
-  eventOrderId String?
+
+  idempotencyKey String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  user  User?  @relation(fields: [userId], references: [id])
-  venue Venue? @relation(fields: [venueId], references: [id])
+  user       User?       @relation(fields: [userId], references: [id])
+  venue      Venue?      @relation(fields: [venueId], references: [id])
+  eventOrder EventOrder? @relation(fields: [eventOrderId], references: [id])
 
+  @@unique([idempotencyKey])
   @@index([userId])
   @@index([venueId])
   @@index([status])
@@ -772,7 +853,7 @@ model PublicPlaceImpression {
 model Event {
   id          String      @id @default(uuid())
   venueId     String?
-  ownerId     String
+  communityId String?
   name        String
   description String
   image       String?
@@ -782,12 +863,15 @@ model Event {
   location    String
   status      EventStatus @default(UPCOMING)
   isActive    Boolean     @default(true)
+  isCommunity Boolean     @default(false)
+  isVenue     Boolean     @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  venue   Venue?        @relation(fields: [venueId], references: [id])
-  owner   User          @relation(fields: [ownerId], references: [id])
+  venue     Venue?     @relation(fields: [venueId], references: [id])
+  community Community? @relation(fields: [communityId], references: [id])
+
   reviews ReviewEvent[]
   likes   LikeEvent[]
 
@@ -796,8 +880,9 @@ model Event {
   tickets        EventTicket[]
   userRoles      UserRole[]
   invitationKeys InvitationKey[]
+  user           User?             @relation(fields: [userId], references: [id])
+  userId         String?
 
-  @@index([ownerId])
   @@index([venueId])
   @@index([status])
   @@index([startAt, endAt])
@@ -829,13 +914,17 @@ model EventOrder {
   total   Float
   status  EventOrderStatus @default(PENDING)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  idempotencyKey String?   @unique
+  expiresAt      DateTime?
 
-  user    User          @relation(fields: [userId], references: [id])
-  event   Event         @relation(fields: [eventId], references: [id])
-  tickets EventTicket[]
-  invoice Invoice?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id])
+  event        Event         @relation(fields: [eventId], references: [id])
+  tickets      EventTicket[]
+  invoice      Invoice?
+  transactions Transaction[]
 
   @@index([userId])
   @@index([eventId])
@@ -1064,4 +1153,300 @@ model CourierEarnings {
   courier Courier @relation(fields: [courierId], references: [id])
 
   @@index([courierId, periodStart, periodEnd])
+}
+
+// #region COMMUNITY
+model Community {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  image        String?
+  ownerId      String?
+  waContact    String?
+  phoneContact String?
+  emailContact String?
+  basecamp     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  owner   User?             @relation(fields: [ownerId], references: [id])
+  members CommunityMember[]
+  posts   CommunityPost[]
+
+  hostedEvents   Event[] // Event besar / ticketing
+  internalEvents CommunityEvent[]
+
+  twibbons                     CommunityTwibbon[]
+  invitation                   InvitationKey[]
+  communityEventCollaborations CommunityEventCollaboration[]
+  task                         Task[]
+
+  @@index([ownerId])
+  @@index([createdAt])
+}
+
+model CommunityMember {
+  id          String                @id @default(uuid())
+  communityId String
+  userId      String
+  role        CommunityMemberRole   @default(MEMBER)
+  status      CommunityMemberStatus @default(PENDING)
+  joinedAt    DateTime              @default(now())
+
+  community Community @relation(fields: [communityId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@unique([communityId, userId])
+  @@index([communityId])
+  @@index([userId])
+}
+
+model CommunityPost {
+  id          String   @id @default(uuid())
+  communityId String
+  adminId     String // harus admin komunitas
+  content     String
+  image       String?
+  link        String? // optional link/file
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  community             Community              @relation(fields: [communityId], references: [id])
+  admin                 User                   @relation(fields: [adminId], references: [id])
+  reactions             CommunityReaction[]
+  communityPostMentions CommunityPostMention[]
+
+  @@index([communityId])
+  @@index([adminId])
+}
+
+model CommunityPostMention {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post CommunityPost @relation(fields: [postId], references: [id])
+  user User          @relation(fields: [userId], references: [id])
+
+  @@unique([postId, userId]) // anti double tag
+}
+
+model CommunityReaction {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  type      String // misal "LIKE" atau emoji
+  createdAt DateTime @default(now())
+
+  post CommunityPost @relation(fields: [postId], references: [id])
+  user User          @relation(fields: [userId], references: [id])
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+model CommunityEvent {
+  id          String @id @default(uuid())
+  communityId String
+  createdById String
+
+  title       String
+  description String?
+  image       String?
+  type        CommunityEventType @default(MEETUP)
+
+  startAt DateTime
+  endAt   DateTime?
+
+  location    String?
+  meetingLink String?
+
+  status   CommunityEventStatus @default(UPCOMING)
+  isPublic Boolean              @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  community Community @relation(fields: [communityId], references: [id])
+  createdBy User      @relation(fields: [createdById], references: [id])
+
+  collaborations CommunityEventCollaboration[]
+
+  @@index([communityId])
+  @@index([startAt])
+  @@index([status])
+}
+
+model CommunityTwibbon {
+  id          String @id @default(uuid())
+  communityId String
+  createdById String
+
+  title        String
+  description  String?
+  frameImage   String // PNG transparan
+  previewImage String?
+  isActive     Boolean @default(true)
+
+  startAt DateTime?
+  endAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  community Community @relation(fields: [communityId], references: [id])
+  createdBy User      @relation(fields: [createdById], references: [id])
+
+  @@index([communityId])
+  @@index([isActive])
+}
+
+model CommunityEventCollaboration {
+  id          String @id @default(uuid())
+  eventId     String
+  communityId String
+  role        String @default("CO_HOST")
+
+  createdAt DateTime @default(now())
+
+  event     CommunityEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  community Community      @relation(fields: [communityId], references: [id])
+
+  @@unique([eventId, communityId])
+}
+
+model Comment {
+  id      String @id @default(uuid())
+  userId  String
+  content String
+
+  entityType CommentEntityType
+  entityId   String
+
+  parentId String?
+
+  likeCount   Int @default(0)
+  reportCount Int @default(0)
+
+  isHidden  Boolean @default(false)
+  isDeleted Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id])
+  parent         Comment?        @relation("CommentReply", fields: [parentId], references: [id])
+  replies        Comment[]       @relation("CommentReply")
+  commentLikes   CommentLike[]
+  commentReports CommentReport[]
+
+  @@index([entityType, entityId])
+}
+
+model CommentLike {
+  id        String @id @default(uuid())
+  commentId String
+  userId    String
+
+  createdAt DateTime @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([commentId, userId])
+}
+
+model CommentReport {
+  id        String @id @default(uuid())
+  commentId String
+  userId    String
+  reason    String
+
+  createdAt DateTime @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([commentId, userId])
+}
+
+model UserPresenceSnapshot {
+  id        String   @id @default(uuid())
+  userId    String
+  context   String
+  contextId String?
+  lastSeen  DateTime
+
+  @@index([context, contextId])
+}
+
+model Task {
+  id String @id @default(uuid())
+
+  entityType  TaskEntityType
+  entityId    String
+  communityId String?
+
+  title       String
+  description String?
+  type        TaskType
+
+  rule Json // radius, qr required, dll
+
+  requiresQr  Boolean @default(false)
+  requiresGeo Boolean @default(false)
+
+  startAt DateTime?
+  endAt   DateTime?
+
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  executions     TaskExecution[]
+  community      Community?      @relation(fields: [communityId], references: [id])
+  taskQrSessions TaskQrSession[]
+
+  @@index([entityType, entityId])
+}
+
+model TaskExecution {
+  id     String @id @default(uuid())
+  taskId String
+  userId String
+
+  status TaskExecutionStatus @default(PENDING)
+
+  qrSessionId String?
+  latitude    Float?
+  longitude   Float?
+
+  proof       Json?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([taskId, userId])
+}
+
+model TaskQrSession {
+  id     String @id @default(uuid())
+  taskId String
+
+  token     String   @unique
+  expiresAt DateTime
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id])
+
+  @@index([taskId])
+  @@index([expiresAt])
 }

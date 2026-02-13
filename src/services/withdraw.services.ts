@@ -3,21 +3,26 @@ import {
   WithdrawStatus,
   TransactionStatus,
   TransactionType,
+  Role,
   Notification,
 } from "@prisma/client";
 import { PLATFORM_BALANCE_ID } from "config/finance.config";
-import { error, success } from "helpers/return";
-import { NotificationRepository, WithdrawRepository } from "repositories";
+import {
+  WithdrawRepository,
+  NotificationRepository,
+  UserRoleRepository,
+} from "repositories";
 import { NotificationService } from "./notification.services";
 
 export class WithdrawService {
   private prisma = new PrismaClient();
   private withdrawRepo = new WithdrawRepository(this.prisma);
-  private notificationServices = new NotificationService();
-  private notificationRepository = new NotificationRepository();
+  private notificationRepo = new NotificationRepository();
+  private roleRepo = new UserRoleRepository();
+  private notificationService = new NotificationService();
 
-  // #region venue
   async requestWithdraw(
+    currentUserId: string,
     venueId: string,
     payload: {
       amount: number;
@@ -28,9 +33,30 @@ export class WithdrawService {
       note?: string;
     },
   ) {
+    const hasPermission =
+      (await this.roleRepo.hasRole({
+        userId: currentUserId,
+        role: Role.VENUE_OWNER,
+        venueId,
+      })) ||
+      (await this.roleRepo.hasRole({
+        userId: currentUserId,
+        role: Role.VENUE_STAFF,
+        venueId,
+      }));
+
+    if (!hasPermission) {
+      throw new Error("You are not authorized to request withdraw");
+    }
+
     const venue = await this.prisma.venue.findUnique({
       where: { id: venueId },
     });
+
+    if (!venue) {
+      throw new Error("Venue not found");
+    }
+
     const venueBalance = await this.prisma.venueBalance.findUnique({
       where: { venueId },
     });
@@ -44,7 +70,7 @@ export class WithdrawService {
       .slice(0, 8)
       .toUpperCase()}`;
 
-    const result = await this.withdrawRepo.create({
+    const withdraw = await this.withdrawRepo.create({
       venueId,
       withdrawNumber,
       amount: payload.amount,
@@ -56,16 +82,14 @@ export class WithdrawService {
       note: payload.note,
     });
 
-    const admins = await this.prisma.user.findMany({
-      where: { role: "ADMIN" },
-    });
+    const admins = await this.roleRepo.findAdmins();
 
     await Promise.all(
       admins.map((admin) =>
-        this.notificationRepository.createNewNotification({
-          userId: admin.id,
+        this.notificationRepo.createNewNotification({
+          userId: admin.user.id,
           title: "Withdraw Request",
-          message: `Venue requested for withdraw IDR ${payload.amount}`,
+          message: `Venue ${venue.name} requested withdraw IDR ${payload.amount}`,
           type: "Withdraw",
           adminOnly: true,
           isGlobal: false,
@@ -73,17 +97,17 @@ export class WithdrawService {
       ),
     );
 
-    await this.notificationServices.sendToAdmin(
+    await this.notificationService.sendToAdmins(
       "Withdraw Request",
-      `Venue ${venue.name} requested for withdraw IDR ${payload.amount}`,
+      `Venue ${venue.name} requested withdraw IDR ${payload.amount}`,
     );
 
-    return result;
+    return withdraw;
   }
 
-  // #region venue
   async approveWithdraw(id: string) {
     const withdraw = await this.withdrawRepo.findById(id);
+
     if (!withdraw || withdraw.status !== WithdrawStatus.PENDING) {
       throw new Error("Withdraw not valid for approval");
     }
@@ -94,7 +118,7 @@ export class WithdrawService {
       "approvedAt",
     );
 
-    await this.notificationRepository.createNewNotification({
+    await this.notificationRepo.createNewNotification({
       venueId: withdraw.venueId,
       title: "Withdraw Approved",
       message: `Your withdraw IDR ${withdraw.amount} has been approved`,
@@ -103,7 +127,7 @@ export class WithdrawService {
       isGlobal: false,
     } as Notification);
 
-    await this.notificationServices.sendToVenue(
+    await this.notificationService.sendToVenueOwner(
       withdraw.venueId,
       "Withdraw Approved",
       `Your withdraw IDR ${withdraw.amount} has been approved`,
@@ -112,13 +136,13 @@ export class WithdrawService {
     return result;
   }
 
-  // #region admin
   async markAsPaid(id: string) {
-    const result = await this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx) => {
       const withdraw = await this.withdrawRepo.findById(id);
       if (!withdraw || withdraw.status !== WithdrawStatus.APPROVED) {
         throw new Error("Withdraw not approved");
       }
+
       await tx.venueBalance.update({
         where: { venueId: withdraw.venueId },
         data: {
@@ -164,13 +188,11 @@ export class WithdrawService {
         },
       });
     });
-
-    return result;
   }
 
-  // #region admin
   async rejectWithdraw(id: string) {
     const withdraw = await this.withdrawRepo.findById(id);
+
     if (!withdraw || withdraw.status !== WithdrawStatus.PENDING) {
       throw new Error("Withdraw not valid for rejection");
     }
@@ -180,7 +202,7 @@ export class WithdrawService {
       WithdrawStatus.REJECTED,
     );
 
-    await this.notificationRepository.createNewNotification({
+    await this.notificationRepo.createNewNotification({
       venueId: withdraw.venueId,
       title: "Withdraw Rejected",
       message: `Your withdraw IDR ${withdraw.amount} has been rejected`,
@@ -189,7 +211,7 @@ export class WithdrawService {
       isGlobal: false,
     } as Notification);
 
-    await this.notificationServices.sendToVenue(
+    await this.notificationService.sendToVenueOwner(
       withdraw.venueId,
       "Withdraw Rejected",
       `Your withdraw IDR ${withdraw.amount} has been rejected`,
@@ -198,17 +220,40 @@ export class WithdrawService {
     return result;
   }
 
-  // #region admin
-  async getVenueWithdraws(venueId: string) {
-    const result = await this.withdrawRepo.findByVenue(venueId);
+  async getAllWithdraws(params?: {
+    status?: WithdrawStatus;
+    page?: number;
+    limit?: number;
+  }) {
+    const page = params?.page ?? 1;
+    const limit = params?.limit ?? 20;
+    const skip = (page - 1) * limit;
 
-    return result;
+    const [data, total] = await Promise.all([
+      this.withdrawRepo.findAll({
+        status: params?.status,
+        skip,
+        take: limit,
+      }),
+      this.withdrawRepo.count(params?.status),
+    ]);
+
+    return {
+      data,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
-  // #region admin
-  async getAllWithdraws() {
-    const result = await this.withdrawRepo.findAll();
-
+  async getWithdrawsByVenue(venueId: string) {
+    const result = await this.withdrawRepo.findByVenue(venueId);
+    if (!result) {
+      throw new Error("No withdraws found");
+    }
     return result;
   }
 }

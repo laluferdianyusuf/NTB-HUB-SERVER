@@ -3,6 +3,10 @@ import { Server } from "socket.io";
 const prisma = new PrismaClient();
 
 export class InvoiceRepository {
+  private transaction(tx?: Prisma.TransactionClient) {
+    return tx ?? prisma;
+  }
+
   async findAll(): Promise<Invoice[]> {
     return prisma.invoice.findMany({
       include: {
@@ -323,8 +327,8 @@ export class InvoiceRepository {
     data: Prisma.InvoiceUncheckedCreateInput,
     tx?: Prisma.TransactionClient,
   ): Promise<Invoice> {
-    const db = tx ?? prisma;
-    return db.invoice.create({ data });
+    const client = this.transaction(tx);
+    return client.invoice.create({ data });
   }
 
   async updateInvoiceByEventOrderId(
@@ -332,8 +336,8 @@ export class InvoiceRepository {
     status: InvoiceStatus,
     tx?: Prisma.TransactionClient,
   ) {
-    const db = tx ?? prisma;
-    return db.invoice.update({
+    const client = this.transaction(tx);
+    return client.invoice.update({
       where: { eventOrderId },
       data: {
         status: status,
@@ -343,8 +347,8 @@ export class InvoiceRepository {
   }
 
   async updateInvoicePaid(bookingId: string, tx?: Prisma.TransactionClient) {
-    const db = tx ?? prisma;
-    return db.invoice.update({
+    const client = this.transaction(tx);
+    return client.invoice.update({
       where: { bookingId },
       data: {
         status: InvoiceStatus.PAID,
@@ -358,8 +362,8 @@ export class InvoiceRepository {
     bookingId: string,
     tx?: Prisma.TransactionClient,
   ) {
-    const db = tx ?? prisma;
-    return db.invoice.update({
+    const client = this.transaction(tx);
+    return client.invoice.update({
       where: { bookingId },
       data: {
         status: InvoiceStatus.CANCELLED,
@@ -380,9 +384,9 @@ export class InvoiceRepository {
   }
 
   async findExpiredInvoices(now: Date, tx?: PrismaClient) {
-    const db = tx ?? prisma;
+    const client = this.transaction(tx);
 
-    return db.invoice.findMany({
+    return client.invoice.findMany({
       where: {
         status: "PENDING",
         expiredAt: { lt: now },
@@ -394,9 +398,9 @@ export class InvoiceRepository {
   }
 
   async markInvoiceExpired(invoiceId: string, tx?: PrismaClient) {
-    const db = tx ?? prisma;
+    const client = this.transaction(tx);
 
-    return db.$transaction(async (trx) => {
+    return prisma.$transaction(async (trx) => {
       const invoice = await trx.invoice.update({
         where: { id: invoiceId },
         data: { status: "EXPIRED" },

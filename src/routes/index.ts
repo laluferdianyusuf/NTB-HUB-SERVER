@@ -1,5 +1,6 @@
 import { Router } from "express";
 
+// V1
 import authRouter from "./v1/auth.routes";
 import usersRouter from "./v1/users.routes";
 import venueRouter from "./v1/venue.routes";
@@ -31,12 +32,25 @@ import venueServiceRouter from "./v1/venue.service.routes";
 import venueUnitRouter from "./v1/venue.units.routes";
 import venueStaffRouter from "./v1/venue.staff.routes";
 
+// V2
+import mapsRouter from "./v1/maps.routes";
+import communityRouter from "./v1/community.routes";
+import communityPostRouter from "./v1/community.post.routes";
+import communityMemberRouter from "./v1/community.member.routes";
+import communityReactionRouter from "./v1/community.reaction.routes";
+import communityEventRouter from "./v1/community-event.routes";
+import taskRouter from "./v1/task.routes";
+import communityTwibbonRouter from "./v1/community-twibbon.routes";
+import urlPreviewRouter from "./v1/url-preview.routes";
+import commentRouter from "./v1/comment.routes";
+
 import { deprecatedRouters } from "./deprecated";
 
 const router = Router();
 
 // v1 router group
 const v1 = Router();
+const v2 = Router();
 
 v1.use("/auth", authRouter);
 v1.use("/bookings", bookingRouter);
@@ -68,6 +82,19 @@ v1.use("/venue-sub-category", venueSubCategoryRouter);
 v1.use("/venue-unit", venueUnitRouter);
 v1.use("/venue-staff", venueStaffRouter);
 v1.use("/withdraw", withdrawRouter);
+
+// v2
+v1.use("/maps", mapsRouter);
+v1.use("/communities", communityRouter);
+v1.use("/community-members", communityMemberRouter);
+v1.use("/community-posts", communityPostRouter);
+v1.use("/community-reactions", communityReactionRouter);
+v1.use("/community-events", communityEventRouter);
+v1.use("/community-twibbons", communityTwibbonRouter);
+v1.use("/comments", commentRouter);
+v1.use("/urls", urlPreviewRouter);
+
+v1.use("/tasks", taskRouter);
 
 // mount v1 API
 router.use("/api/v1", v1);

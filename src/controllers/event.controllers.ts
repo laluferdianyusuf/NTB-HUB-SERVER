@@ -1,56 +1,73 @@
 import { Request, Response } from "express";
 import { EventService } from "../services";
+import { sendError, sendSuccess } from "helpers/response";
 
 export class EventController {
   private service = new EventService();
 
   async create(req: Request, res: Response) {
     try {
-      const event = await this.service.createEvent(req.body, req.file);
+      const event = await this.service.createEvent(
+        req.body,
+        req.file as Express.Multer.File,
+      );
 
-      return res.status(201).json({
-        status: true,
-        message: "Event created",
-        data: event,
-      });
-    } catch (err: any) {
-      return res.status(400).json({
-        status: false,
-        message: err.message,
-      });
+      sendSuccess(res, event, "Event retrieved successfully");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
     }
   }
 
-  async listEvent(_: Request, res: Response) {
+  async listEvent(req: Request, res: Response) {
     try {
-      const events = await this.service.getEvents();
+      const { search, status, page, limit } = req.query;
 
-      if (!events) {
-        return res.status(404).json({
-          status: true,
-          message: "Event not found",
-          data: events,
-        });
-      }
-
-      return res.json({ status: true, data: events });
-    } catch (error) {
-      return res.status(500).json({
-        status: false,
-        message: error.message || "Internal server error",
+      const result = await this.service.getAllEvents({
+        search: typeof search === "string" ? search : undefined,
+        status:
+          typeof status === "string" && status.trim() !== ""
+            ? status
+            : undefined,
+        page: Number(page) > 0 ? Number(page) : 1,
+        limit: Number(limit) > 0 ? Number(limit) : 20,
       });
+
+      sendSuccess(res, result, "Event retrieved successfully");
+    } catch (error: any) {
+      console.error(error);
+      sendError(res, error.message || "Internal Server Error");
+    }
+  }
+
+  async listMergedEvent(req: Request, res: Response) {
+    try {
+      const { search, status, page, limit } = req.query;
+
+      const result = await this.service.getMergedEvents({
+        search: typeof search === "string" ? search : undefined,
+        status:
+          typeof status === "string" && status.trim() !== ""
+            ? status
+            : undefined,
+        page: Number(page) > 0 ? Number(page) : 1,
+        limit: Number(limit) > 0 ? Number(limit) : 20,
+      });
+
+      sendSuccess(res, result, "Event merged retrieved successfully");
+    } catch (error: any) {
+      console.error(error);
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 
   async detailEvent(req: Request, res: Response) {
     try {
-      const event = await this.service.getEventDetail(req.params.id);
-      return res.json({ status: true, data: event });
-    } catch (error) {
-      return res.status(500).json({
-        status: false,
-        message: error.message || "Internal server error",
-      });
+      const result = await this.service.getEventDetail(req.params.id);
+      sendSuccess(res, result, "Event retrieved successfully");
+    } catch (error: any) {
+      console.log(error);
+
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 

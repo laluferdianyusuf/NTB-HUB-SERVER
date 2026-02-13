@@ -4,18 +4,14 @@ import {
   VenueRepository,
   UserRepository,
   NotificationRepository,
-  VenueServiceRepository,
 } from "./../repositories";
 import { publisher } from "config/redis.config";
-import { uploadToCloudinary } from "utils/image";
 import { NotificationService } from "./notification.services";
-import { error, success } from "helpers/return";
 import { uploadImage } from "utils/uploadS3";
 const prisma = new PrismaClient();
 
 const menuRepository = new MenuRepository();
 const venueRepository = new VenueRepository();
-const venueServiceRepository = new VenueServiceRepository();
 const userRepository = new UserRepository();
 const notificationRepository = new NotificationRepository();
 const notificationService = new NotificationService();
@@ -37,7 +33,7 @@ export class MenuServices {
       imageUrl = image.url;
     }
 
-    const service = await venueServiceRepository.findById(data.venueId);
+    const venue = await venueRepository.findVenueById(data.venueId);
 
     const price =
       typeof data.price === "string" ? parseFloat(data.price) : data.price;
@@ -49,14 +45,14 @@ export class MenuServices {
           category: data.category,
           venueId: data.venueId,
           price,
-          image: imageUrl,
+          image: imageUrl as string,
         },
         tx,
       );
 
       const notification = await notificationRepository.createNewNotification({
         title: "New Menu Release!",
-        message: `${menu.name} has been added to ${service.venue.name}`,
+        message: `${menu.name} has been added to ${venue?.name ?? "venue"}`,
         type: "Information",
         image: imageUrl || "",
         isGlobal: true,
@@ -67,11 +63,11 @@ export class MenuServices {
       await Promise.all(
         users.map((user) =>
           notificationService.sendToUser(
-            service.venue.id,
+            venue?.id as string,
             user.id,
             "New Menu Release!",
-            `${menu.name} has been added to ${service.venue.name}`,
-            imageUrl,
+            `${menu.name} has been added to ${venue?.name}`,
+            imageUrl as string,
           ),
         ),
       );

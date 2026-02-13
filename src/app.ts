@@ -7,8 +7,9 @@ import { Server } from "socket.io";
 import Redis from "ioredis";
 import { swaggerSpec, swaggerUiMiddleware } from "./config/swagger";
 
-import v1Router from "./routes/index";
+import router from "./routes/index";
 import { startExpireJob } from "cron/expireJob";
+import { initSocket } from "socket";
 
 const app = express();
 
@@ -17,12 +18,8 @@ app.use(bodyParser.json());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "DELETE"],
-  },
-});
+
+initSocket(server);
 
 startExpireJob();
 app.use(
@@ -31,8 +28,8 @@ app.use(
   swaggerUiMiddleware.setup(swaggerSpec),
 );
 
-app.use("/", v1Router);
+app.use("/", router);
 
 app.get("/", (req, res) => res.send({ message: "Server is running" }));
 
-export { app, server, io, Redis };
+export { app, server, Redis };

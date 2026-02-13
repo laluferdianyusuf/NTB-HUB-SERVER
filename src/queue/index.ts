@@ -1,4 +1,5 @@
 import { Queue, Worker, Job } from "bullmq";
+import { redis } from "config/redis.config";
 
 const redisOptions = {
   host: process.env.REDIS_HOST ?? "127.0.0.1",
@@ -42,3 +43,11 @@ export function createWorker<T>(
 ) {
   return new Worker(queueName, processor, { connection: redisOptions });
 }
+
+export const pointQueue = new Queue("reward-queue", {
+  connection: redis,
+});
+
+export const analyticsQueue = new Queue("analytics-queue", {
+  connection: redis,
+});

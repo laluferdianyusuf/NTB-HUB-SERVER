@@ -1,30 +1,34 @@
 import { Request, Response } from "express";
 import { PublicPlaceService } from "../services";
-import { PublicPlaceType } from "@prisma/client";
+import { sendError, sendSuccess } from "helpers/response";
 
 export class PublicPlaceController {
   private publicPlaceService = new PublicPlaceService();
 
   async list(req: Request, res: Response) {
-    const type = req.query.type as PublicPlaceType;
+    try {
+      const { search, type, page, limit } = req.query;
 
-    const data = await this.publicPlaceService.getAll(type);
+      const result = await this.publicPlaceService.getAll({
+        search: search as string,
+        type: type as string,
+        page: Number(page) || 1,
+        limit: Number(limit) || 20,
+      });
 
-    res.status(200).json({
-      status: true,
-      data,
-    });
+      sendSuccess(res, result, "Places retrieved successfully");
+    } catch (error) {
+      console.error(error);
+      sendError(res, error.message || "Internal Server Error");
+    }
   }
 
   async detail(req: Request, res: Response) {
     try {
-      const data = await this.publicPlaceService.getDetail(req.params.id);
-      res.json({ status: true, data });
-    } catch {
-      res.status(404).json({
-        status: false,
-        message: "Public place not found",
-      });
+      const result = await this.publicPlaceService.getDetail(req.params.id);
+      sendSuccess(res, result, "Places retrieved successfully");
+    } catch (error) {
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 

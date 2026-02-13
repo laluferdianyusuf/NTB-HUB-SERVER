@@ -3,6 +3,9 @@ import { Prisma, PrismaClient, Menu } from "@prisma/client";
 const prisma = new PrismaClient();
 
 export class MenuRepository {
+  private transaction(tx?: Prisma.TransactionClient) {
+    return tx ?? prisma;
+  }
   // find all menus
   async findAllMenus(): Promise<Menu[]> {
     return prisma.menu.findMany({
@@ -18,8 +21,13 @@ export class MenuRepository {
   }
 
   // find detail menu
-  async findMenuById(id: string): Promise<Menu | null> {
-    return prisma.menu.findUnique({ where: { id } });
+  async findMenuById(
+    id: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Menu | null> {
+    const client = this.transaction(tx);
+
+    return client.menu.findUnique({ where: { id } });
   }
 
   //   create new menu at venue

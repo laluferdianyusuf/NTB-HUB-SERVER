@@ -21,7 +21,7 @@ export class InvitationController {
         message: "Invitation created",
         data: result,
       });
-    } catch (error) {
+    } catch (error: any) {
       return res.status(400).json({
         status: false,
         message: error.message,
@@ -42,7 +42,28 @@ export class InvitationController {
         message: "Invitation created",
         data: result,
       });
-    } catch (error) {
+    } catch (error: any) {
+      return res.status(400).json({
+        status: false,
+        message: error.message,
+      });
+    }
+  }
+
+  async generateCommunityInvitationKey(req: Request, res: Response) {
+    try {
+      const { email, communityId } = req.body;
+
+      const result = await this.invitationServices.generateCommunityInvitation(
+        email,
+        communityId,
+      );
+      return res.status(200).json({
+        status: true,
+        message: "Invitation created",
+        data: result,
+      });
+    } catch (error: any) {
       return res.status(400).json({
         status: false,
         message: error.message,
@@ -54,7 +75,7 @@ export class InvitationController {
     try {
       const result = await this.invitationServices.claimInvitation(
         req.body.key,
-        req.user.id,
+        String(req.user?.id),
       );
 
       return res.status(200).json({
@@ -62,7 +83,7 @@ export class InvitationController {
         message: "Invitation claimed",
         data: result,
       });
-    } catch (err) {
+    } catch (err: any) {
       return res.status(400).json({
         status: false,
         message: err.message,
@@ -74,7 +95,7 @@ export class InvitationController {
     try {
       const result = await this.invitationServices.claimEventInvitation(
         req.body.key,
-        req.user.id,
+        String(req.user?.id),
       );
 
       return res.status(200).json({
@@ -82,7 +103,29 @@ export class InvitationController {
         message: "Invitation claimed",
         data: result,
       });
-    } catch (err) {
+    } catch (err: any) {
+      console.log(err);
+
+      return res.status(400).json({
+        status: false,
+        message: err.message,
+      });
+    }
+  }
+
+  async claimCommunityInvitation(req: Request, res: Response) {
+    try {
+      const result = await this.invitationServices.claimCommunityInvitation(
+        req.body.key,
+        String(req.user?.id),
+      );
+
+      return res.status(200).json({
+        status: true,
+        message: "Invitation claimed",
+        data: result,
+      });
+    } catch (err: any) {
       return res.status(400).json({
         status: false,
         message: err.message,

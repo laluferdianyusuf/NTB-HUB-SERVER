@@ -13,8 +13,43 @@ export class PublicPlaceService {
   private likeRepo = new PublicPlaceLikeRepository();
   private impressionRepo = new PublicPlaceImpressionRepository();
 
-  async getAll(type?: PublicPlaceType): Promise<PublicPlace[]> {
-    return this.repo.findAll(type);
+  async getAll(params: {
+    type?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const { type = "all", search, page = 1, limit = 10 } = params;
+
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      this.repo.findAll({
+        type,
+        search,
+        skip,
+        take: limit,
+      }),
+      this.repo.countPublicPaces({ search, type }),
+    ]);
+
+    const shapedData = data.map((place) => ({
+      id: place.id,
+      name: place.name,
+      type: place.type,
+      address: place.address,
+      description: place.description,
+      latitude: place.latitude,
+      longitude: place.longitude,
+      image: place.image,
+      gallery: place.gallery,
+      updatedAll: place.updatedAt,
+    }));
+
+    return {
+      data: shapedData,
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async getDetail(id: string): Promise<PublicPlace> {

@@ -27,6 +27,7 @@ export class InvitationKeyRepository {
 
         eventId: params.eventId,
         venueId: null,
+        communityId: null,
 
         expiresAt: params.expiresAt ?? null,
       },
@@ -52,6 +53,34 @@ export class InvitationKeyRepository {
         role: params.role,
 
         venueId: params.venueId,
+        eventId: null,
+        communityId: null,
+
+        expiresAt: params.expiresAt ?? null,
+      },
+    });
+  }
+
+  async generateCommunity(
+    params: {
+      email: string;
+      key: string;
+      role: Role;
+      communityId: string;
+      expiresAt?: Date;
+    },
+    tx?: Prisma.TransactionClient,
+  ) {
+    const db = this.db(tx);
+
+    return db.invitationKey.create({
+      data: {
+        email: params.email,
+        key: params.key,
+        role: params.role,
+
+        communityId: params.communityId,
+        venueId: null,
         eventId: null,
 
         expiresAt: params.expiresAt ?? null,

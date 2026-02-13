@@ -1,21 +1,146 @@
 import firebase from "../utils/firebase";
-import { Notification } from "@prisma/client";
+import { Notification, Role } from "@prisma/client";
 import { NotificationRepository } from "../repositories/notification.repo";
 import { uploadToCloudinary } from "utils/image";
-import { DeviceRepository } from "repositories";
+import { DeviceRepository, UserRoleRepository } from "repositories";
 import { error, success } from "helpers/return";
 
 const notificationRepository = new NotificationRepository();
 
 export class NotificationService {
   private deviceRepo = new DeviceRepository();
+  private userRoleRepo = new UserRoleRepository();
+
+  private async sendFCM(
+    tokens: string[],
+    payload: firebase.messaging.MulticastMessage,
+  ) {
+    if (!tokens.length) return;
+
+    const response = await firebase.messaging().sendEachForMulticast(payload);
+
+    const invalidTokens: string[] = [];
+    response.responses.forEach((res, i) => {
+      if (!res.success) {
+        const msg = res.error?.message || "";
+        if (
+          msg.includes("registration-token-not-registered") ||
+          msg.includes("invalid-registration-token")
+        ) {
+          invalidTokens.push(tokens[i]);
+        }
+      }
+    });
+
+    if (invalidTokens.length) {
+      await Promise.all(
+        invalidTokens.map((token) => this.deviceRepo.deleteByToken(token)),
+      );
+    }
+
+    return response;
+  }
+
+  async sendToVenueOwner(
+    venueId: string,
+    title: string,
+    body: string,
+    image?: string | null,
+  ) {
+    const roles = await this.userRoleRepo.findUsersByRoleAndVenue(
+      Role.VENUE_OWNER,
+      venueId,
+    );
+
+    const tokens = roles.flatMap(
+      (r) => r.user?.devices.map((d) => d.token) ?? [],
+    );
+
+    return this.sendFCM(tokens, {
+      tokens,
+      notification: { title, body, imageUrl: String(image) },
+      data: {
+        action: "OPEN_VENUE",
+        venueId,
+      },
+    });
+  }
+
+  async sendToEventOwner(
+    eventId: string,
+    title: string,
+    body: string,
+    image?: string,
+  ) {
+    const roles = await this.userRoleRepo.findUsersByRoleAndEvent(
+      Role.EVENT_OWNER,
+      eventId,
+    );
+
+    const tokens = roles.flatMap(
+      (r) => r.user?.devices.map((d) => d.token) ?? [],
+    );
+
+    return this.sendFCM(tokens, {
+      tokens,
+      notification: { title, body, imageUrl: image },
+      data: {
+        action: "OPEN_EVENT",
+        eventId,
+      },
+    });
+  }
+
+  async sendToAdmins(title: string, body: string, image?: string) {
+    const roles = await this.userRoleRepo.findUsersByRole(Role.ADMIN);
+
+    const tokens = roles.flatMap(
+      (r) => r.user?.devices.map((d) => d.token) ?? [],
+    );
+
+    return this.sendFCM(tokens, {
+      tokens,
+      notification: { title, body, imageUrl: image },
+      data: {
+        action: "ADMIN_NOTIFICATION",
+      },
+    });
+  }
+
+  async sendMentionNotification(params: {
+    mentionedUserId: string;
+    actorId: string;
+    actorName: string;
+    communityId: string;
+    postId: string;
+  }) {
+    const { mentionedUserId, actorId, actorName, communityId, postId } = params;
+
+    if (mentionedUserId === actorId) return;
+
+    const notification = await notificationRepository.createNewNotification({
+      userId: mentionedUserId,
+      title: "Kamu di-mention",
+      message: `${actorName} menyebut kamu di postingan komunitas`,
+      type: "MENTION",
+    } as Notification);
+
+    await this.sendToUser(
+      communityId,
+      mentionedUserId,
+      "Kamu di-mention",
+      `${actorName} menyebut kamu di postingan komunitas`,
+    );
+
+    return notification;
+  }
 
   async sendToUser(
     venueId: string,
     userId: string,
     title: string,
     body: string,
-    image?: string,
+    image?: string | null,
   ) {
     const devices = await this.deviceRepo.findByUserId(userId);
 
@@ -75,136 +200,6 @@ export class NotificationService {
         invalidTokens.map((token) => this.deviceRepo.deleteByToken(token)),
       );
       console.log("Deleted invalid tokens:", invalidTokens);
-    }
-
-    return response;
-  }
-
-  async sendToVenue(
-    venueId: string,
-    title: string,
-    body: string,
-    image?: string,
-  ) {
-    const devices = await this.deviceRepo.findByVenueId(venueId);
-
-    if (!devices.length) return;
-
-    const tokens = devices.map((d) => d.token);
-
-    const message: firebase.messaging.MulticastMessage = {
-      tokens,
-      notification: {
-        title,
-        body,
-        imageUrl: image || undefined,
-      },
-      data: {
-        action: "OPEN_VENUE",
-        venueId,
-      },
-      android: {
-        priority: "high",
-        notification: {
-          channelId: "default",
-          sound: "custom_sound.wav",
-        },
-      },
-      apns: {
-        payload: {
-          aps: {
-            category: "OPEN_VENUE",
-            contentAvailable: true,
-            sound: "custom_sound.wav",
-          },
-        },
-      },
-    };
-
-    const response = await firebase.messaging().sendEachForMulticast(message);
-    console.log(
-      `FCM → Venue ${venueId}: ${response.successCount}/${tokens.length}`,
-    );
-
-    const invalidTokens: string[] = [];
-
-    response.responses.forEach((res, i) => {
-      if (!res.success) {
-        const msg = res.error?.message || "";
-        if (
-          msg.includes("registration-token-not-registered") ||
-          msg.includes("invalid-registration-token")
-        ) {
-          invalidTokens.push(tokens[i]);
-        }
-      }
-    });
-
-    if (invalidTokens.length) {
-      await Promise.all(
-        invalidTokens.map((token) => this.deviceRepo.deleteByToken(token)),
-      );
-    }
-
-    return response;
-  }
-
-  async sendToAdmin(title: string, body: string, image?: string) {
-    const devices = await this.deviceRepo.findAdmins();
-
-    if (!devices.length) return;
-
-    const tokens = devices.map((d) => d.token);
-
-    const message: firebase.messaging.MulticastMessage = {
-      tokens,
-      notification: {
-        title,
-        body,
-        imageUrl: image || undefined,
-      },
-      data: {
-        action: "ADMIN_NOTIFICATION",
-      },
-      android: {
-        priority: "high",
-        notification: {
-          channelId: "default",
-          sound: "custom_sound.wav",
-        },
-      },
-      apns: {
-        payload: {
-          aps: {
-            category: "ADMIN_NOTIFICATION",
-            contentAvailable: true,
-            sound: "custom_sound.wav",
-          },
-        },
-      },
-    };
-
-    const response = await firebase.messaging().sendEachForMulticast(message);
-    console.log(`FCM → Admins: ${response.successCount}/${tokens.length}`);
-
-    const invalidTokens: string[] = [];
-
-    response.responses.forEach((res, i) => {
-      if (!res.success) {
-        const msg = res.error?.message || "";
-        if (
-          msg.includes("registration-token-not-registered") ||
-          msg.includes("invalid-registration-token")
-        ) {
-          invalidTokens.push(tokens[i]);
-        }
-      }
-    });
-
-    if (invalidTokens.length) {
-      await Promise.all(
-        invalidTokens.map((token) => this.deviceRepo.deleteByToken(token)),
-      );
     }
 
     return response;

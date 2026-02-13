@@ -1,7 +1,11 @@
-import { PrismaClient, WithdrawStatus } from "@prisma/client";
+import { Prisma, PrismaClient, WithdrawStatus } from "@prisma/client";
 
 export class WithdrawRepository {
   constructor(private prisma = new PrismaClient()) {}
+
+  private db(tx?: Prisma.TransactionClient) {
+    return tx ?? this.prisma;
+  }
 
   create(data: {
     venueId: string;
@@ -21,17 +25,52 @@ export class WithdrawRepository {
     return this.prisma.withdrawRequest.findUnique({ where: { id } });
   }
 
-  findByVenue(venueId: string) {
-    return this.prisma.withdrawRequest.findMany({
+  async findByVenue(venueId: string, tx?: Prisma.TransactionClient) {
+    const db = this.db(tx);
+
+    return db.withdrawRequest.findMany({
       where: { venueId },
       orderBy: { createdAt: "desc" },
     });
   }
 
-  findAll() {
-    return this.prisma.withdrawRequest.findMany({
-      include: { venue: true },
-      orderBy: { createdAt: "desc" },
+  async findAll(
+    params?: {
+      status?: WithdrawStatus;
+      skip?: number;
+      take?: number;
+    },
+    tx?: Prisma.TransactionClient,
+  ) {
+    const db = this.db(tx);
+
+    return db.withdrawRequest.findMany({
+      where: {
+        ...(params?.status && { status: params.status }),
+      },
+      include: {
+        venue: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      skip: params?.skip ?? 0,
+      take: params?.take ?? 20,
+    });
+  }
+
+  async count(status?: WithdrawStatus, tx?: Prisma.TransactionClient) {
+    const db = this.db(tx);
+
+    return db.withdrawRequest.count({
+      where: {
+        ...(status && { status }),
+      },
     });
   }
 

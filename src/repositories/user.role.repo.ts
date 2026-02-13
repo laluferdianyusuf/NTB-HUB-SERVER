@@ -135,6 +135,22 @@ export class UserRoleRepository {
     });
   }
 
+  async findAdmins(tx?: Prisma.TransactionClient) {
+    const db = this.db(tx);
+
+    return db.userRole.findMany({
+      where: {
+        role: Role.ADMIN,
+        isActive: true,
+      },
+      include: {
+        user: {
+          include: { devices: true },
+        },
+      },
+    });
+  }
+
   async getEventRole(
     userId: string,
     eventId: string,
@@ -180,9 +196,71 @@ export class UserRoleRepository {
       where: {
         userId: params.userId,
         role: params.role,
-        venueId: params.venueId ?? null,
-        eventId: params.eventId ?? null,
+        ...(params.venueId && { venueId: params.venueId }),
+        ...(params.eventId && { eventId: params.eventId }),
         isActive: true,
+      },
+    });
+  }
+
+  async findUsersByRole(role: Role) {
+    return prisma.userRole.findMany({
+      where: { role, isActive: true },
+      include: {
+        user: {
+          include: { devices: true },
+        },
+      },
+    });
+  }
+
+  async findUsersByRoleAndAdmin(role: Role, userId: string) {
+    return prisma.userRole.findMany({
+      where: {
+        role_userId: {
+          role,
+          userId,
+        },
+        isActive: true,
+      },
+      include: {
+        user: {
+          include: { devices: true },
+        },
+      },
+    });
+  }
+
+  async findUsersByRoleAndVenue(role: Role, venueId: string) {
+    return prisma.userRole.findMany({
+      where: {
+        role_venueId: {
+          role,
+          venueId,
+        },
+        isActive: true,
+      },
+      include: {
+        user: {
+          include: { devices: true },
+        },
+      },
+    });
+  }
+
+  async findUsersByRoleAndEvent(role: Role, eventId: string) {
+    return prisma.userRole.findMany({
+      where: {
+        role_eventId: {
+          role,
+          eventId,
+        },
+        isActive: true,
+      },
+      include: {
+        user: {
+          include: { devices: true },
+        },
       },
     });
   }

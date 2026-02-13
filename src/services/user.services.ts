@@ -9,6 +9,8 @@ import {
   PointsRepository,
   UserBalanceRepository,
   UserRoleRepository,
+  BookingRepository,
+  VenueRepository,
 } from "../repositories";
 import { uploadImage } from "utils/uploadS3";
 import { publisher } from "config/redis.config";
@@ -19,10 +21,28 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const userRepository = new UserRepository();
 const pointRepository = new PointsRepository();
+const bookingRepository = new BookingRepository();
 const userBalanceRepository = new UserBalanceRepository();
 const userRoleRepository = new UserRoleRepository();
+const venueRepository = new VenueRepository();
 
 export class UserService {
+  private async generateTokens(userId: string) {
+    const accessToken = jwt.sign({ sub: userId }, process.env.ACCESS_SECRET!, {
+      expiresIn: "15m",
+    });
+
+    const refreshToken = jwt.sign(
+      { sub: userId },
+      process.env.REFRESH_SECRET!,
+      { expiresIn: "7d" },
+    );
+
+    await redis.set(`refresh:${userId}`, refreshToken, "EX", 7 * 86400);
+
+    return { accessToken, refreshToken };
+  }
+
   async register(data: {
     email: string;
     name: string;
@@ -91,7 +111,12 @@ export class UserService {
     const tokens = await this.generateTokens(result.user.id);
 
     return {
-      user: result.user,
+      user: {
+        id: result.user.id,
+        name: result.user.name,
+        username: result.user.username,
+        email: result.user.email,
+      },
       ...tokens,
     };
   }
@@ -105,7 +130,15 @@ export class UserService {
 
     const tokens = await this.generateTokens(user.id);
 
-    return { user, ...tokens };
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        email: user.email,
+      },
+      ...tokens,
+    };
   }
 
   async googleLogin(idToken: string) {
@@ -119,11 +152,11 @@ export class UserService {
 
     const { email, name, picture, sub } = payload;
 
-    let user = await userRepository.findByEmail(email);
+    let user = await userRepository.findByEmail(String(email));
 
     if (!user) {
       user = await userRepository.create({
-        email,
+        email: String(email),
         name: name || "Google User",
         password: "",
         photo: picture,
@@ -138,7 +171,15 @@ export class UserService {
 
     const tokens = await this.generateTokens(user.id);
 
-    return { user, ...tokens };
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        email: user.email,
+      },
+      ...tokens,
+    };
   }
 
   async refresh(refreshToken: string) {
@@ -188,6 +229,7 @@ export class UserService {
       email: user.email,
       avatar: user.photo,
       isVerified: user.isVerified,
+      biometricEnabled: user.biometricEnabled,
       roles: {
         global: globalRoles,
         venues: venueRoles,
@@ -197,7 +239,7 @@ export class UserService {
   }
 
   async findAllUsers() {
-    return userRepository.findAll();
+    return userRepository.findAllUsers();
   }
 
   async findDetailUser(userId: string) {
@@ -247,19 +289,118 @@ export class UserService {
     return userRepository.delete(userId);
   }
 
-  private async generateTokens(userId: string) {
-    const accessToken = jwt.sign({ sub: userId }, process.env.ACCESS_SECRET!, {
-      expiresIn: "15m",
+  async setTransactionPin(id: string, pin: string) {
+    if (!id) {
+      throw new Error("Id is required");
+    }
+
+    const user = await userRepository.findById(id);
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    if (!/^\d{6}$/.test(pin)) {
+      throw new Error("Pin must be 6 digit number");
+    }
+
+    const hashedPin = await bcrypt.hash(pin, 10);
+
+    await userRepository.updateTransactionPin(id, hashedPin);
+  }
+
+  async setBiometric(id: string, biometric: boolean) {
+    if (!id) {
+      throw new Error("Id is required");
+    }
+
+    const user = await userRepository.findById(id);
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    await userRepository.updateBiometric(id, biometric);
+  }
+
+  async verifyPin(id: string, pin: string) {
+    if (!id) {
+      throw new Error("Id is required");
+    }
+
+    const user = await userRepository.findById(id);
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    if (!user.transactionPin) {
+      throw new Error("PIN not set");
+    }
+
+    if (user.pinLockedUntil && user.pinLockedUntil > new Date()) {
+      throw new Error("PIN locked, try it later");
+    }
+
+    const isValid = await bcrypt.compare(pin, user.transactionPin);
+
+    if (!isValid) {
+      const failedCount = user.pinFailedCount + 1;
+
+      await userRepository.update(id, {
+        pinFailedCount: failedCount,
+        pinLockedUntil:
+          failedCount >= 5 ? new Date(Date.now() + 15 * 60 * 1000) : null,
+      });
+    }
+
+    await userRepository.update(id, {
+      pinFailedCount: 0,
+      pinLockedUntil: null,
+    });
+  }
+
+  async getUserTopSpender() {
+    const users = await userRepository.findAllUsers();
+    const bookings = await bookingRepository.findAllBooking();
+
+    const topSpender: Record<string, { venueId: string; totalSpend: number }> =
+      {};
+
+    bookings.forEach((booking) => {
+      const key = booking.userId;
+      if (!topSpender[key]) {
+        topSpender[key] = {
+          venueId: booking.venueId,
+          totalSpend: booking.totalPrice,
+        };
+      } else {
+        topSpender[key].totalSpend += booking.totalPrice;
+      }
     });
 
-    const refreshToken = jwt.sign(
-      { sub: userId },
-      process.env.REFRESH_SECRET!,
-      { expiresIn: "7d" },
+    const result = await Promise.all(
+      users.map(async (user) => {
+        const topSpenderInfo = topSpender[user.id];
+        let venue = null;
+
+        if (topSpenderInfo?.venueId) {
+          venue = await venueRepository.findVenueById(topSpenderInfo.venueId);
+        }
+
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          avatar: user.photo,
+          events: user.eventOrders.map((eo) => eo.event),
+          venue: venue,
+          total: topSpenderInfo?.totalSpend ?? 0,
+          communities: user.communityMemberships.map((cm) => cm.community),
+        };
+      }),
     );
 
-    await redis.set(`refresh:${userId}`, refreshToken, "EX", 7 * 86400);
-
-    return { accessToken, refreshToken };
+    return result;
   }
 }

@@ -10,7 +10,10 @@ export class MenuControllers {
   async createMenu(req: Request, res: Response) {
     try {
       const data = req.body;
-      const result = await this.menuService.createMenu(data, req.file);
+      const result = await this.menuService.createMenu(
+        data,
+        req.file as Express.Multer.File,
+      );
 
       res.status(201).json({
         status: true,
@@ -67,7 +70,11 @@ export class MenuControllers {
     try {
       const id = req.params.id;
       const data = req.body;
-      const result = await this.menuService.updateMenu(id, data, req.file);
+      const result = await this.menuService.updateMenu(
+        id,
+        data,
+        req.file as Express.Multer.File,
+      );
 
       res.status(200).json({
         status: true,

@@ -28,7 +28,7 @@ export class InvoiceServices {
         message: "Invoice retrieved successfully",
         data: invoice,
       };
-    } catch (error) {
+    } catch (error: any) {
       return {
         status: false,
         status_code: 500,

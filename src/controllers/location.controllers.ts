@@ -1,24 +1,58 @@
 import { Request, Response } from "express";
-import { Server } from "socket.io";
-import { LocationServices } from "../services/location.services";
+import { LocationService } from "../services";
+
+const locationService = new LocationService();
 
 export class LocationController {
-  private locationService: LocationServices;
+  async trackLocation(req: Request, res: Response) {
+    const { userId, latitude, longitude } = req.body;
 
-  constructor() {
-    this.locationService = new LocationServices();
+    try {
+      const location = await locationService.trackLocation(
+        userId,
+        latitude,
+        longitude,
+      );
+      res.status(201).json({
+        status: true,
+        message: "Location tracked successfully",
+        data: location,
+      });
+    } catch (error: any) {
+      console.error("trackLocation error:", error.message);
+      res.status(error.message.includes("Missing") ? 400 : 500).json({
+        status: false,
+        message: error.message,
+        data: null,
+      });
+    }
   }
 
-  async track(req: Request, res: Response) {
-    const result = await this.locationService.trackLocation(req.body);
-
-    res.status(result.status_code).json(result);
-  }
-
-  async getLocations(req: Request, res: Response) {
+  async getUserLocations(req: Request, res: Response) {
     const { userId } = req.params;
-    const result = await this.locationService.getUserLocations(userId);
 
-    res.status(result.status_code).json(result);
+    try {
+      const locations = await locationService.getUserLocations(userId);
+      res.status(200).json({
+        status: true,
+        message: "User locations retrieved successfully",
+        data: locations,
+      });
+    } catch (error: any) {
+      console.error("getUserLocations error:", error.message);
+      res
+        .status(
+          error.message.includes("Missing")
+            ? 400
+            : error.message.includes("No locations")
+              ? 404
+              : 500,
+        )
+        .json({
+          status: false,
+          message: error.message,
+          data: null,
+        });
+    }
   }
 }

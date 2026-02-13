@@ -87,6 +87,7 @@ export class AuthMiddlewares {
       const user = (req as any).user;
       const venueId =
         req.params.venueId || req.body.venueId || req.query.venueId;
+      console.log(venueId);
 
       if (!venueId) {
         return res.status(400).json({

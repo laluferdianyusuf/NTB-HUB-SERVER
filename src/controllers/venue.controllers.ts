@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { VenueServices } from "../services/venue.services";
+import { sendError, sendSuccess } from "helpers/response";
 
 export class VenueControllers {
   private venueServices: VenueServices;
@@ -14,91 +15,49 @@ export class VenueControllers {
         gallery?: Express.Multer.File[];
       };
 
-      const venue = await this.venueServices.createVenue(req.body, files);
+      const result = await this.venueServices.createVenue(req.body, files);
 
-      return res.status(201).json({
-        status: true,
-        message: "Venue created successfully",
-        data: venue,
-      });
+      sendSuccess(res, result, "Venues created successfully", 201);
     } catch (error: any) {
-      return res.status(400).json({
-        status: false,
-        message: error.message || "Failed to create venue",
-      });
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 
   async getVenues(req: Request, res: Response) {
     try {
-      const result = await this.venueServices.getVenues();
+      const { search, category, subCategory, page, limit, includeServices } =
+        req.query;
+      const result = await this.venueServices.getVenues({
+        search: search as string,
+        category: category as string,
+        subCategory: subCategory as string,
+        page: Number(page) || 1,
+        limit: Number(limit) || 20,
+        includeServices: Boolean(includeServices) || false,
+      });
 
-      res.status(200).json({
-        status: true,
-        message: "Venues retrieved successful",
-        data: result,
-      });
+      sendSuccess(res, result, "Venues retrieved successfully");
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        message: error.message || "Internal Server Error",
-      });
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 
   async getPopularVenues(req: Request, res: Response) {
     try {
-      const result = await this.venueServices.getPopularVenues();
-
-      res.status(200).json({
-        status: true,
-        message: "Venues retrieved successful",
-        data: result,
+      const { search, category, subCategory, page, limit, includeServices } =
+        req.query;
+      const result = await this.venueServices.getPopularVenues({
+        search: search as string,
+        category: category as string,
+        subCategory: subCategory as string,
+        page: Number(page) || 1,
+        limit: Number(limit) || 20,
+        includeServices: Boolean(includeServices) || false,
       });
+
+      sendSuccess(res, result, "Venues retrieved successfully");
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        message: error.message || "Internal Server Error",
-      });
-    }
-  }
-
-  async getVenuesByCategory(req: Request, res: Response) {
-    try {
-      const { categoryId } = req.params;
-      console.log(categoryId);
-
-      const result = await this.venueServices.getVenuesByCategoryId(categoryId);
-
-      res.status(200).json({
-        status: true,
-        message: "Venues retrieved successful",
-        data: result,
-      });
-    } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        message: error.message || "Internal Server Error",
-      });
-    }
-  }
-
-  async getPopularVenuesByCategory(req: Request, res: Response) {
-    try {
-      const { categoryId } = req.params;
-      const result =
-        await this.venueServices.getPopularVenuesByCategoryId(categoryId);
-
-      res.status(200).json({
-        status: true,
-        message: "Venues retrieved successful",
-        data: result,
-      });
-    } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        message: error.message || "Internal Server Error",
-      });
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 
@@ -106,16 +65,9 @@ export class VenueControllers {
     try {
       const result = await this.venueServices.getActiveVenues();
 
-      res.status(200).json({
-        status: true,
-        message: "Venues retrieved successful",
-        data: result,
-      });
+      sendSuccess(res, result, "Venues retrieved successfully");
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        message: error.message || "Internal Server Error",
-      });
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 
@@ -125,16 +77,9 @@ export class VenueControllers {
 
       const result = await this.venueServices.getVenueLikedByUser(userId);
 
-      res.status(200).json({
-        status: true,
-        message: "Venue retrieved",
-        data: result,
-      });
+      sendSuccess(res, result, "Venues retrieved successfully");
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        message: error.message || "Internal Server Error",
-      });
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 
@@ -144,32 +89,20 @@ export class VenueControllers {
 
       const result = await this.venueServices.activateVenue(id);
 
-      res.status(200).json({
-        status: true,
-        message: "Venue activated",
-        data: result,
-      });
+      sendSuccess(res, result, "Venues retrieved successfully");
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        message: error.message || "Internal Server Error",
-      });
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 
-  async getVenueById(req: Request, res: Response) {
+  async getVenueDetail(req: Request, res: Response) {
     try {
       const id = req.params.id;
       const result = await this.venueServices.getVenueById(id);
 
-      res.status(result.status_code).json(result);
+      sendSuccess(res, result, "Venues retrieved successfully");
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        status_code: 500,
-        message: error.message || "Internal Server Error",
-        data: null,
-      });
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 
@@ -183,16 +116,9 @@ export class VenueControllers {
       };
       const result = await this.venueServices.updateVenue(id, data, files);
 
-      res.status(200).json({
-        status: true,
-        message: "Venue updated successful",
-        data: result,
-      });
+      sendSuccess(res, result, "Venues updated successfully");
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        message: error.message || "Internal Server Error",
-      });
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 
@@ -201,51 +127,24 @@ export class VenueControllers {
       const id = req.params.id;
       const result = await this.venueServices.deleteVenue(id);
 
-      res.status(result.status_code).json(result);
+      sendSuccess(res, result, "Venues deleted successfully", 203);
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        status_code: 500,
-        message: error.message || "Internal Server Error",
-        data: null,
-      });
-    }
-  }
-
-  async currentVenue(req: Request, res: Response) {
-    try {
-      const venue = (req as any).venue;
-
-      res.status(200).json({
-        status: true,
-        status_code: 200,
-        message: "Venue retrieved",
-        data: venue,
-      });
-    } catch (error) {
-      res.status(500).json({
-        status: false,
-        status_code: 500,
-        message: error.message || "Internal Server Error",
-        data: null,
-      });
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 
   async toggleLike(req: Request, res: Response) {
     try {
       const venueId = req.params.venueId;
-      const userId = req.user.id;
+      const userId = req.user?.id;
 
-      const result = await this.venueServices.toggleLike(venueId, userId);
-
-      return res.status(result.status_code).json(result);
-    } catch (error) {
-      console.error(error);
-      return res.status(500).json({
-        success: false,
-        message: "Failed to toggle like",
-      });
+      const result = await this.venueServices.toggleLike(
+        venueId,
+        String(userId),
+      );
+      sendSuccess(res, result, "You like this venue", 201);
+    } catch (error: any) {
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 
@@ -253,15 +152,14 @@ export class VenueControllers {
     try {
       const venueId = req.params.venueId;
       const userId = req.user?.id;
-      const result = await this.venueServices.getLikeCount(venueId, userId);
+      const result = await this.venueServices.getLikeCount(
+        venueId,
+        String(userId),
+      );
 
-      return res.status(result.status_code).json(result);
-    } catch (error) {
-      console.error(error);
-      return res.status(500).json({
-        success: false,
-        message: "Failed to fetch like count",
-      });
+      sendSuccess(res, result, "Venue likes retrieved successfully");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 
@@ -280,12 +178,8 @@ export class VenueControllers {
       });
 
       return res.status(204).send();
-    } catch (error) {
-      console.error(error);
-      return res.status(500).json({
-        success: false,
-        message: "Failed to create impression",
-      });
+    } catch (error: any) {
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 
@@ -295,13 +189,9 @@ export class VenueControllers {
 
       const result = await this.venueServices.getImpressionCount(venueId);
 
-      return res.status(result.status_code).json(result);
-    } catch (error) {
-      console.error(error);
-      return res.status(500).json({
-        success: false,
-        message: "Failed to fetch impression count",
-      });
+      sendSuccess(res, result, "Venue impression retrieved successfully");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 }

@@ -3,12 +3,41 @@ import { PrismaClient, PublicPlace, PublicPlaceType } from "@prisma/client";
 const prisma = new PrismaClient();
 
 export class PublicPlaceRepository {
-  findAll(type?: PublicPlaceType): Promise<PublicPlace[]> {
+  findAll(params: {
+    type?: string;
+    search?: string;
+    skip?: number;
+    take?: number;
+  }) {
+    const { type = "all", search, skip = 0, take = 10 } = params;
+    const where: any = {
+      isActive: true,
+    };
+
+    if (search) {
+      const words = search.split(" ");
+
+      where.OR = [
+        ...words.map((word) => ({
+          name: { contains: word, mode: "insensitive" },
+        })),
+        ...words.map((word) => ({
+          address: { contains: word, mode: "insensitive" },
+        })),
+        ...words.map((word) => ({
+          description: { contains: word, mode: "insensitive" },
+        })),
+      ];
+    }
+
+    if (type !== "all") {
+      where.type = type;
+    }
+
     return prisma.publicPlace.findMany({
-      where: {
-        isActive: true,
-        ...(type && { type }),
-      },
+      where,
+      skip,
+      take,
       include: {
         reviews: true,
         likes: true,
@@ -18,6 +47,38 @@ export class PublicPlaceRepository {
         updatedAt: "desc",
       },
     });
+  }
+
+  async countPublicPaces(
+    params: Omit<{ type?: string; search?: string }, "skip" | "take"> = {},
+  ) {
+    const { search, type = "all" } = params;
+
+    const where: any = {
+      isActive: true,
+    };
+
+    if (search) {
+      const words = search.split(" ");
+
+      where.OR = [
+        ...words.map((word) => ({
+          name: { contains: word, mode: "insensitive" },
+        })),
+        ...words.map((word) => ({
+          address: { contains: word, mode: "insensitive" },
+        })),
+        ...words.map((word) => ({
+          description: { contains: word, mode: "insensitive" },
+        })),
+      ];
+    }
+
+    if (type !== "all") {
+      where.type = type;
+    }
+
+    return prisma.publicPlace.count({ where });
   }
 
   findById(id: string): Promise<PublicPlace | null> {

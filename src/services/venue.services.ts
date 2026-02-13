@@ -8,6 +8,7 @@ import {
 import { publisher } from "config/redis.config";
 import { toNum } from "helpers/parser";
 import { uploadImage } from "utils/uploadS3";
+import { GetVenuesParams } from "types/venues.params";
 
 const venueRepository = new VenueRepository();
 const venueBalanceRepository = new VenueBalanceRepository();
@@ -25,9 +26,9 @@ export class VenueServices {
     let imageUrl: string | null = null;
     let galleryUrls: string[] = [];
 
-    if (files?.image?.[0]) {
+    if (files?.image) {
       const image = await uploadImage({
-        file: files.image?.[0],
+        file: files?.image,
         folder: "public_places",
       });
       imageUrl = image.url;
@@ -95,28 +96,96 @@ export class VenueServices {
     return venues;
   }
 
-  async getVenues() {
-    const venues = await venueRepository.findAllVenue();
-    if (!venues) throw new Error("Venue not found");
-    return venues;
+  async getVenues(params: GetVenuesParams) {
+    const {
+      search,
+      category = "all",
+      subCategory = "all",
+      page = 1,
+      limit = 20,
+      includeServices = false,
+    } = params;
+
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      venueRepository.findAllVenues({
+        search,
+        category,
+        subCategory,
+        skip,
+        take: limit,
+        includeServices,
+      }),
+      venueRepository.countVenues({ search, category }),
+    ]);
+
+    const shapedData = data.map((venue) => ({
+      id: venue.id,
+      name: venue.name,
+      address: venue.address,
+      image: venue.image,
+      gallery: venue.gallery,
+      category: venue.services?.[0]?.subCategory?.category || null,
+      services: includeServices ? venue.services : undefined,
+      updatedAll: venue.updatedAt,
+    }));
+
+    return {
+      data: shapedData,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
-  async getPopularVenues() {
-    const venues = await venueRepository.findPopularVenues();
-    if (!venues) throw new Error("Venue not found");
-    return venues;
-  }
+  async getPopularVenues(params: GetVenuesParams) {
+    const {
+      search,
+      category = "all",
+      subCategory = "all",
+      page = 1,
+      limit = 20,
+      includeServices = false,
+    } = params;
 
-  async getVenuesByCategoryId(categoryId: string) {
-    const venues = await venueRepository.findVenueByCategory(categoryId);
-    if (!venues) throw new Error("Venue not found");
-    return venues;
-  }
+    const skip = (page - 1) * limit;
 
-  async getPopularVenuesByCategoryId(categoryId: string) {
-    const venues = await venueRepository.findPopularVenueByCategory(categoryId);
-    if (!venues) throw new Error("Venue not found");
-    return venues;
+    const [data, total] = await Promise.all([
+      venueRepository.findPopularVenues({
+        search,
+        category,
+        subCategory,
+        skip,
+        take: limit,
+        includeServices,
+      }),
+      venueRepository.countVenues({ search, category }),
+    ]);
+
+    const shapedData = data.map((venue) => ({
+      id: venue.id,
+      name: venue.name,
+      address: venue.address,
+      image: venue.image,
+      gallery: venue.gallery,
+      category: venue.services?.[0]?.subCategory?.category || null,
+      services: includeServices ? venue.services : undefined,
+      updatedAll: venue.updatedAt,
+    }));
+
+    return {
+      data: shapedData,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async getVenueLikedByUser(userId: string) {
@@ -130,32 +199,13 @@ export class VenueServices {
   }
 
   async getVenueById(id: string) {
-    try {
-      const existing = await venueRepository.findVenueById(id);
+    const existing = await venueRepository.findVenueById(id);
 
-      if (!existing) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "Venue not found",
-          data: null,
-        };
-      }
-
-      return {
-        status: true,
-        status_code: 200,
-        message: "Venue founded",
-        data: existing,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
+    if (!existing) {
+      throw new Error("Venue not found");
     }
+
+    return existing;
   }
 
   async updateVenue(
@@ -209,76 +259,33 @@ export class VenueServices {
   }
 
   async deleteVenue(id: string) {
-    try {
-      const existing = await venueRepository.findVenueById(id);
+    const existing = await venueRepository.findVenueById(id);
 
-      if (!existing) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "Venue not found",
-          data: null,
-        };
-      }
-      const deleted = await venueRepository.deleteVenueWithRelations(id);
-
-      return {
-        status: true,
-        status_code: 200,
-        message: "Venue deleted",
-        data: deleted,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
+    if (!existing) {
+      throw new Error("Venue not found");
     }
+
+    const deleted = await venueRepository.deleteVenueWithRelations(id);
+
+    return deleted;
   }
 
   async toggleLike(venueId: string, userId: string) {
-    try {
-      const result = await venueLikeRepository.likeVenue(venueId, userId);
+    const result = await venueLikeRepository.likeVenue(venueId, userId);
 
-      return {
-        status: true,
-        status_code: 201,
-        message: "Venue like toggled",
-        data: result,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
-    }
+    return result;
   }
 
   async getLikeCount(venueId: string, userId: string) {
-    try {
-      const [count, liked] = await Promise.all([
-        venueLikeRepository.countLikesByVenueId(venueId),
-        userId ? venueLikeRepository.isLikedByUser(venueId, userId) : false,
-      ]);
+    const [count, liked] = await Promise.all([
+      venueLikeRepository.countLikesByVenueId(venueId),
+      userId ? venueLikeRepository.isLikedByUser(venueId, userId) : false,
+    ]);
 
-      return {
-        status: true,
-        status_code: 200,
-        message: "Like count retrieved",
-        data: { count, likedByMe: liked },
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
-    }
+    return {
+      count,
+      likedByMe: liked,
+    };
   }
 
   async createImpression(data: {
@@ -287,43 +294,13 @@ export class VenueServices {
     ipAddress?: string;
     userAgent?: string;
   }) {
-    try {
-      await venueImpressionRepository.createImpression(data);
-
-      return {
-        status: true,
-        status_code: 201,
-        message: "Impression recorded",
-        data: null,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
-    }
+    await venueImpressionRepository.createImpression(data);
   }
 
   async getImpressionCount(venueId: string) {
-    try {
-      const count =
-        await venueImpressionRepository.countImpressionByVenueId(venueId);
+    const count =
+      await venueImpressionRepository.countImpressionByVenueId(venueId);
 
-      return {
-        status: true,
-        status_code: 200,
-        message: "Impression count retrieved",
-        data: { count },
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
-    }
+    return { count };
   }
 }

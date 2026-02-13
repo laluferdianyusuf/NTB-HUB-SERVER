@@ -2,6 +2,7 @@ import {
   Booking,
   BookingStatus,
   InvoiceStatus,
+  OrderItem,
   PointActivityType,
   Prisma,
   PrismaClient,
@@ -13,6 +14,24 @@ import {
 const prisma = new PrismaClient();
 
 export class OrderRepository {
+  private transaction(tx?: Prisma.TransactionClient) {
+    return tx ?? prisma;
+  }
+
+  async createOrder(
+    data: {
+      bookingId: string;
+      menuId: string;
+      quantity: number;
+      subtotal: number;
+    },
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = this.transaction(tx);
+    await client.orderItem.create({
+      data,
+    });
+  }
   async getOrders(bookingId: string) {
     return prisma.orderItem.findMany({
       where: { bookingId },
@@ -30,7 +49,7 @@ export class OrderRepository {
   async createBulkOrders(
     bookingId: string,
     items: { menuId: string; quantity: number; subtotal: number }[],
-    tx?: Prisma.TransactionClient
+    tx?: Prisma.TransactionClient,
   ) {
     const db = tx ?? prisma;
     return await db.orderItem.createMany({
@@ -77,7 +96,7 @@ export class OrderRepository {
     id: string,
     quantity: number,
     subtotal: number,
-    tx: Prisma.TransactionClient
+    tx: Prisma.TransactionClient,
   ) {
     return tx.orderItem.update({
       where: { id },
@@ -118,7 +137,7 @@ export class OrderRepository {
   async processOrdersPayment(
     booking: Booking,
     paymentId: string,
-    points: number
+    points: number,
   ) {
     return await prisma.$transaction(async (tx) => {
       const updateBalance = await tx.userBalance.update({

@@ -1,54 +1,42 @@
-import { LocationTracking } from "@prisma/client";
+import { getDistance } from "geolib";
 import { LocationRepository } from "../repositories/location.repo";
 
 const locationRepository = new LocationRepository();
 
-export class LocationServices {
-  async trackLocation(data: LocationTracking) {
-    try {
-      const location = await locationRepository.createNewTracking(data);
-      return {
-        status: true,
-        status_code: 201,
-        message: "Location tracked successfully",
-        data: location,
-      };
-    } catch (error) {
-      console.log(error);
+export class LocationService {
+  private lastSaved: Map<string, { latitude: number; longitude: number }> =
+    new Map();
 
-      return {
-        status: false,
-        status_code: 500,
-        message: "Failed to track location",
-        data: null,
-      };
+  async trackLocation(userId: string, latitude: number, longitude: number) {
+    const last = this.lastSaved.get(userId);
+
+    if (last) {
+      const distance = getDistance(
+        { latitude: last.latitude, longitude: last.longitude },
+        { latitude, longitude },
+      );
+      if (distance < 10) {
+        return null;
+      }
     }
+
+    const location = await locationRepository.save(userId, latitude, longitude);
+    this.lastSaved.set(userId, { latitude, longitude });
+
+    return location;
   }
 
   async getUserLocations(userId: string) {
-    try {
-      const locations = await locationRepository.findLocationTracking(userId);
-      if (!locations) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "User location not found",
-          data: null,
-        };
-      }
-      return {
-        status: true,
-        status_code: 200,
-        message: "User locations retrieved",
-        data: locations,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Failed to get user locations",
-        data: null,
-      };
+    if (!userId) {
+      throw new Error("Missing userId");
     }
+
+    const locations = await locationRepository.getLast(userId);
+
+    if (!locations || locations.length === 0) {
+      throw new Error("No locations found for user");
+    }
+
+    return locations;
   }
 }

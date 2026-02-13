@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { sendError, sendSuccess } from "helpers/response";
 import { UserService } from "services";
 
 const userService = new UserService();
@@ -175,6 +176,50 @@ export class UserController {
         status: false,
         message: error.message,
       });
+    }
+  }
+
+  async setTransactionPin(req: Request, res: Response) {
+    try {
+      const { pin } = req.body;
+      await userService.setTransactionPin(req.params.id, String(pin) as string);
+
+      sendSuccess(res, "Pin set");
+    } catch (error) {
+      sendError(res, error.message || "Internal Server Error");
+    }
+  }
+
+  async setBiometric(req: Request, res: Response) {
+    try {
+      const { biometric } = req.body;
+      await userService.setBiometric(req.params.id, biometric as boolean);
+
+      sendSuccess(res, "Biometric changed");
+    } catch (error) {
+      console.log(error);
+      sendError(res, error.message || "Internal Server Error");
+    }
+  }
+
+  async verifyPin(req: Request, res: Response) {
+    try {
+      const { pin } = req.body;
+      await userService.verifyPin(req.params.id, String(pin) as string);
+
+      sendSuccess(res, "Pin verified");
+    } catch (error) {
+      sendError(res, error.message || "Internal Server Error");
+    }
+  }
+
+  async findTopSpender(req: Request, res: Response) {
+    try {
+      const result = await userService.getUserTopSpender();
+
+      sendSuccess(res, result, "User top spender");
+    } catch (error) {
+      sendError(res, error.message || "Internal server error");
     }
   }
 }

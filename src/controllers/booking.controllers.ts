@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { BookingServices } from "../services/booking.services";
+import { sendError, sendSuccess } from "helpers/response";
 
 export class BookingControllers {
   private bookingService: BookingServices;
@@ -12,14 +13,9 @@ export class BookingControllers {
       const data = req.body;
       const result = await this.bookingService.createBooking(data);
 
-      res.status(result.status_code).json(result);
+      sendSuccess(res, result, "Booking created successfully", 201);
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        status_code: 500,
-        message: error.message || "Internal Server Error",
-        data: null,
-      });
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 
@@ -27,14 +23,9 @@ export class BookingControllers {
     try {
       const result = await this.bookingService.getAllBookings();
 
-      res.status(result.status_code).json(result);
+      sendSuccess(res, result, "booking retrieved successfully");
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        status_code: 500,
-        message: error.message || "Internal Server Error",
-        data: null,
-      });
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 
@@ -43,14 +34,9 @@ export class BookingControllers {
       const id = req.params.id;
       const result = await this.bookingService.getBookingById(id);
 
-      res.status(result.status_code).json(result);
+      sendSuccess(res, result, "booking retrieved successfully");
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        status_code: 500,
-        message: error.message || "Internal Server Error",
-        data: null,
-      });
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 
@@ -59,16 +45,9 @@ export class BookingControllers {
       const userId = req.params.userId;
       const result = await this.bookingService.getBookingByUserId(userId);
 
-      res.status(200).json({
-        status: true,
-        message: "Booking retrieved",
-        data: result,
-      });
+      sendSuccess(res, result, "Booking retrieved successfully");
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        message: error.message || "Internal Server Error",
-      });
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 
@@ -77,16 +56,9 @@ export class BookingControllers {
       const venueId = req.params.venueId;
       const result = await this.bookingService.getBookingByVenueId(venueId);
 
-      res.status(200).json({
-        status: true,
-        message: "Booking retrieved",
-        data: result,
-      });
+      sendSuccess(res, result, "Booking retrieved successfully");
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        message: error.message || "Internal Server Error",
-      });
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 
@@ -95,16 +67,9 @@ export class BookingControllers {
       const userId = req.params.userId;
       const result = await this.bookingService.getBookingPaidByUserId(userId);
 
-      res.status(200).json({
-        status: true,
-        message: "Booking found",
-        data: result,
-      });
+      sendSuccess(res, result, "Booking retrieved successfully");
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        message: error.message || "Internal Server Error",
-      });
+      sendError(res, error.message || "Internal Server Error");
     }
   }
   async getBookingPendingByUserId(req: Request, res: Response) {
@@ -113,16 +78,9 @@ export class BookingControllers {
       const result =
         await this.bookingService.getBookingPendingByUserId(userId);
 
-      res.status(200).json({
-        status: true,
-        message: "Booking found",
-        data: result,
-      });
+      sendSuccess(res, result, "Booking retrieved successfully");
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        message: error.message || "Internal Server Error",
-      });
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 
@@ -131,7 +89,7 @@ export class BookingControllers {
       const id = req.params.id;
       const result = await this.bookingService.updateBookingPayment(id);
 
-      res.status(result.status_code).json(result);
+      sendSuccess(res, result, "booking retrieved successfully", 201);
     } catch (error) {
       res.status(500).json("Internal server error");
     }
@@ -142,14 +100,9 @@ export class BookingControllers {
       const id = req.params.id;
       const result = await this.bookingService.cancelBooking(id);
 
-      res.status(result.status_code).json(result);
+      sendSuccess(res, result, "booking retrieved successfully", 201);
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        status_code: 500,
-        message: error.message || "Internal Server Error",
-        data: null,
-      });
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 
@@ -158,14 +111,9 @@ export class BookingControllers {
       const id = req.params.id;
       const result = await this.bookingService.cancelBooking(id);
 
-      res.status(result.status_code).json(result);
+      sendSuccess(res, result, "booking retrieved successfully", 201);
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        status_code: 500,
-        message: error.message || "Internal Server Error",
-        data: null,
-      });
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 
@@ -179,14 +127,9 @@ export class BookingControllers {
         new Date(String(endTime)),
       );
 
-      res.status(result.status_code).json(result);
+      sendSuccess(res, result, "booking retrieved successfully", 201);
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        status_code: 500,
-        message: error.message || "Internal Server Error",
-        data: null,
-      });
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 }

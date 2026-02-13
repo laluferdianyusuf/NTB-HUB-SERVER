@@ -7,11 +7,11 @@ const router = Router();
 const auth = new AuthMiddlewares();
 const userController = new UserController();
 
-router.get(
-  "/all-users",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["ADMIN", "CUSTOMER"]),
-  (req, res) => userController.findAllUsers(req, res),
+router.get("/all-users", auth.authenticate, (req, res) =>
+  userController.findAllUsers(req, res),
+);
+router.get("/all-top-spender", auth.authenticate, (req, res) =>
+  userController.findTopSpender(req, res),
 );
 router.get("/detail-user/:userId", (req, res) =>
   userController.findDetailUser(req, res),
