@@ -43,6 +43,7 @@ import taskRouter from "./v1/task.routes";
 import communityTwibbonRouter from "./v1/community-twibbon.routes";
 import urlPreviewRouter from "./v1/url-preview.routes";
 import commentRouter from "./v1/comment.routes";
+import profileRouter from "./v1/profile.routes";
 
 import { deprecatedRouters } from "./deprecated";
 
@@ -95,6 +96,7 @@ v1.use("/comments", commentRouter);
 v1.use("/urls", urlPreviewRouter);
 
 v1.use("/tasks", taskRouter);
+v1.use("/profiles", profileRouter);
 
 // mount v1 API
 router.use("/api/v1", v1);

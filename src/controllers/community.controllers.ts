@@ -1,3 +1,4 @@
+import { CommunityMemberStatus } from "@prisma/client";
 import { Request, Response } from "express";
 import { sendSuccess, sendError } from "helpers/response";
 import { CommunityService } from "services";
@@ -90,6 +91,7 @@ export class CommunityController {
       const page = Number(req.query.page) || 1;
       const limit = Number(req.query.limit) || 20;
       const search = req.query.search as string;
+      const status = req.query.status as CommunityMemberStatus;
 
       const members = await this.service.getMembers(
         communityId,
@@ -97,6 +99,7 @@ export class CommunityController {
           page,
           limit,
         },
+        status,
         search,
       );
 

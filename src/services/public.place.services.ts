@@ -75,9 +75,9 @@ export class PublicPlaceService {
     let imageUrl: string | null = null;
     let galleryUrls: string[] = [];
 
-    if (files?.image?.[0]) {
+    if (files?.image) {
       const image = await uploadImage({
-        file: files.image?.[0],
+        file: files.image,
         folder: "public_places",
       });
       imageUrl = image.url;

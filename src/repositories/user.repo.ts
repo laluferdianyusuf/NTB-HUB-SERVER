@@ -50,8 +50,30 @@ export class UserRepository {
     });
   }
 
-  async findById(id: string): Promise<User | null> {
-    return prisma.user.findUnique({ where: { id } });
+  async findById(id: string) {
+    return prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        photo: true,
+        email: true,
+        profileViewCount: true,
+        profileLikeCount: true,
+        isVerified: true,
+        biometricEnabled: true,
+        transactionPin: true,
+        pinLockedUntil: true,
+        pinFailedCount: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async findUserById(id: string) {
+    return prisma.user.findUnique({
+      where: { id },
+    });
   }
 
   async findByEmail(email: string): Promise<User | null> {

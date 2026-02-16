@@ -49,5 +49,6 @@ export * from "./event.ticket.repo";
 export * from "./event.repo";
 export * from "./event.ticket.type.repo";
 export * from "./public.place.repo";
+export * from "./profile.repo";
 export * from "./public.place.like.repo";
 export * from "./public.place.impression.repo";

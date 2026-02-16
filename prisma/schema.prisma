@@ -229,6 +229,8 @@ model User {
   pinFailedCount   Int        @default(0)
   pinLockedUntil   DateTime?
   biometricEnabled Boolean    @default(false)
+  profileViewCount Int        @default(0)
+  profileLikeCount Int        @default(0)
   devices          Device[]
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @default(now()) @updatedAt
@@ -273,9 +275,43 @@ model User {
   communityPostMentions CommunityPostMention[]
   events                Event[]
 
+  profileViews         ProfileView[] @relation("ProfileOwner")
+  profileViewLogs      ProfileView[] @relation("ProfileViewer")
+  profileLikesReceived ProfileLike[] @relation("ProfileLiked")
+  profileLikesGiven    ProfileLike[] @relation("ProfileLiker")
+
   @@index([email])
   @@index([phone])
   @@index([createdAt])
+}
+
+model ProfileView {
+  id        String   @id @default(uuid())
+  profileId String // user yang dilihat
+  viewerId  String? // user yang melihat (nullable kalau anonymous)
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  profile User  @relation("ProfileOwner", fields: [profileId], references: [id])
+  viewer  User? @relation("ProfileViewer", fields: [viewerId], references: [id])
+
+  @@index([profileId, createdAt])
+  @@index([viewerId])
+}
+
+model ProfileLike {
+  id        String   @id @default(uuid())
+  profileId String // user yang dilike
+  userId    String // user yang melike
+  createdAt DateTime @default(now())
+
+  profile User @relation("ProfileLiked", fields: [profileId], references: [id])
+  user    User @relation("ProfileLiker", fields: [userId], references: [id])
+
+  @@unique([profileId, userId])
+  @@index([profileId])
+  @@index([userId])
 }
 
 model UserRole {

@@ -230,6 +230,8 @@ export class UserService {
       avatar: user.photo,
       isVerified: user.isVerified,
       biometricEnabled: user.biometricEnabled,
+      profileLikeCount: user.profileLikeCount,
+      profileViewCount: user.profileViewCount,
       roles: {
         global: globalRoles,
         venues: venueRoles,
@@ -258,7 +260,7 @@ export class UserService {
     },
     file?: Express.Multer.File,
   ) {
-    const user = await userRepository.findById(userId);
+    const user = await userRepository.findUserById(userId);
     if (!user) throw new Error("USER_NOT_FOUND");
 
     let photo = user.photo;

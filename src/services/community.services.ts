@@ -1,4 +1,4 @@
-import { Community, Prisma } from "@prisma/client";
+import { Community, CommunityMemberStatus, Prisma } from "@prisma/client";
 import { CommunityRepository, CommunityMemberRepository } from "repositories";
 import { uploadImage } from "utils/uploadS3";
 
@@ -86,6 +86,7 @@ export class CommunityService {
   async getMembers(
     communityId: string,
     params: { page?: number; limit?: number },
+    status: CommunityMemberStatus,
     search?: string,
   ) {
     const { page = 1, limit = 20 } = params;
@@ -93,6 +94,7 @@ export class CommunityService {
     return this.memberRepo.findByCommunity(
       communityId,
       { skip, take: limit },
+      status,
       search,
     );
   }

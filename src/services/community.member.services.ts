@@ -1,4 +1,6 @@
-import { CommunityMemberRole } from "@prisma/client";
+import { CommunityMemberRole, CommunityMemberStatus } from "@prisma/client";
+import { prisma } from "config/prisma";
+import { AppError } from "helpers/AppError";
 import { CommunityMemberRepository } from "repositories";
 
 export class CommunityMemberServices {
@@ -43,7 +45,47 @@ export class CommunityMemberServices {
     return this.memberRepo.findByCommunityAndUser(communityId, userId);
   }
 
-  async removeMember(memberId: string) {
-    return this.memberRepo.remove(memberId);
+  async approveMember(memberId: string, adminId: string) {
+    return prisma.$transaction(async (tx) => {
+      const member = await this.memberRepo.findById(memberId, tx);
+
+      if (!member) {
+        throw new AppError("Member not found", 404);
+      }
+
+      if (member.status === CommunityMemberStatus.APPROVED) {
+        throw new AppError("Member already approved", 400);
+      }
+
+      if (member.status === CommunityMemberStatus.REJECTED) {
+        throw new AppError("Cannot approve rejected member", 400);
+      }
+
+      const updated = await this.memberRepo.updateStatus(
+        memberId,
+        CommunityMemberStatus.APPROVED,
+        tx,
+      );
+
+      return updated;
+    });
+  }
+
+  async rejectMember(memberId: string, adminId: string) {
+    return prisma.$transaction(async (tx) => {
+      const member = await this.memberRepo.findById(memberId, tx);
+
+      if (!member) {
+        throw new AppError("Member not found", 404);
+      }
+
+      if (member.status === CommunityMemberStatus.APPROVED) {
+        throw new AppError("Cannot reject approved member", 400);
+      }
+
+      const removed = await this.memberRepo.remove(memberId, tx);
+
+      return removed;
+    });
   }
 }

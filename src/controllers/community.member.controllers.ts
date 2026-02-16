@@ -47,13 +47,30 @@ export class CommunityMemberController {
     }
   };
 
-  removeMember = async (req: Request, res: Response) => {
+  approveMember = async (req: Request, res: Response) => {
     try {
       const { memberId } = req.params;
+      const adminId = req.user?.id;
 
-      await this.service.removeMember(memberId);
+      const result = await this.service.approveMember(
+        memberId,
+        String(adminId),
+      );
 
-      return sendSuccess(res, null, "Member removed successfully");
+      return sendSuccess(res, result, "Member approved successfully");
+    } catch (error: any) {
+      return sendError(res, error.message || "FAILED_TO_APPROVE_MEMBER");
+    }
+  };
+
+  rejectMember = async (req: Request, res: Response) => {
+    try {
+      const { memberId } = req.params;
+      const adminId = req.user?.id;
+
+      const result = await this.service.rejectMember(memberId, String(adminId));
+
+      return sendSuccess(res, result, "Member removed successfully");
     } catch (error: any) {
       return sendError(res, error.message || "FAILED_TO_REMOVE_MEMBER");
     }

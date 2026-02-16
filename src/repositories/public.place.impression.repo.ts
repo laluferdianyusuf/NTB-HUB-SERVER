@@ -35,4 +35,24 @@ export class PublicPlaceImpressionRepository {
       where: { placeId },
     });
   }
+
+  getVisitedPlaces(userId: string) {
+    return prisma.publicPlaceImpression.findMany({
+      where: { userId },
+      select: {
+        createdAt: true,
+        place: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            image: true,
+          },
+        },
+      },
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      distinct: ["placeId"],
+    });
+  }
 }

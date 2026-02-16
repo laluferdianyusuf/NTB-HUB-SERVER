@@ -185,7 +185,7 @@ export class UserController {
       await userService.setTransactionPin(req.params.id, String(pin) as string);
 
       sendSuccess(res, "Pin set");
-    } catch (error) {
+    } catch (error: any) {
       sendError(res, error.message || "Internal Server Error");
     }
   }
@@ -196,7 +196,7 @@ export class UserController {
       await userService.setBiometric(req.params.id, biometric as boolean);
 
       sendSuccess(res, "Biometric changed");
-    } catch (error) {
+    } catch (error: any) {
       console.log(error);
       sendError(res, error.message || "Internal Server Error");
     }
@@ -208,7 +208,7 @@ export class UserController {
       await userService.verifyPin(req.params.id, String(pin) as string);
 
       sendSuccess(res, "Pin verified");
-    } catch (error) {
+    } catch (error: any) {
       sendError(res, error.message || "Internal Server Error");
     }
   }
@@ -218,7 +218,7 @@ export class UserController {
       const result = await userService.getUserTopSpender();
 
       sendSuccess(res, result, "User top spender");
-    } catch (error) {
+    } catch (error: any) {
       sendError(res, error.message || "Internal server error");
     }
   }

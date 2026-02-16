@@ -1,4 +1,4 @@
-import { Prisma, CommunityMember } from "@prisma/client";
+import { Prisma, CommunityMember, CommunityMemberStatus } from "@prisma/client";
 import { prisma } from "config/prisma";
 
 interface Pagination {
@@ -17,6 +17,18 @@ export class CommunityMemberRepository {
   ): Promise<CommunityMember> {
     const client = this.transaction(tx);
     return client.communityMember.create({ data });
+  }
+
+  async updateStatus(
+    id: string,
+    status: CommunityMemberStatus,
+    tx?: Prisma.TransactionClient,
+  ): Promise<CommunityMember> {
+    const client = this.transaction(tx);
+    return client.communityMember.update({
+      where: { id },
+      data: { status },
+    });
   }
 
   async findById(
@@ -43,15 +55,38 @@ export class CommunityMemberRepository {
     });
   }
 
+  getUserCommunities(userId: string) {
+    return prisma.communityMember.findMany({
+      where: {
+        userId,
+        status: "APPROVED",
+      },
+      select: {
+        role: true,
+        joinedAt: true,
+        community: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+          },
+        },
+      },
+      take: 5,
+      orderBy: { joinedAt: "desc" },
+    });
+  }
+
   async findByCommunity(
     communityId: string,
     options: Pagination = {},
+    status: CommunityMemberStatus,
     search?: string,
     tx?: Prisma.TransactionClient,
   ) {
     const client = this.transaction(tx);
 
-    const where: any = { communityId };
+    const where: any = { communityId, status };
 
     if (search) {
       const words = search.split(" ");

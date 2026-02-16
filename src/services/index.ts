@@ -41,3 +41,4 @@ export * from "./community.post.services";
 export * from "./community.member.services";
 export * from "./community.reaction.services";
 export * from "./community.services";
+export * from "./profile.services";

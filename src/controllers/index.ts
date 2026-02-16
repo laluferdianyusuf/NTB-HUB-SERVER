@@ -39,3 +39,4 @@ export * from "./event.controllers";
 export * from "./event.ticket.type.controllers";
 export * from "./public.place.controllers";
 export * from "./url-preview.controller";
+export * from "./profile.controllers";
