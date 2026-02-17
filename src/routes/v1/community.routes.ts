@@ -19,6 +19,10 @@ router.get("/list/:userId", auth.authenticate, (req, res) =>
   controller.findAll(req, res),
 );
 
+router.get("/list-public", auth.authenticate, (req, res) =>
+  controller.findAllPublic(req, res),
+);
+
 router.get("/detail/:id", auth.authenticate, (req, res) =>
   controller.findById(req, res),
 );

@@ -19,6 +19,7 @@ export * from "./community.post.controllers";
 export * from "./community.reaction.controllers";
 export * from "./community-event.controllers";
 export * from "./task.controllers";
+export * from "./search.controllers";
 export * from "./community-twibbon.controllers";
 export * from "./user.balance.controllers";
 export * from "./venue.balance.controllers";

@@ -16,6 +16,7 @@ export * from "./points.repo";
 export * from "./venue.repo";
 export * from "./venue.units.repo";
 export * from "./maps.repo";
+export * from "./search.repo";
 export * from "./presence.repo";
 export * from "./venue.service.repo";
 export * from "./venue.category.repo";

@@ -44,6 +44,7 @@ import communityTwibbonRouter from "./v1/community-twibbon.routes";
 import urlPreviewRouter from "./v1/url-preview.routes";
 import commentRouter from "./v1/comment.routes";
 import profileRouter from "./v1/profile.routes";
+import searchRouter from "./v1/search.routes";
 
 import { deprecatedRouters } from "./deprecated";
 
@@ -97,6 +98,7 @@ v1.use("/urls", urlPreviewRouter);
 
 v1.use("/tasks", taskRouter);
 v1.use("/profiles", profileRouter);
+v1.use("/search", searchRouter);
 
 // mount v1 API
 router.use("/api/v1", v1);

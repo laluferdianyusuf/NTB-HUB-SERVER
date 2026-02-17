@@ -4,8 +4,12 @@ import { uploadImage } from "utils/uploadS3";
 const reviewPlaceRepository = new ReviewPublicPlaceRepository();
 
 export class ReviewPublicPlaceServices {
-  async createPlaceReview(data: ReviewPublicPlace, file?: Express.Multer.File) {
-    const { placeId, rating, comment, userId } = data;
+  async createPlaceReview(
+    data: ReviewPublicPlace,
+    userId: string,
+    file?: Express.Multer.File,
+  ) {
+    const { placeId, rating, comment } = data;
 
     let imageUrl: string | null = null;
 

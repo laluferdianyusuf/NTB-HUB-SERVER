@@ -1,20 +1,6 @@
 import { FindVenuesParams } from "./../types/venues.params";
 import { Prisma, PrismaClient, Venue } from "@prisma/client";
-import { GetVenuesParams } from "types/venues.params";
-
 const prisma = new PrismaClient();
-
-type VenueWithServices = Prisma.VenueGetPayload<{
-  include: {
-    services: {
-      include: {
-        subCategory: {
-          include: { category: true };
-        };
-      };
-    };
-  };
-}>;
 
 export class VenueRepository {
   async createVenue(

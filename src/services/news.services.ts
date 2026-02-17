@@ -53,4 +53,33 @@ export class NewsServices {
     }
     return news;
   }
+
+  async createImpression(data: {
+    newsId: string;
+    userId: string;
+    ipAddress?: string;
+    userAgent?: string;
+  }) {
+    await this.newsRepo.createImpression(data);
+  }
+
+  async createComment(payload: {
+    newsId: string;
+    userId: string;
+    content: string;
+  }) {
+    if (!payload.content.trim()) {
+      throw new Error("Comment content cannot be empty");
+    }
+
+    return this.newsRepo.createComment(payload);
+  }
+
+  async getAllCommentsByNews(newsId: string) {
+    if (!newsId) {
+      throw new Error("News ID is required");
+    }
+
+    return this.newsRepo.findAllByNewsId(newsId);
+  }
 }

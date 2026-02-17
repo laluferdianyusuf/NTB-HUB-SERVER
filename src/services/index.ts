@@ -19,6 +19,7 @@ export * from "./presence.services";
 export * from "./task.services";
 export * from "./community-twibbon.services";
 export * from "./maps.services";
+export * from "./search.services";
 export * from "./venue.staff.services";
 export * from "./invitation.services";
 export * from "./news.services";

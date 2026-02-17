@@ -43,7 +43,7 @@ router.get(
   auth.authorizeGlobalRole(["ADMIN", "CUSTOMER"]),
   (req, res) => venueController.getActiveVenues(req, res),
 );
-router.get("/venue/:id", (req, res) =>
+router.get("/venue/:id", auth.authenticate, (req, res) =>
   venueController.getVenueDetail(req, res),
 );
 router.put(

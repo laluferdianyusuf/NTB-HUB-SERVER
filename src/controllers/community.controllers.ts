@@ -18,6 +18,20 @@ export class CommunityController {
     }
   };
 
+  findAllPublic = async (req: Request, res: Response) => {
+    try {
+      const page = Number(req.query.page) || 1;
+      const limit = Number(req.query.limit) || 20;
+      const search = req.query.search as string;
+
+      const result = await this.service.findAllPublic({ page, limit }, search);
+
+      return sendSuccess(res, result, "Communities fetched successfully");
+    } catch (error: any) {
+      return sendError(res, error.message || "FAILED_TO_FETCH_COMMUNITIES");
+    }
+  };
+
   findAll = async (req: Request, res: Response) => {
     try {
       const { userId } = req.params;

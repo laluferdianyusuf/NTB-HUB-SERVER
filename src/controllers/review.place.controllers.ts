@@ -11,13 +11,19 @@ export class ReviewPlaceControllers {
   async createReview(req: Request, res: Response) {
     try {
       const data = req.body;
-      const result = await this.reviewService.createPlaceReview(data, req.file);
+      const userId = req.user?.id;
+      const result = await this.reviewService.createPlaceReview(
+        data,
+        String(userId),
+        req.file,
+      );
+
       res.status(201).json({
         status: true,
         message: "Rating successful",
         data: result,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.log(error);
 
       res.status(500).json({
@@ -36,7 +42,7 @@ export class ReviewPlaceControllers {
         message: "Rating retrieved successful",
         data: result,
       });
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({
         status: false,
         message: error.message || "Internal Server Error",
@@ -53,7 +59,7 @@ export class ReviewPlaceControllers {
         message: "Rating retrieved successful",
         data: result,
       });
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({
         status: false,
         message: error.message || "Internal Server Error",

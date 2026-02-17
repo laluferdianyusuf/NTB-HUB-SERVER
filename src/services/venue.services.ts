@@ -126,6 +126,11 @@ export class VenueServices {
       address: venue.address,
       image: venue.image,
       gallery: venue.gallery,
+      totalLikes: venue.totalLikes,
+      totalReviews: venue.totalReviews,
+      totalViews: venue.totalViews,
+      latitude: venue.latitude,
+      longitude: venue.longitude,
       category: venue.services?.[0]?.subCategory?.category || null,
       services: includeServices ? venue.services : undefined,
       updatedAll: venue.updatedAt,
@@ -172,6 +177,11 @@ export class VenueServices {
       address: venue.address,
       image: venue.image,
       gallery: venue.gallery,
+      totalLikes: venue.totalLikes,
+      totalReviews: venue.totalReviews,
+      totalViews: venue.totalViews,
+      latitude: venue.latitude,
+      longitude: venue.longitude,
       category: venue.services?.[0]?.subCategory?.category || null,
       services: includeServices ? venue.services : undefined,
       updatedAll: venue.updatedAt,
@@ -198,14 +208,20 @@ export class VenueServices {
     return venues;
   }
 
-  async getVenueById(id: string) {
+  async getVenueById(id: string, userId?: string) {
     const existing = await venueRepository.findVenueById(id);
 
     if (!existing) {
       throw new Error("Venue not found");
     }
 
-    return existing;
+    let isLiked = false;
+    if (userId) {
+      const liked = await venueLikeRepository.isLikedByUser(id, userId);
+      isLiked = !!liked;
+    }
+
+    return { ...existing, isLiked };
   }
 
   async updateVenue(
@@ -271,9 +287,16 @@ export class VenueServices {
   }
 
   async toggleLike(venueId: string, userId: string) {
-    const result = await venueLikeRepository.likeVenue(venueId, userId);
+    const liked = await venueLikeRepository.isLikedByUser(venueId, userId);
+    console.log(liked);
 
-    return result;
+    if (liked) {
+      await venueLikeRepository.unlikeVenue(venueId, userId);
+      return { liked: false };
+    }
+
+    await venueLikeRepository.likeVenue(venueId, userId);
+    return { liked: true };
   }
 
   async getLikeCount(venueId: string, userId: string) {

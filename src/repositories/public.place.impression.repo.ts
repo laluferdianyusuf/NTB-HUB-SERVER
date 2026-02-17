@@ -22,12 +22,20 @@ export class PublicPlaceImpressionRepository {
 
     if (existing) return;
 
-    await prisma.publicPlaceImpression.create({
-      data: {
-        placeId,
-        userId,
-      },
-    });
+    return await prisma.$transaction([
+      prisma.publicPlaceImpression.create({
+        data: {
+          placeId,
+          userId,
+        },
+      }),
+      prisma.publicPlace.update({
+        where: { id: placeId },
+        data: {
+          totalViews: { increment: 1 },
+        },
+      }),
+    ]);
   }
 
   async countImpressionByPlaceId(placeId: string): Promise<number> {

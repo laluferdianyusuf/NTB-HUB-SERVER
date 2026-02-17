@@ -22,7 +22,7 @@ export class CommunityEventRepository {
       const words = search.split(" ");
 
       where.OR = words.flatMap((word) => [
-        { name: { contains: word, mode: "insensitive" } },
+        { title: { contains: word, mode: "insensitive" } },
         { location: { contains: word, mode: "insensitive" } },
         { description: { contains: word, mode: "insensitive" } },
       ]);
@@ -79,6 +79,7 @@ export class CommunityEventRepository {
       where: { id },
       include: {
         community: true,
+        collaborations: true,
       },
     });
   }

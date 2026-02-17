@@ -9,7 +9,9 @@ const auth = new AuthMiddlewares();
 
 // public
 router.get("/list-places", (req, res) => controller.list(req, res));
-router.get("/detail-place/:id", (req, res) => controller.detail(req, res));
+router.get("/detail-place/:id", auth.authenticate, (req, res) =>
+  controller.detail(req, res),
+);
 
 // admin only
 router.post(

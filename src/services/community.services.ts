@@ -36,6 +36,22 @@ export class CommunityService {
     });
   }
 
+  async findAllPublic(
+    params: { page?: number; limit?: number },
+    search?: string,
+  ) {
+    const { page = 1, limit = 20 } = params;
+    const skip = (page - 1) * limit;
+
+    const communities = await this.communityRepo.findAllCommunity({
+      skip,
+      take: limit,
+      search,
+    });
+
+    return communities;
+  }
+
   async findAll(
     userId: string,
     params: { page?: number; limit?: number },
@@ -43,7 +59,6 @@ export class CommunityService {
   ) {
     const { page = 1, limit = 20 } = params;
     const skip = (page - 1) * limit;
-    console.log(search);
 
     const communities = await this.communityRepo.findAllCommunity({
       skip,

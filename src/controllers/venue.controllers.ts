@@ -98,7 +98,8 @@ export class VenueControllers {
   async getVenueDetail(req: Request, res: Response) {
     try {
       const id = req.params.id;
-      const result = await this.venueServices.getVenueById(id);
+      const userId = req.user?.id;
+      const result = await this.venueServices.getVenueById(id, String(userId));
 
       sendSuccess(res, result, "Venues retrieved successfully");
     } catch (error: any) {
@@ -144,6 +145,8 @@ export class VenueControllers {
       );
       sendSuccess(res, result, "You like this venue", 201);
     } catch (error: any) {
+      console.log(error);
+
       sendError(res, error.message || "Internal Server Error");
     }
   }
@@ -177,7 +180,7 @@ export class VenueControllers {
         userAgent,
       });
 
-      return res.status(204).send();
+      sendSuccess(res, "Venue visited");
     } catch (error: any) {
       sendError(res, error.message || "Internal Server Error");
     }

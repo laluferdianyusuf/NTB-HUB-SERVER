@@ -54,9 +54,6 @@ export class CommunityEventService {
         tx,
       );
 
-      console.log("EVENT CREATED:", event);
-      console.log("EVENT ID:", event?.id);
-
       if (data.collaborations?.length) {
         await this.collabRepo.bulkAdd(event.id, data.collaborations, tx);
       }
@@ -74,7 +71,9 @@ export class CommunityEventService {
   }
 
   getEventDetail(id: string) {
-    return this.repo.findById(id);
+    const event = this.repo.findById(id);
+
+    return event;
   }
 
   deleteEvent(id: string) {

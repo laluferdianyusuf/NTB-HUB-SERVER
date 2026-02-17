@@ -17,7 +17,7 @@ export class PublicPlaceController {
       });
 
       sendSuccess(res, result, "Places retrieved successfully");
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       sendError(res, error.message || "Internal Server Error");
     }
@@ -25,9 +25,14 @@ export class PublicPlaceController {
 
   async detail(req: Request, res: Response) {
     try {
-      const result = await this.publicPlaceService.getDetail(req.params.id);
+      const id = req.params.id;
+      const userId = req.user?.id;
+      const result = await this.publicPlaceService.getDetail(
+        id,
+        String(userId),
+      );
       sendSuccess(res, result, "Places retrieved successfully");
-    } catch (error) {
+    } catch (error: any) {
       sendError(res, error.message || "Internal Server Error");
     }
   }
@@ -60,17 +65,17 @@ export class PublicPlaceController {
   async toggleLike(req: Request, res: Response) {
     try {
       const placeId = req.params.placeId;
-      const userId = req.user.id;
+      const userId = req.user?.id;
 
-      const result = await this.publicPlaceService.toggleLike(placeId, userId);
+      const result = await this.publicPlaceService.toggleLike(
+        placeId,
+        String(userId),
+      );
 
-      return res.status(result.status_code).json(result);
-    } catch (error) {
+      sendSuccess(res, result, "Place liked");
+    } catch (error: any) {
       console.error(error);
-      return res.status(500).json({
-        success: false,
-        message: "Failed to toggle like",
-      });
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -80,11 +85,11 @@ export class PublicPlaceController {
       const userId = req.user?.id;
       const result = await this.publicPlaceService.getLikeCount(
         placeId,
-        userId,
+        String(userId),
       );
 
       return res.status(result.status_code).json(result);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       return res.status(500).json({
         success: false,
@@ -103,13 +108,10 @@ export class PublicPlaceController {
         userId,
       });
 
-      return res.status(204).send();
-    } catch (error) {
+      sendSuccess(res, "Venue visited");
+    } catch (error: any) {
       console.error(error);
-      return res.status(500).json({
-        success: false,
-        message: "Failed to create impression",
-      });
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -120,7 +122,7 @@ export class PublicPlaceController {
       const result = await this.publicPlaceService.getImpressionCount(placeId);
 
       return res.status(result.status_code).json(result);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       return res.status(500).json({
         success: false,

@@ -4,29 +4,40 @@ const prisma = new PrismaClient();
 
 export class PublicPlaceLikeRepository {
   async likePublicPlace(placeId: string, userId: string) {
-    const existingLike = await prisma.likePublicPlace.findUnique({
-      where: {
-        userId_placeId: {
+    return await prisma.$transaction([
+      prisma.likePublicPlace.create({
+        data: {
           userId,
           placeId,
         },
-      },
-    });
-
-    if (existingLike) {
-      await prisma.likePublicPlace.delete({
-        where: {
-          id: existingLike.id,
+      }),
+      prisma.publicPlace.update({
+        where: { id: placeId },
+        data: {
+          totalLikes: {
+            increment: 1,
+          },
         },
-      });
-    }
+      }),
+    ]);
+  }
 
-    return await prisma.likePublicPlace.create({
-      data: {
-        userId,
-        placeId,
-      },
-    });
+  async unlikePublicPlace(placeId: string, userId: string) {
+    return await prisma.$transaction([
+      prisma.likePublicPlace.delete({
+        where: {
+          userId_placeId: { userId, placeId },
+        },
+      }),
+      prisma.publicPlace.update({
+        where: { id: placeId },
+        data: {
+          totalLikes: {
+            decrement: 1,
+          },
+        },
+      }),
+    ]);
   }
 
   async countLikesByPlaceId(placeId: string): Promise<number> {
@@ -35,14 +46,11 @@ export class PublicPlaceLikeRepository {
     });
   }
 
-  async isLikedByUser(placeId: string, userId: string): Promise<boolean> {
-    const like = await prisma.likePublicPlace.findFirst({
+  async isLikedByUser(placeId: string, userId: string) {
+    return await prisma.likePublicPlace.findUnique({
       where: {
-        placeId,
-        userId,
+        userId_placeId: { userId, placeId },
       },
     });
-
-    return !!like;
   }
 }

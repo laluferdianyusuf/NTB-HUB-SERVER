@@ -29,14 +29,20 @@ export class VenueImpressionRepository {
 
     if (existing) return;
 
-    await prisma.venueImpression.create({
-      data: {
-        venueId,
-        userId,
-        ipAddress,
-        userAgent,
-      },
-    });
+    return await prisma.$transaction([
+      prisma.venueImpression.create({
+        data: {
+          venueId,
+          userId,
+          ipAddress,
+          userAgent,
+        },
+      }),
+      prisma.venue.update({
+        where: { id: venueId },
+        data: { totalViews: { increment: 1 } },
+      }),
+    ]);
   }
 
   async countImpressionByVenueId(venueId: string): Promise<number> {

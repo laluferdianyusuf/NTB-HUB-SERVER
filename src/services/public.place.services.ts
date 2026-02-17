@@ -43,6 +43,9 @@ export class PublicPlaceService {
       longitude: place.longitude,
       image: place.image,
       gallery: place.gallery,
+      totalLikes: place.totalLikes,
+      totalReviews: place.totalReviews,
+      totalViews: place.totalViews,
       updatedAll: place.updatedAt,
     }));
 
@@ -52,14 +55,21 @@ export class PublicPlaceService {
     };
   }
 
-  async getDetail(id: string): Promise<PublicPlace> {
+  async getDetail(id: string, userId?: string) {
     const place = await this.repo.findById(id);
 
     if (!place || !place.isActive) {
       throw new Error("PUBLIC_PLACE_NOT_FOUND");
     }
 
-    return place;
+    let isLiked = false;
+    if (userId) {
+      const liked = await this.likeRepo.isLikedByUser(id, userId);
+      isLiked = !!liked;
+    }
+    console.log("Is Liked", isLiked);
+
+    return { ...place, isLiked };
   }
 
   async create(
@@ -112,23 +122,18 @@ export class PublicPlaceService {
   }
 
   async toggleLike(placeId: string, userId: string) {
-    try {
-      const result = await this.likeRepo.likePublicPlace(placeId, userId);
+    const liked = await this.likeRepo.isLikedByUser(placeId, userId);
 
-      return {
-        status: true,
-        status_code: 201,
-        message: "Venue like toggled",
-        data: result,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
+    if (liked) {
+      await this.likeRepo.unlikePublicPlace(placeId, userId);
+      return { liked: false };
     }
+
+    await this.likeRepo.likePublicPlace(placeId, userId);
+
+    return {
+      liked: true,
+    };
   }
 
   async getLikeCount(placeId: string, userId: string) {
@@ -155,23 +160,7 @@ export class PublicPlaceService {
   }
 
   async createImpression(data: { placeId: string; userId?: string }) {
-    try {
-      await this.impressionRepo.createImpression(data);
-
-      return {
-        status: true,
-        status_code: 201,
-        message: "Impression recorded",
-        data: null,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error",
-        data: null,
-      };
-    }
+    await this.impressionRepo.createImpression(data);
   }
 
   async getImpressionCount(placeId: string) {

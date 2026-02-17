@@ -1,22 +1,41 @@
-import { PrismaClient, ReviewPublicPlace } from "@prisma/client";
+import { Prisma, PrismaClient, ReviewPublicPlace } from "@prisma/client";
 const prisma = new PrismaClient();
 
+export interface CreateReviewPublicPlaceDTO {
+  placeId: string;
+  rating: number;
+  comment?: string | null;
+  image?: string | null;
+}
+
 export class ReviewPublicPlaceRepository {
-  async create(
-    data: ReviewPublicPlace,
-    userId: string,
-  ): Promise<ReviewPublicPlace> {
-    return await prisma.$transaction(async (tx) => {
-      const review = await tx.reviewPublicPlace.create({ data });
+  async create(data: CreateReviewPublicPlaceDTO, userId: string) {
+    return prisma.$transaction(async (tx) => {
+      const reviewData: Prisma.ReviewPublicPlaceCreateInput = {
+        rating: data.rating,
+        comment: data.comment ?? null,
+        image: data.image ?? null,
+        user: {
+          connect: { id: userId },
+        },
+        place: {
+          connect: { id: data.placeId },
+        },
+      };
+
+      const review = await tx.reviewPublicPlace.create({
+        data: reviewData,
+      });
 
       await tx.point.create({
         data: {
-          userId: userId,
+          userId,
           points: 10,
           activity: "REVIEW",
           reference: review.id,
         },
       });
+
       return review;
     });
   }

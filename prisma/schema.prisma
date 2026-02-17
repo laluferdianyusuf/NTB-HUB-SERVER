@@ -396,19 +396,23 @@ model Log {
 
 // #region VENUE CORE
 model Venue {
-  id          String   @id @default(uuid())
-  name        String
-  address     String
-  city        String
-  province    String
-  description String
-  latitude    Float?
-  longitude   Float?
-  image       String?
-  gallery     String[] @default([])
-  isActive    Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now()) @updatedAt
+  id            String   @id @default(uuid())
+  name          String
+  address       String
+  city          String
+  province      String
+  description   String
+  latitude      Float?
+  longitude     Float?
+  image         String?
+  gallery       String[] @default([])
+  isActive      Boolean  @default(false)
+  averageRating Float    @default(0)
+  totalReviews  Int      @default(0)
+  totalLikes    Int      @default(0)
+  totalViews    Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
 
   services VenueService[]
   units    VenueUnit[]
@@ -887,20 +891,24 @@ model PublicPlaceImpression {
 // #region EVENTS & PUBLIC PLACES CORE
 
 model Event {
-  id          String      @id @default(uuid())
-  venueId     String?
-  communityId String?
-  name        String
-  description String
-  image       String?
-  startAt     DateTime
-  endAt       DateTime
-  capacity    Int?
-  location    String
-  status      EventStatus @default(UPCOMING)
-  isActive    Boolean     @default(true)
-  isCommunity Boolean     @default(false)
-  isVenue     Boolean     @default(false)
+  id            String      @id @default(uuid())
+  venueId       String?
+  communityId   String?
+  name          String
+  description   String
+  image         String?
+  startAt       DateTime
+  endAt         DateTime
+  capacity      Int?
+  location      String
+  status        EventStatus @default(UPCOMING)
+  isActive      Boolean     @default(true)
+  isCommunity   Boolean     @default(false)
+  isVenue       Boolean     @default(false)
+  averageRating Float       @default(0)
+  totalReviews  Int         @default(0)
+  totalLikes    Int         @default(0)
+  totalViews    Int         @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
@@ -992,16 +1000,20 @@ model EventTicket {
 }
 
 model PublicPlace {
-  id          String          @id @default(uuid())
-  name        String
-  type        PublicPlaceType
-  address     String
-  description String?
-  latitude    Float?
-  longitude   Float?
-  image       String?
-  gallery     String[]        @default([])
-  isActive    Boolean         @default(true)
+  id            String          @id @default(uuid())
+  name          String
+  type          PublicPlaceType
+  address       String
+  description   String?
+  latitude      Float?
+  longitude     Float?
+  image         String?
+  gallery       String[]        @default([])
+  isActive      Boolean         @default(true)
+  averageRating Float           @default(0)
+  totalReviews  Int             @default(0)
+  totalLikes    Int             @default(0)
+  totalViews    Int             @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
@@ -1040,6 +1052,7 @@ model News {
   status      NewsStatus
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @default(now()) @updatedAt
+  totalViews  Int        @default(0)
 
   newsImpressions NewsImpression[]
   newsComments    NewsComment[]
@@ -1055,11 +1068,13 @@ model NewsImpression {
   ipAddress   String?
   userAgent   String?
   isAnonymous Boolean  @default(false)
+  totalViews  Int      @default(0)
   createdAt   DateTime @default(now())
 
   news News  @relation(fields: [newsId], references: [id])
   user User? @relation(fields: [userId], references: [id])
 
+  @@unique([newsId, userId])
   @@index([newsId, createdAt])
 }
 
