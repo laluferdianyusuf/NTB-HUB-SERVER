@@ -32,7 +32,7 @@ export class VenueServiceController {
         message: "Venue service created successfully",
         data: service,
       });
-    } catch (err) {
+    } catch (err: any) {
       return res.status(400).json({
         status: false,
         message: err.message,
@@ -61,7 +61,7 @@ export class VenueServiceController {
         message: "Venue service updated successfully",
         data: service,
       });
-    } catch (err) {
+    } catch (err: any) {
       return res.status(400).json({
         status: false,
         message: err.message,
@@ -80,7 +80,7 @@ export class VenueServiceController {
         message: "Venue retrieved successful",
         data: services,
       });
-    } catch (err) {
+    } catch (err: any) {
       return res.status(404).json({
         status: false,
         message: err.message,
@@ -100,7 +100,7 @@ export class VenueServiceController {
         message: "Venue retrieved successful",
         data: services,
       });
-    } catch (err) {
+    } catch (err: any) {
       return res.status(404).json({
         status: false,
         message: err.message,
@@ -119,7 +119,7 @@ export class VenueServiceController {
         message: "Venue detail retrieved successful",
         data: service,
       });
-    } catch (err) {
+    } catch (err: any) {
       return res.status(404).json({
         status: false,
         message: err.message,
@@ -137,7 +137,7 @@ export class VenueServiceController {
         status: true,
         message: "Venue service deactivated successfully",
       });
-    } catch (err) {
+    } catch (err: any) {
       return res.status(400).json({
         status: false,
         message: err.message,

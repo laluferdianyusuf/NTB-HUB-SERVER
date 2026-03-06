@@ -25,12 +25,14 @@ export class CommunityEventService {
       endAt?: Date;
       type?: CommunityEventType;
       location?: string;
+      latitude?: number;
+      longitude?: number;
       meetingLink?: string;
       collaborations?: string[];
+      includeTicket?: boolean;
     },
     file: Express.Multer.File,
   ) {
-    console.log("communityId:", communityId);
     return prisma.$transaction(async (tx) => {
       let imageUrl: string | null = null;
 
@@ -47,7 +49,10 @@ export class CommunityEventService {
           endAt: data.endAt,
           type: data.type,
           location: data.location,
+          latitude: data.latitude,
+          longitude: data.longitude,
           image: imageUrl,
+          includeTicket: data.includeTicket,
           community: { connect: { id: communityId } },
           createdBy: { connect: { id: createdById } },
         },

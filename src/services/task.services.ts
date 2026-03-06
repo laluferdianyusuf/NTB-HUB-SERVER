@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import {
+  CommunityMemberRepository,
   LocationRepository,
   TaskExecutionRepository,
   TaskQrRepository,
@@ -58,6 +59,7 @@ function isLocationQrRule(rule: TaskRule): rule is LocationQrTaskRule {
 export class TaskService {
   constructor(
     private taskRepo = new TaskRepository(),
+    private communityMemberRepo = new CommunityMemberRepository(),
     private qrRepo = new TaskQrRepository(),
     private execRepo = new TaskExecutionRepository(),
     private qrRedis = new TaskQrRedisService(),
@@ -87,7 +89,7 @@ export class TaskService {
     }
 
     const token = nanoid(32);
-    const ttlSeconds = 300;
+    const ttlSeconds = 1800;
 
     const qr = await this.qrRepo.create(
       taskId,
@@ -106,6 +108,7 @@ export class TaskService {
     longitude?: number;
   }) {
     const redisTaskId = await this.qrRedis.get(params.token);
+
     if (!redisTaskId) throw new Error("QR expired");
 
     const session = await this.qrRepo.findValidSession(params.token);
@@ -233,11 +236,21 @@ export class TaskService {
     return execution;
   }
 
-  async getTasks(params: { entityType?: TaskEntityType; entityId?: string }) {
-    if (params.entityType && !params.entityId) {
-      throw new Error("entityId is required when entityType is provided");
-    }
+  async getTasks(userId: string, communityId?: string) {
+    const tasks = await this.taskRepo.findAllWithUserStatus(
+      userId,
+      communityId,
+    );
 
-    return this.taskRepo.findAllOrByEntity(params);
+    return tasks.map((task) => {
+      const isCompleted = task.executions.some(
+        (exec) => exec.status === "COMPLETED",
+      );
+      return { ...task, isCompleted };
+    });
+  }
+
+  async getAllTasks() {
+    return this.taskRepo.findAll();
   }
 }

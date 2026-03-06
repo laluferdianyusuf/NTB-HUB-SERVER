@@ -7,13 +7,13 @@ export class VenueCategoryRepository {
     return prisma.venueCategory.create({ data });
   }
 
-  findByCode(code: string): Promise<VenueCategory> {
+  findByCode(code: string): Promise<VenueCategory | null> {
     return prisma.venueCategory.findUnique({
       where: { code },
     });
   }
 
-  findById(id: string): Promise<VenueCategory> {
+  findById(id: string): Promise<VenueCategory | null> {
     return prisma.venueCategory.findUnique({
       where: { id },
     });

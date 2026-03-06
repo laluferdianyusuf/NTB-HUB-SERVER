@@ -1,4 +1,4 @@
-import { TaskEntityType, TaskType } from "@prisma/client";
+import { Prisma, TaskEntityType, TaskType } from "@prisma/client";
 import { prisma } from "config/prisma";
 
 export class TaskRepository {
@@ -10,6 +10,8 @@ export class TaskRepository {
     description?: string;
     type: TaskType;
     rule: any;
+    requiresQr?: boolean;
+    requiresGeo?: boolean;
     startAt?: Date;
     endAt?: Date;
   }) {
@@ -22,22 +24,102 @@ export class TaskRepository {
     });
   }
 
-  findAllOrByEntity(params?: {
-    entityType?: TaskEntityType;
-    entityId?: string;
-  }) {
+  findByEntity(
+    entityType: TaskEntityType,
+    entityId: string,
+    type: TaskType,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = tx ?? prisma;
+    return client.task.findFirst({
+      where: {
+        entityType,
+        entityId,
+        type,
+        isActive: true,
+      },
+    });
+  }
+
+  findAllWithUserStatus(userId: string, communityId?: string) {
     return prisma.task.findMany({
       where: {
         isActive: true,
         deletedAt: null,
+        OR: [
+          { communityId: null },
 
-        ...(params?.entityType && {
-          entityType: params.entityType,
-        }),
+          {
+            ...(communityId ? { communityId } : {}),
 
-        ...(params?.entityId && {
-          entityId: params.entityId,
-        }),
+            community: {
+              members: {
+                some: {
+                  userId,
+                  status: "APPROVED",
+                },
+              },
+            },
+          },
+        ],
+      },
+      include: {
+        community: {
+          select: {
+            name: true,
+          },
+        },
+        executions: {
+          where: { userId },
+          select: {
+            id: true,
+            status: true,
+            completedAt: true,
+          },
+        },
+        taskQrSessions: {
+          select: {
+            id: true,
+            token: true,
+            expiresAt: true,
+            isActive: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+
+  findAll() {
+    return prisma.task.findMany({
+      where: {
+        isActive: true,
+        deletedAt: null,
+      },
+      include: {
+        community: {
+          select: {
+            name: true,
+          },
+        },
+        executions: {
+          select: {
+            id: true,
+            userId: true,
+            status: true,
+            completedAt: true,
+          },
+        },
+        taskQrSessions: {
+          select: {
+            id: true,
+            token: true,
+            expiresAt: true,
+            isActive: true,
+          },
+        },
       },
       orderBy: {
         createdAt: "desc",

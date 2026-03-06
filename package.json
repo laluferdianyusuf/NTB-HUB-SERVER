@@ -7,9 +7,11 @@
   "scripts": {
     "minio": "cd minio && minio.exe server ./data --console-address :9001",
     "start:server": "nodemon --legacy-watch --watch src --ext ts,tsx,json --exec npx tsx src/server.ts --verbose",
-    "dev": "concurrently \"npm run minio\" \"npm run start:server\"",
+    "dev": "concurrently \"npm run minio\" \"npm run start:server\" \"npm run start:worker:dev\"",
     "build": "tsc",
     "start": "node dist/server.js",
+    "start:worker": "node dist/workers/promotion.worker.js",
+    "start:worker:dev": "nodemon --legacy-watch --watch src --ext ts --exec npx tsx src/workers/promotion.worker.ts",
     "seed": "tsx prisma/seed.ts",
     "test": "set NODE_ENV=test&& jest --runInBand --coverage"
   },

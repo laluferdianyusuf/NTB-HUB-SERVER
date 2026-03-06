@@ -1,7 +1,9 @@
 import { PointActivityType } from "@prisma/client";
 import { analyticsQueue, pointQueue } from "queue";
+import { PointsRepository } from "repositories";
 
 export class PointQueueService {
+  private pointRepo = new PointsRepository();
   async givePoint(params: {
     userId: string;
     activity: PointActivityType;
@@ -14,6 +16,13 @@ export class PointQueueService {
       jobId,
       removeOnComplete: true,
       attempts: 3,
+    });
+
+    await this.pointRepo.generatePoints({
+      userId: params.userId,
+      activity: params.activity,
+      points: params.points,
+      reference: params.reference,
     });
 
     await analyticsQueue.add("track-event", {

@@ -1,4 +1,5 @@
 import { Review } from "@prisma/client";
+import { prisma } from "config/prisma";
 import {
   ReviewRepository,
   VenueRepository,
@@ -10,8 +11,11 @@ const venueRepository = new VenueRepository();
 const bookingRepository = new BookingRepository();
 
 export class ReviewServices {
-  async createReview(data: any, file?: Express.Multer.File) {
-    const { bookingId, rating, comment, userId } = data;
+  async createReview(
+    data: { bookingId: string; rating: number; comment?: string },
+    file?: Express.Multer.File,
+  ) {
+    const { bookingId, rating, comment } = data;
 
     let imageUrl: string | null = null;
 
@@ -20,21 +24,45 @@ export class ReviewServices {
       imageUrl = image.url;
     }
 
-    const existingReview = await reviewRepository.findByBookingId(bookingId);
+    return prisma.$transaction(async (tx) => {
+      const booking = await bookingRepository.findBookingById(bookingId, tx);
 
-    if (existingReview) {
-      throw new Error("You have already submitted a review for this booking");
-    }
+      if (!booking) {
+        throw new Error("Booking not found");
+      }
 
-    return reviewRepository.create(
-      {
-        bookingId,
-        rating: Number(rating),
-        comment,
-        image: imageUrl,
-      } as Review,
-      userId,
-    );
+      if (booking.review) {
+        throw new Error("Review already exists");
+      }
+
+      if (booking.status !== "PAID") {
+        throw new Error("Cannot review unpaid booking");
+      }
+
+      const review = await reviewRepository.create(
+        {
+          rating: Number(rating),
+          comment,
+          image: imageUrl,
+          booking: { connect: { id: bookingId } },
+        },
+        tx,
+      );
+
+      const aggregation = await reviewRepository.aggregateByVenue(
+        booking.venueId,
+        tx,
+      );
+
+      await venueRepository.updateRating(
+        booking.venueId,
+        aggregation._avg.rating ?? 0,
+        aggregation._count.rating,
+        tx,
+      );
+
+      return review;
+    });
   }
 
   async getReviewById(id: string) {

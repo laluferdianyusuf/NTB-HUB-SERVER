@@ -14,7 +14,7 @@ export class VenueBalanceRepository {
     const venueBalance = await client.venueBalance.findUnique({
       where: { venueId },
     });
-    return venueBalance ? venueBalance.balance : null;
+    return venueBalance ? Number(venueBalance.balance) : null;
   }
 
   async incrementVenueBalance(

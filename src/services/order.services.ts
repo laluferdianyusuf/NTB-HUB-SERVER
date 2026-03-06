@@ -1,374 +1,230 @@
-import { PrismaClient } from "@prisma/client";
-import { publisher } from "config/redis.config";
+import { Prisma } from "@prisma/client";
+import { prisma } from "config/prisma";
 import {
-  OrderRepository,
-  MenuRepository,
-  BookingRepository,
-  UserBalanceRepository,
   InvoiceRepository,
+  LedgerRepository,
+  MenuRepository,
+  OrderItemRepository,
+  OrderRepository,
+  PaymentRepository,
+  UserBalanceRepository,
+  VenueRepository,
 } from "repositories";
+import { AccountRepository } from "repositories/account.repo";
+
 const orderRepository = new OrderRepository();
+const orderItemRepository = new OrderItemRepository();
 const menuRepository = new MenuRepository();
-const bookingRepository = new BookingRepository();
 const userBalanceRepository = new UserBalanceRepository();
 const invoiceRepository = new InvoiceRepository();
-
-const prisma = new PrismaClient();
+const venueRepository = new VenueRepository();
+const ledgerRepository = new LedgerRepository();
+const paymentRepository = new PaymentRepository();
+const accountRepository = new AccountRepository();
 
 export class OrderServices {
   async createNewOrder({
-    bookingId,
+    venueId,
+    userId,
     items,
   }: {
-    bookingId: string;
+    venueId: string;
+    userId: string;
     items: { menuId: string; quantity: number }[];
   }) {
-    try {
-      const booking = await bookingRepository.findBookingById(bookingId);
-      if (!booking) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "Booking not found",
-          data: null,
-        };
+    if (!items.length) throw new Error("Order items required");
+
+    const venue = await venueRepository.findVenueById(venueId);
+    if (!venue) throw new Error("No venue found");
+
+    const invoiceNumber = `INV-${Date.now()}-${crypto
+      .randomUUID()
+      .slice(0, 8)}`;
+
+    const menuItems = [] as any;
+    for (const item of items) {
+      const menu = await menuRepository.findMenuById(item.menuId);
+      if (!menu) {
+        throw new Error("No menu found");
       }
 
-      const invoiceNumber = `INV-${Date.now()}-${crypto
-        .randomUUID()
-        .slice(0, 8)}`;
+      const subTotal = Number(menu.price) * item.quantity;
 
-      const menuItems = [] as any;
+      menuItems.push({
+        menuId: item.menuId,
+        quantity: item.quantity,
+        subtotal: subTotal,
+      });
+    }
+    const result = await prisma.$transaction(async (tx) => {
+      const menuIds = items.map((i) => i.menuId);
+      const menus = await menuRepository.findMenuByIds(menuIds, tx);
+
+      if (menus.length !== menuIds.length) {
+        throw new Error("Some menu not found");
+      }
+
+      const menuMap = new Map(menus.map((m) => [m.id, m]));
+
+      let total = 0;
+      const orderItems = [];
+
       for (const item of items) {
-        const menu = await menuRepository.findMenuById(item.menuId);
-        if (!menu) {
-          return {
-            status: false,
-            status_code: 404,
-            message: `Menu with ID ${item.menuId} not found`,
-            data: null,
-          };
-        }
+        const menu = menuMap.get(item.menuId);
+        if (!menu) throw new Error("Invalid menu");
 
-        const subTotal = menu.price * item.quantity;
+        const subtotal = Number(menu.price) * item.quantity;
+        total += subtotal;
 
-        menuItems.push({
-          menuId: item.menuId,
+        orderItems.push({
+          menuId: menu.id,
           quantity: item.quantity,
-          subtotal: subTotal,
+          price: menu.price,
+          subtotal,
         });
       }
-      const result = await prisma.$transaction(async (tx) => {
-        await orderRepository.createBulkOrders(bookingId, menuItems, tx);
 
-        const increase = menuItems.reduce((acc, cur) => acc + cur.subtotal, 0);
+      const order = await orderRepository.create(
+        {
+          venueId,
+          userId,
+          bookingId: null,
+          total: new Prisma.Decimal(total),
+        },
+        tx,
+      );
 
-        const updatedBooking = await bookingRepository.updateBookingTotal(
-          bookingId,
-          increase
-        );
+      await orderItemRepository.createBulkOrders(
+        orderItems.map((item) => ({
+          ...item,
+          orderId: order.id,
+        })),
+        tx,
+      );
 
-        if (!updatedBooking.invoice) {
-          await invoiceRepository.create(
-            {
-              bookingId,
-              invoiceNumber,
-              amount: updatedBooking.totalPrice,
-            },
-            tx
-          );
-        } else {
-          await invoiceRepository.updateInvoiceAmount(bookingId, increase, tx);
-        }
+      const invoice = await invoiceRepository.create(
+        {
+          entityType: "ORDER",
+          entityId: order.id,
+          invoiceNumber,
+          amount: total,
+          expiredAt: new Date(Date.now() + 5 * 60 * 1000),
+        },
+        tx,
+      );
 
-        return { booking: updatedBooking, increase };
+      return { order: invoice };
+    });
+
+    return {
+      result,
+    };
+  }
+
+  async cancelOrder(orderId: string, userId: string) {
+    return prisma.$transaction(async (tx) => {
+      const order = await orderRepository.findById(orderId, tx);
+
+      if (!order) throw new Error("Order not found");
+      if (order.userId !== userId) throw new Error("Unauthorized");
+      if (order.status !== "PENDING") {
+        throw new Error("Order cannot be cancelled");
+      }
+
+      await orderRepository.updateStatus(orderId, "CANCELLED", tx);
+
+      await invoiceRepository.cancelByEntity("ORDER", orderId, tx);
+
+      return order;
+    });
+  }
+
+  async payOrder(orderId: string, userId: string) {
+    return prisma.$transaction(async (tx) => {
+      const order = await orderRepository.findById(orderId, tx);
+      if (!order || order.userId !== userId) {
+        throw new Error("Order not found");
+      }
+
+      if (order.status !== "PENDING") {
+        throw new Error("Invalid order status");
+      }
+
+      const userAccount = await accountRepository.findUserAccount(order.userId);
+      const venueAccount = await accountRepository.findVenueAccount(
+        order.venueId,
+      );
+
+      if (!userAccount || !venueAccount) {
+        throw new Error("Account not found");
+      }
+      const invoice = await invoiceRepository.findByEntity(
+        "ORDER",
+        order.id,
+        tx,
+      );
+
+      if (!invoice) throw new Error("Invoice not found");
+      if (invoice.status !== "PENDING") {
+        throw new Error("Invoice already paid or cancelled");
+      }
+
+      const balance = await ledgerRepository.getBalance(userId);
+
+      if (!balance || balance < Number(order.total)) {
+        throw new Error("Insufficient balance");
+      }
+
+      const paymentId = `PAY-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+
+      await userBalanceRepository.decrementBalance(
+        userId,
+        Number(order.total),
+        tx,
+      );
+
+      const payment = await paymentRepository.create({
+        invoiceId: invoice.id,
+        amount: Number(invoice.amount),
+        method: "WALLET",
+        provider: "NTB_HUB",
+        providerRef: paymentId,
       });
 
-      await publisher.publish(
-        "booking-events",
-        JSON.stringify({
-          event: "booking:updated",
-          payload: result.booking,
-        })
+      await ledgerRepository.createMany(
+        [
+          {
+            accountId: userAccount.id as string,
+            type: "DEBIT",
+            amount: Number(order.total),
+            referenceType: "ORDER",
+            referenceId: order.id,
+          },
+          {
+            accountId: venueAccount.id as string,
+            type: "CREDIT",
+            amount: Number(order.total),
+            referenceType: "ORDER",
+            referenceId: order.id,
+          },
+        ],
+        tx,
       );
 
-      return {
-        status: true,
-        status_code: 201,
-        message: "Order created",
-        data: result,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error" + error.message,
-        data: null,
-      };
-    }
+      await invoiceRepository.markPaid(invoice.id, tx);
+      await orderRepository.updateStatus(orderId, "SUCCESS", tx);
+
+      return payment;
+    });
   }
 
-  async updateOrder({ id, quantity }: { id: string; quantity: number }) {
-    try {
-      const order = await orderRepository.getOrderById(id);
+  async getAllByUser(userId: string) {
+    const orders = await orderRepository.findByUser(userId);
 
-      if (!order) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "Order not found",
-          data: null,
-        };
-      }
-
-      if (!order.menu) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "Menu not found",
-          data: null,
-        };
-      }
-
-      const subtotal = (order.menu?.price || 0) * quantity;
-
-      const result = await prisma.$transaction(async (tx) => {
-        const updatedOrder = await orderRepository.updateOrder(
-          id,
-          quantity,
-          subtotal,
-          tx
-        );
-
-        const updatedBooking = await bookingRepository.recalculateBookingTotal(
-          order.bookingId,
-          tx
-        );
-
-        return { updatedOrder, updatedBooking };
-      });
-
-      await publisher.publish(
-        "order-events",
-        JSON.stringify({
-          event: "order:updated",
-          payload: result.updatedOrder,
-        })
-      );
-
-      return {
-        status: true,
-        status_code: 200,
-        message: "Order updated",
-        data: result,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error" + error.message,
-        data: null,
-      };
+    if (!orders) {
+      throw new Error("Orders not found");
     }
-  }
 
-  async deleteOrder(id: string) {
-    try {
-      const order = await orderRepository.getOrderById(id);
-
-      if (!order) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "Order not found",
-          data: null,
-        };
-      }
-
-      const result = await prisma.$transaction(async (tx) => {
-        const deletedOrder = await orderRepository.deleteOrder(id, tx);
-
-        const updatedBooking = await bookingRepository.recalculateBookingTotal(
-          order.bookingId,
-          tx
-        );
-
-        return { deletedOrder, updatedBooking };
-      });
-
-      await publisher.publish(
-        "order-events",
-        JSON.stringify({
-          event: "order:deleted",
-          payload: result.deletedOrder,
-        })
-      );
-      return {
-        status: true,
-        status_code: 200,
-        message: "Order deleted",
-        data: result,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error" + error.message,
-        data: null,
-      };
-    }
-  }
-  async getOrderById(id: string) {
-    try {
-      const order = await orderRepository.getOrderById(id);
-
-      if (!order) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "Order not found",
-          data: null,
-        };
-      }
-
-      return {
-        status: true,
-        status_code: 200,
-        message: "Order retrieved",
-        data: order,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error" + error.message,
-        data: null,
-      };
-    }
-  }
-
-  async findAllOrder() {
-    try {
-      const orders = await orderRepository.findAllOrders();
-
-      return {
-        status: true,
-        status_code: 200,
-        message: "Orders retrieved",
-        data: orders,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error" + error.message,
-        data: null,
-      };
-    }
-  }
-
-  async findByBookingId(bookingId: string) {
-    try {
-      const orders = await orderRepository.findByBookingId(bookingId);
-
-      return {
-        status: true,
-        status_code: 200,
-        message: "Orders retrieved",
-        data: orders,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error" + error.message,
-        data: null,
-      };
-    }
-  }
-
-  async processOrderPayment(bookingId: string) {
-    try {
-      const booking = await bookingRepository.findBookingById(bookingId);
-      if (!booking) {
-        return {
-          status: false,
-          status_code: 404,
-          message: "Booking not found",
-          data: null,
-        };
-      }
-
-      const balance = await userBalanceRepository.getBalanceByUserId(
-        booking.userId
-      );
-
-      const paymentId = `PAY-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
-
-      if (!balance || balance < booking.totalPrice) {
-        return {
-          status: false,
-          status_code: 400,
-          message: "Insufficient balance",
-          data: null,
-        };
-      }
-
-      const payments = await orderRepository.processOrdersPayment(
-        booking,
-        paymentId,
-        10
-      );
-
-      await publisher.publish(
-        "booking-events",
-        JSON.stringify({
-          event: "booking:paid",
-          payload: payments.updatedBooking,
-        })
-      );
-      await publisher.publish(
-        "notification-events",
-        JSON.stringify({
-          event: "notification:send",
-          payload: payments.notification,
-        })
-      );
-      await publisher.publish(
-        "points-events",
-        JSON.stringify({
-          event: "points:updated",
-          payload: payments.createdPoint,
-        })
-      );
-      await publisher.publish(
-        "transaction-events",
-        JSON.stringify({
-          event: "transaction:updated",
-          payload: payments.transaction,
-        })
-      );
-      await publisher.publish(
-        "balance-events",
-        JSON.stringify({
-          event: "balance:updated",
-          payload: payments.updateBalance,
-        })
-      );
-
-      return {
-        status: true,
-        status_code: 200,
-        message: "Order payment processed successfully",
-        data: payments,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        status_code: 500,
-        message: "Internal server error" + error.message,
-        data: null,
-      };
-    }
+    return orders;
   }
 }

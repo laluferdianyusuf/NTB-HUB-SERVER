@@ -9,34 +9,24 @@ export interface CreateReviewPublicPlaceDTO {
 }
 
 export class ReviewPublicPlaceRepository {
-  async create(data: CreateReviewPublicPlaceDTO, userId: string) {
-    return prisma.$transaction(async (tx) => {
-      const reviewData: Prisma.ReviewPublicPlaceCreateInput = {
-        rating: data.rating,
-        comment: data.comment ?? null,
-        image: data.image ?? null,
-        user: {
-          connect: { id: userId },
-        },
-        place: {
-          connect: { id: data.placeId },
-        },
-      };
+  async create(
+    data: Prisma.ReviewPublicPlaceCreateInput,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = tx ?? prisma;
 
-      const review = await tx.reviewPublicPlace.create({
-        data: reviewData,
-      });
+    return client.reviewPublicPlace.create({
+      data,
+    });
+  }
 
-      await tx.point.create({
-        data: {
-          userId,
-          points: 10,
-          activity: "REVIEW",
-          reference: review.id,
-        },
-      });
+  async aggregateByPlace(placeId: string, tx?: Prisma.TransactionClient) {
+    const client = tx ?? prisma;
 
-      return review;
+    return client.reviewPublicPlace.aggregate({
+      where: { placeId },
+      _avg: { rating: true },
+      _count: { rating: true },
     });
   }
 
@@ -51,6 +41,31 @@ export class ReviewPublicPlaceRepository {
   async findByPlaceId(placeId: string): Promise<ReviewPublicPlace | null> {
     return prisma.reviewPublicPlace.findFirst({
       where: { placeId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            photo: true,
+          },
+        },
+        place: true,
+      },
+    });
+  }
+
+  async findByPlaceUserId(
+    userId: string,
+    placeId: string,
+  ): Promise<ReviewPublicPlace | null> {
+    return prisma.reviewPublicPlace.findUnique({
+      where: {
+        userId_placeId: {
+          userId,
+          placeId,
+        },
+      },
       include: {
         user: {
           select: {

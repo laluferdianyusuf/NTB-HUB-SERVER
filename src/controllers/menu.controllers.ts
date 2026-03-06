@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { sendError } from "helpers/response";
 import { MenuServices } from "../services/menu.services";
 
 export class MenuControllers {
@@ -23,10 +24,7 @@ export class MenuControllers {
     } catch (error: any) {
       console.log(error);
 
-      res.status(500).json({
-        status: false,
-        message: error.message || "Internal Server Error",
-      });
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -37,14 +35,11 @@ export class MenuControllers {
 
       res.status(200).json({
         status: true,
-        message: "Menu created successful",
+        message: "Menu retrieved successful",
         data: result,
       });
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        message: error.message || "Internal Server Error",
-      });
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -55,14 +50,11 @@ export class MenuControllers {
 
       res.status(200).json({
         status: true,
-        message: "Menu created successful",
+        message: "Menu retrieved successful",
         data: result,
       });
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        message: error.message || "Internal Server Error",
-      });
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -82,10 +74,7 @@ export class MenuControllers {
         data: result,
       });
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        message: error.message || "Internal Server Error",
-      });
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -96,14 +85,11 @@ export class MenuControllers {
 
       res.status(203).json({
         status: true,
-        message: "Menu created successful",
+        message: "Menu deleted successful",
         data: result,
       });
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        message: error.message || "Internal Server Error",
-      });
+      sendError(res, error.message || "Internal server error");
     }
   }
   async getAllMenus(req: Request, res: Response) {
@@ -112,14 +98,11 @@ export class MenuControllers {
 
       res.status(200).json({
         status: true,
-        message: "Menu created successful",
+        message: "Menu retrieved successful",
         data: result,
       });
     } catch (error: any) {
-      res.status(500).json({
-        status: false,
-        message: error.message || "Internal Server Error",
-      });
+      sendError(res, error.message || "Internal server error");
     }
   }
 }

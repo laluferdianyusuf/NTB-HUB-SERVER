@@ -1,4 +1,4 @@
-import { PrismaClient, UserBalance, Prisma } from "@prisma/client";
+import { Prisma, PrismaClient, UserBalance } from "@prisma/client";
 const prisma = new PrismaClient();
 
 export class UserBalanceRepository {
@@ -15,16 +15,16 @@ export class UserBalanceRepository {
     const userBalance = await client.userBalance.findUnique({
       where: { userId },
     });
-    return userBalance ? userBalance.balance : null;
+    return userBalance ? Number(userBalance.balance) : null;
   }
 
-  async updateBalance(
+  async incrementBalance(
     userId: string,
     amount: number,
     tx?: Prisma.TransactionClient,
   ): Promise<void> {
     const client = this.transaction(tx);
-    await prisma.userBalance.update({
+    await client.userBalance.update({
       where: { userId },
       data: { balance: { increment: amount } },
     });
@@ -43,7 +43,10 @@ export class UserBalanceRepository {
   }
 
   async createBalance(
-    data: UserBalance,
+    data: {
+      userId: string;
+      balance: number;
+    },
     tx?: Prisma.TransactionClient,
   ): Promise<UserBalance> {
     const client = this.transaction(tx);

@@ -27,7 +27,7 @@ export class VenueSubCategoryController {
         message: "Venue sub-category created successfully",
         data: subCategory,
       });
-    } catch (err) {
+    } catch (err: any) {
       return res.status(400).json({
         status: false,
         message: err.message,
@@ -47,7 +47,7 @@ export class VenueSubCategoryController {
         message: "Sub-category retrieved successful",
         data: subCategories,
       });
-    } catch (err) {
+    } catch (err: any) {
       return res.status(400).json({
         status: false,
         message: err.message,
@@ -65,7 +65,7 @@ export class VenueSubCategoryController {
         message: "Sub-categories retrieved successful",
         data: subCategories,
       });
-    } catch (err) {
+    } catch (err: any) {
       return res.status(400).json({
         status: false,
         message: err.message,

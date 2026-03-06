@@ -4,8 +4,12 @@ const prisma = new PrismaClient();
 
 export type CreateUserInput = {
   name: string;
+  username: string;
   email: string;
   password: string;
+  isVerified: boolean;
+  emailVerifyToken: string | null;
+  emailVerifyExpiry: Date | null;
   photo?: string | null;
   googleId?: string | null;
 };
@@ -70,6 +74,19 @@ export class UserRepository {
     });
   }
 
+  async findByIds(ids: string[], tx?: Prisma.TransactionClient) {
+    const client = this.transaction(tx);
+    return client.user.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        name: true,
+        photo: true,
+        email: true,
+      },
+    });
+  }
+
   async findUserById(id: string) {
     return prisma.user.findUnique({
       where: { id },
@@ -80,18 +97,63 @@ export class UserRepository {
     return prisma.user.findUnique({ where: { email } });
   }
 
+  async findByVerifyToken(token: string) {
+    return prisma.user.findFirst({
+      where: {
+        emailVerifyToken: token,
+        isVerified: false,
+        emailVerifyExpiry: {
+          gt: new Date(),
+        },
+      },
+    });
+  }
+
+  async verifyUser(userId: string, tx?: Prisma.TransactionClient) {
+    const client = tx ?? prisma;
+
+    const user = await client.user.update({
+      where: { id: userId },
+      data: {
+        isVerified: true,
+        emailVerifyToken: null,
+        emailVerifyExpiry: null,
+      },
+    });
+
+    await client.account.create({
+      data: {
+        type: "USER",
+        userId: user.id,
+      },
+    });
+
+    return user;
+  }
+
   async create(
     data: CreateUserInput,
     tx?: Prisma.TransactionClient,
   ): Promise<User> {
-    const db = tx ?? prisma;
-    return db.user.create({ data });
+    const client = tx ?? prisma;
+    const user = await client.user.create({ data });
+
+    return user;
   }
 
   async update(id: string, data: Partial<User>): Promise<User> {
     return prisma.user.update({
       where: { id },
       data,
+    });
+  }
+
+  async updatePassword(id: string, hashedPassword: string) {
+    return prisma.user.update({
+      where: { id },
+      data: {
+        password: hashedPassword,
+      },
     });
   }
 
@@ -131,6 +193,36 @@ export class UserRepository {
     const db = tx ?? prisma;
     return db.user.findMany({
       select: { id: true, name: true },
+    });
+  }
+
+  findByResetToken(token: string): Promise<User | null> {
+    return prisma.user.findFirst({
+      where: {
+        resetPasswordToken: token,
+        resetPasswordExpire: { gt: new Date() },
+      },
+    });
+  }
+
+  setResetToken(userId: string, token: string, expire: Date): Promise<User> {
+    return prisma.user.update({
+      where: { id: userId },
+      data: {
+        resetPasswordToken: token,
+        resetPasswordExpire: expire,
+      },
+    });
+  }
+
+  updatePasswordAndClearToken(userId: string, password: string): Promise<User> {
+    return prisma.user.update({
+      where: { id: userId },
+      data: {
+        password,
+        resetPasswordToken: null,
+        resetPasswordExpire: null,
+      },
     });
   }
 }

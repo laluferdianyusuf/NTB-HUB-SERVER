@@ -31,18 +31,7 @@ enum TransactionStatus {
   FAILED
   REFUNDED
   EXPIRED
-}
-
-enum TransactionType {
-  TOPUP
-  DEDUCTION
-  FEE
-  BOOKING
-  WITHDRAW
-  REFUND
-  REWARD
-  COMMISSION
-  EVENT
+  CANCELLED
 }
 
 enum PointActivityType {
@@ -212,35 +201,91 @@ enum TaskExecutionStatus {
   FAILED
 }
 
+enum PromotionType {
+  INTERNAL
+  EXTERNAL
+}
+
+enum PromotionEntityType {
+  VENUE
+  EVENT
+  COMMUNITY
+  PUBLIC_PLACE
+  NONE
+}
+
+enum InvoiceEntityType {
+  BOOKING
+  EVENT_ORDER
+  COMMUNITY_EVENT_ORDER
+  TOPUP
+  ORDER
+}
+
+enum AccountType {
+  USER
+  VENUE
+  EVENT
+  COURIER
+  PLATFORM
+  COMMUNITY
+}
+
+enum LedgerDirection {
+  DEBIT
+  CREDIT
+}
+
+enum LedgerReferenceType {
+  TOPUP
+  BOOKING_PAYMENT
+  EVENT_PAYMENT
+  COMMUNITY_EVENT_PAYMENT
+  REFUND
+  WITHDRAWAL
+  SETTLEMENT
+  FEE
+  ADJUSTMENT
+  ORDER
+}
+
+enum CheckInMethod {
+  MANUAL
+  TICKET
+}
+
 // #regionUSER & AUTH
 model User {
-  id               String     @id @default(uuid())
-  name             String
-  username         String?
-  email            String     @unique
-  password         String
-  address          String?
-  roles            UserRole[]
-  phone            String?
-  photo            String?
-  googleId         String?    @unique
-  isVerified       Boolean    @default(false)
-  transactionPin   String?
-  pinFailedCount   Int        @default(0)
-  pinLockedUntil   DateTime?
-  biometricEnabled Boolean    @default(false)
-  profileViewCount Int        @default(0)
-  profileLikeCount Int        @default(0)
-  devices          Device[]
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @default(now()) @updatedAt
+  id                  String     @id @default(uuid())
+  name                String
+  username            String?
+  email               String     @unique
+  password            String
+  address             String?
+  roles               UserRole[]
+  phone               String?
+  photo               String?
+  googleId            String?    @unique
+  isVerified          Boolean    @default(false)
+  emailVerifyToken    String?
+  emailVerifyExpiry   DateTime?
+  transactionPin      String?
+  pinFailedCount      Int        @default(0)
+  pinLockedUntil      DateTime?
+  biometricEnabled    Boolean    @default(false)
+  profileViewCount    Int        @default(0)
+  profileLikeCount    Int        @default(0)
+  devices             Device[]
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @default(now()) @updatedAt
+  resetPasswordToken  String?
+  resetPasswordExpire DateTime?
 
   // Relations
   bookings         Booking[]
-  transactions     Transaction[]
   notifications    Notification[]
   locations        LocationTracking[]
-  logs             Log[]
+  activities       LogActivity[]
   balance          UserBalance?
   points           Point[]
   likedVenues      LikeVenue[]
@@ -275,10 +320,20 @@ model User {
   communityPostMentions CommunityPostMention[]
   events                Event[]
 
-  profileViews         ProfileView[] @relation("ProfileOwner")
-  profileViewLogs      ProfileView[] @relation("ProfileViewer")
-  profileLikesReceived ProfileLike[] @relation("ProfileLiked")
-  profileLikesGiven    ProfileLike[] @relation("ProfileLiker")
+  profileViews              ProfileView[]              @relation("ProfileOwner")
+  profileViewLogs           ProfileView[]              @relation("ProfileViewer")
+  profileLikesReceived      ProfileLike[]              @relation("ProfileLiked")
+  profileLikesGiven         ProfileLike[]              @relation("ProfileLiker")
+  communityEventOrders      CommunityEventOrder[]
+  communityEventTickets     CommunityEventTicket[]
+  promotions                Promotion[]
+  promotionImpressions      PromotionImpression[]
+  promotionClicks           PromotionClick[]
+  userVirtualAccounts       UserVirtualAccount[]
+  orders                    Order[]
+  accounts                  Account[]
+  eventAttendances          EventAttendance[]
+  communityEventAttendances CommunityEventAttendance[]
 
   @@index([email])
   @@index([phone])
@@ -341,16 +396,33 @@ model UserRole {
 model UserBalance {
   id        String   @id @default(uuid())
   userId    String   @unique
-  balance   Float    @default(0)
+  balance   Decimal  @default(0) @db.Decimal(18, 2)
   updatedAt DateTime @default(now()) @updatedAt
 
   user User @relation(fields: [userId], references: [id])
 }
 
+model EventBalance {
+  id        String   @id @default(uuid())
+  eventId   String   @unique
+  balance   Decimal  @default(0) @db.Decimal(18, 2)
+  updatedAt DateTime @default(now()) @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id])
+}
+
+model CommunityBalance {
+  id          String   @id @default(uuid())
+  communityId String   @unique
+  balance     Decimal  @default(0) @db.Decimal(18, 2)
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  community Community @relation(fields: [communityId], references: [id])
+}
+
 model Device {
   id           String    @id @default(uuid())
   userId       String?
-  venueId      String?
   token        String
   expoToken    String
   platform     String?
@@ -363,11 +435,11 @@ model Device {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  user  User?  @relation(fields: [userId], references: [id])
-  venue Venue? @relation(fields: [venueId], references: [id])
+  user    User?   @relation(fields: [userId], references: [id])
+  venue   Venue?  @relation(fields: [venueId], references: [id])
+  venueId String?
 
   @@unique([token, userId])
-  @@index([venueId])
 }
 
 model LocationTracking {
@@ -383,7 +455,7 @@ model LocationTracking {
   @@index([userId, createdAt])
 }
 
-model Log {
+model LogActivity {
   id          String   @id @default(uuid())
   userId      String?
   action      String
@@ -424,7 +496,6 @@ model Venue {
   operationalHours OperationalHour[]
   invitation       InvitationKey[]
   balance          VenueBalance?
-  transactions     Transaction[]
   withdrawRequests WithdrawRequest[]
   likes            LikeVenue[]
   impressions      VenueImpression[]
@@ -432,6 +503,8 @@ model Venue {
   menus            Menu[]
   staffs           VenueStaff[]
   userRoles        UserRole[]
+  orders           Order[]
+  accounts         Account[]
 
   @@index([city])
   @@index([province])
@@ -545,7 +618,7 @@ model InvitationKey {
 model VenueBalance {
   id        String   @id @default(uuid())
   venueId   String   @unique
-  balance   Float    @default(0)
+  balance   Decimal  @default(0) @db.Decimal(18, 2)
   updatedAt DateTime @default(now()) @updatedAt
 
   venue Venue @relation(fields: [venueId], references: [id])
@@ -570,7 +643,7 @@ model VenueUnit {
 
   name     String
   type     UnitType
-  price    Float
+  price    Decimal  @db.Decimal(18, 2)
   isActive Boolean  @default(true)
 
   floor   Floor?       @relation(fields: [floorId], references: [id])
@@ -608,7 +681,7 @@ model Booking {
   unitId     String?
   startTime  DateTime
   endTime    DateTime
-  totalPrice Float
+  totalPrice Decimal       @db.Decimal(18, 2)
   status     BookingStatus @default(PENDING)
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @default(now()) @updatedAt
@@ -619,8 +692,8 @@ model Booking {
   unit       VenueUnit?   @relation(fields: [unitId], references: [id])
   orderItems OrderItem[]
   review     Review?
-  invoice    Invoice?
   delivery   Delivery?
+  orders     Order[]
 
   @@index([userId])
   @@index([venueId])
@@ -635,7 +708,7 @@ model Menu {
   venueId String
 
   name        String
-  price       Float
+  price       Decimal  @db.Decimal(18, 2)
   category    String
   image       String?
   isAvailable Boolean  @default(true)
@@ -650,20 +723,36 @@ model Menu {
   @@index([venueId])
 }
 
-model OrderItem {
-  id        String   @id @default(uuid())
-  bookingId String
-  menuId    String
-  quantity  Int
-  subtotal  Float
+model Order {
+  id        String  @id @default(uuid())
+  userId    String
+  venueId   String
+  bookingId String? // optional
+
+  total  Decimal           @db.Decimal(18, 2)
+  status TransactionStatus @default(PENDING)
+
   createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  updatedAt DateTime @updatedAt
 
-  booking Booking @relation(fields: [bookingId], references: [id])
-  menu    Menu    @relation(fields: [menuId], references: [id])
+  user    User     @relation(fields: [userId], references: [id])
+  venue   Venue    @relation(fields: [venueId], references: [id])
+  booking Booking? @relation(fields: [bookingId], references: [id])
 
-  @@index([bookingId])
-  @@index([menuId])
+  items OrderItem[]
+}
+
+model OrderItem {
+  id       String  @id @default(uuid())
+  orderId  String
+  menuId   String
+  quantity Int
+  subtotal Decimal @db.Decimal(18, 2)
+
+  order     Order    @relation(fields: [orderId], references: [id])
+  menu      Menu     @relation(fields: [menuId], references: [id])
+  booking   Booking? @relation(fields: [bookingId], references: [id])
+  bookingId String?
 }
 
 model Review {
@@ -682,70 +771,110 @@ model Review {
 }
 
 // #region FINANCIAL / PAYMENT
-model Transaction {
-  id           String             @id @default(uuid())
-  userId       String?
-  venueId      String?
-  eventOrderId String?
-  amount       Float
-  type         TransactionType
-  reference    String?
-  vaNumber     String?
-  qrisUrl      String?
-  paymentCode  String?
-  bankCode     String?
-  orderId      String?
-  expiredAt    DateTime?
-  status       TransactionStatus? @default(PENDING)
 
-  idempotencyKey String?
+model Payment {
+  id String @id @default(uuid())
+
+  invoiceId String
+  amount    Decimal @db.Decimal(18, 2)
+
+  method      String? // VA, QRIS, WALLET
+  provider    String? // Midtrans, Xendit, dll
+  providerRef String? // id dari gateway
+
+  vaNumber String?
+  bankCode String?
+  qrisUrl  String?
+
+  status    TransactionStatus @default(PENDING)
+  expiredAt DateTime?
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  updatedAt DateTime @updatedAt
 
-  user       User?       @relation(fields: [userId], references: [id])
-  venue      Venue?      @relation(fields: [venueId], references: [id])
-  eventOrder EventOrder? @relation(fields: [eventOrderId], references: [id])
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
 
-  @@unique([idempotencyKey])
-  @@index([userId])
-  @@index([venueId])
   @@index([status])
+}
+
+model Account {
+  id String @id @default(uuid())
+
+  type        AccountType
+  userId      String?     @unique
+  venueId     String?     @unique
+  courierId   String?     @unique
+  eventId     String?     @unique
+  communityId String?     @unique
+
+  user       User?      @relation(fields: [userId], references: [id])
+  venue      Venue?     @relation(fields: [venueId], references: [id])
+  courier    Courier?   @relation(fields: [courierId], references: [id])
+  event      Event?     @relation(fields: [eventId], references: [id])
+  community  Community? @relation(fields: [communityId], references: [id])
+  isPlatform Boolean    @default(false)
+
+  ledgerEntries LedgerEntry[]
+
+  createdAt DateTime @default(now())
+
   @@index([type])
+}
+
+model LedgerEntry {
+  id String @id @default(uuid())
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id])
+
+  type   LedgerDirection
+  amount Decimal         @db.Decimal(18, 2)
+
+  referenceType LedgerReferenceType?
+  referenceId   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([accountId])
   @@index([createdAt])
 }
 
-model Invoice {
-  id           String  @id @default(uuid())
-  bookingId    String? @unique
-  eventOrderId String? @unique
+model UserVirtualAccount {
+  id       String  @id @default(uuid())
+  userId   String
+  bank     String
+  vaNumber String
+  isActive Boolean @default(true)
 
-  invoiceNumber String        @unique
-  amount        Float
-  status        InvoiceStatus @default(PENDING)
-  paymentMethod String?
-  issuedAt      DateTime      @default(now())
-  paidAt        DateTime?
-  cancelledAt   DateTime?
-  expiredAt     DateTime?
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, bank])
+}
+
+model Invoice {
+  id String @id @default(uuid())
+
+  entityType InvoiceEntityType
+  entityId   String
+
+  invoiceNumber String  @unique
+  amount        Decimal @db.Decimal(18, 2)
+
+  status    InvoiceStatus @default(PENDING)
+  expiredAt DateTime?
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  updatedAt DateTime @updatedAt
 
-  booking    Booking?    @relation(fields: [bookingId], references: [id])
-  eventOrder EventOrder? @relation(fields: [eventOrderId], references: [id])
-
-  @@index([status])
-  @@index([issuedAt])
-  @@index([paidAt])
+  payments Payment[]
 }
 
 model WithdrawRequest {
   id             String         @id @default(uuid())
   venueId        String
-  amount         Float
-  fee            Float          @default(0)
-  netAmount      Float
+  amount         Decimal        @db.Decimal(18, 2)
+  fee            Decimal        @default(0) @db.Decimal(18, 2)
+  netAmount      Decimal        @db.Decimal(18, 2)
   status         WithdrawStatus @default(PENDING)
   withdrawNumber String         @unique
 
@@ -769,7 +898,7 @@ model WithdrawRequest {
 
 model PlatformBalance {
   id        String   @id @default(uuid())
-  balance   Float    @default(0)
+  balance   Decimal  @default(0) @db.Decimal(18, 2)
   updatedAt DateTime @default(now()) @updatedAt
 }
 
@@ -901,10 +1030,11 @@ model Event {
   endAt         DateTime
   capacity      Int?
   location      String
+  latitude      Float?
+  longitude     Float?
   status        EventStatus @default(UPCOMING)
   isActive      Boolean     @default(true)
-  isCommunity   Boolean     @default(false)
-  isVenue       Boolean     @default(false)
+  includeTicket Boolean     @default(false)
   averageRating Float       @default(0)
   totalReviews  Int         @default(0)
   totalLikes    Int         @default(0)
@@ -919,13 +1049,16 @@ model Event {
   reviews ReviewEvent[]
   likes   LikeEvent[]
 
-  ticketTypes    EventTicketType[]
-  orders         EventOrder[]
-  tickets        EventTicket[]
-  userRoles      UserRole[]
-  invitationKeys InvitationKey[]
-  user           User?             @relation(fields: [userId], references: [id])
-  userId         String?
+  ticketTypes      EventTicketType[]
+  orders           EventOrder[]
+  tickets          EventTicket[]
+  userRoles        UserRole[]
+  invitationKeys   InvitationKey[]
+  user             User?             @relation(fields: [userId], references: [id])
+  userId           String?
+  accounts         Account[]
+  eventBalance     EventBalance?
+  eventAttendances EventAttendance[]
 
   @@index([venueId])
   @@index([status])
@@ -936,7 +1069,7 @@ model EventTicketType {
   id          String  @id @default(uuid())
   eventId     String
   name        String
-  price       Float
+  price       Decimal @db.Decimal(18, 2)
   quota       Int
   sold        Int     @default(0)
   description String?
@@ -955,7 +1088,7 @@ model EventOrder {
   id      String           @id @default(uuid())
   userId  String
   eventId String
-  total   Float
+  total   Decimal          @db.Decimal(18, 2)
   status  EventOrderStatus @default(PENDING)
 
   idempotencyKey String?   @unique
@@ -964,11 +1097,9 @@ model EventOrder {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user         User          @relation(fields: [userId], references: [id])
-  event        Event         @relation(fields: [eventId], references: [id])
-  tickets      EventTicket[]
-  invoice      Invoice?
-  transactions Transaction[]
+  user    User          @relation(fields: [userId], references: [id])
+  event   Event         @relation(fields: [eventId], references: [id])
+  tickets EventTicket[]
 
   @@index([userId])
   @@index([eventId])
@@ -989,14 +1120,34 @@ model EventTicket {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  user       User            @relation(fields: [userId], references: [id])
-  event      Event           @relation(fields: [eventId], references: [id])
-  order      EventOrder      @relation(fields: [orderId], references: [id])
-  ticketType EventTicketType @relation(fields: [ticketTypeId], references: [id])
+  user             User              @relation(fields: [userId], references: [id])
+  event            Event             @relation(fields: [eventId], references: [id])
+  order            EventOrder        @relation(fields: [orderId], references: [id])
+  ticketType       EventTicketType   @relation(fields: [ticketTypeId], references: [id])
+  eventAttendances EventAttendance[]
 
   @@index([userId])
   @@index([eventId])
   @@index([status])
+}
+
+model EventAttendance {
+  id      String @id @default(uuid())
+  eventId String
+  userId  String
+
+  checkInMethod CheckInMethod // MANUAL | TICKET
+  ticketId      String? // jika via ticket
+
+  checkedInAt DateTime @default(now())
+
+  event  Event        @relation(fields: [eventId], references: [id])
+  user   User         @relation(fields: [userId], references: [id])
+  ticket EventTicket? @relation(fields: [ticketId], references: [id])
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
 }
 
 model PublicPlace {
@@ -1119,6 +1270,7 @@ model Courier {
   courierRatings          CourierRating[]
   courierAvailabilityLogs CourierAvailabilityLog[]
   courierEarnings         CourierEarnings[]
+  accounts                Account[]
 
   @@index([status])
   @@index([vehicleType])
@@ -1153,7 +1305,7 @@ model Delivery {
 
 model CourierLocation {
   id        String   @id @default(uuid())
-  courierId String
+  courierId String @unique
   latitude  Float
   longitude Float
   updatedAt DateTime @default(now()) @updatedAt
@@ -1197,7 +1349,7 @@ model CourierEarnings {
   periodStart   DateTime // awal periode penghitungan
   periodEnd     DateTime // akhir periode penghitungan
   totalTrips    Int      @default(0)
-  totalEarnings Float    @default(0)
+  totalEarnings Decimal  @default(0) @db.Decimal(18, 2)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @default(now()) @updatedAt
 
@@ -1231,6 +1383,8 @@ model Community {
   invitation                   InvitationKey[]
   communityEventCollaborations CommunityEventCollaboration[]
   task                         Task[]
+  accounts                     Account[]
+  communityBalance             CommunityBalance?
 
   @@index([ownerId])
   @@index([createdAt])
@@ -1312,18 +1466,24 @@ model CommunityEvent {
   endAt   DateTime?
 
   location    String?
+  latitude    Float?
+  longitude   Float?
   meetingLink String?
 
-  status   CommunityEventStatus @default(UPCOMING)
-  isPublic Boolean              @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  status        CommunityEventStatus @default(UPCOMING)
+  isPublic      Boolean              @default(true)
+  includeTicket Boolean              @default(false)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 
   community Community @relation(fields: [communityId], references: [id])
   createdBy User      @relation(fields: [createdById], references: [id])
 
-  collaborations CommunityEventCollaboration[]
+  collaborations            CommunityEventCollaboration[]
+  communityEventTicketTypes CommunityEventTicketType[]
+  communityEventOrders      CommunityEventOrder[]
+  communityEventTickets     CommunityEventTicket[]
+  communityEventAttendances CommunityEventAttendance[]
 
   @@index([communityId])
   @@index([startAt])
@@ -1366,6 +1526,90 @@ model CommunityEventCollaboration {
   community Community      @relation(fields: [communityId], references: [id])
 
   @@unique([eventId, communityId])
+}
+
+model CommunityEventTicketType {
+  id               String  @id @default(uuid())
+  communityEventId String
+  name             String
+  price            Decimal @db.Decimal(18, 2)
+  quota            Int
+  sold             Int     @default(0)
+  description      String?
+  isActive         Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  communityEvent CommunityEvent         @relation(fields: [communityEventId], references: [id])
+  tickets        CommunityEventTicket[]
+
+  @@index([communityEventId])
+}
+
+model CommunityEventAttendance {
+  id      String @id @default(uuid())
+  eventId String
+  userId  String
+
+  checkInMethod CheckInMethod // MANUAL | TICKET
+  ticketId      String? // jika via ticket
+
+  checkedInAt DateTime @default(now())
+
+  event  CommunityEvent        @relation(fields: [eventId], references: [id])
+  user   User                  @relation(fields: [userId], references: [id])
+  ticket CommunityEventTicket? @relation(fields: [ticketId], references: [id])
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+}
+
+model CommunityEventOrder {
+  id               String           @id @default(uuid())
+  userId           String
+  communityEventId String
+  total            Float
+  status           EventOrderStatus @default(PENDING)
+  idempotencyKey   String?          @unique
+  expiresAt        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user           User                   @relation(fields: [userId], references: [id])
+  communityEvent CommunityEvent         @relation(fields: [communityEventId], references: [id])
+  tickets        CommunityEventTicket[]
+
+  @@index([userId])
+  @@index([communityEventId])
+  @@index([status])
+}
+
+model CommunityEventTicket {
+  id               String @id @default(uuid())
+  ticketTypeId     String
+  communityEventId String
+  userId           String
+  orderId          String
+
+  qrCode String       @unique
+  status TicketStatus @default(ACTIVE)
+  usedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  user                      User                       @relation(fields: [userId], references: [id])
+  communityEvent            CommunityEvent             @relation(fields: [communityEventId], references: [id])
+  ticketType                CommunityEventTicketType   @relation(fields: [ticketTypeId], references: [id])
+  order                     CommunityEventOrder        @relation(fields: [orderId], references: [id])
+  communityEventAttendances CommunityEventAttendance[]
+
+  @@index([userId])
+  @@index([communityEventId])
+  @@index([status])
 }
 
 model Comment {
@@ -1500,4 +1744,69 @@ model TaskQrSession {
 
   @@index([taskId])
   @@index([expiresAt])
+}
+
+model Promotion {
+  id          String  @id @default(uuid())
+  title       String
+  description String?
+  image       String // banner image (wajib)
+  mobileImage String? // optional versi mobile crop
+
+  type       PromotionType       @default(INTERNAL)
+  entityType PromotionEntityType @default(NONE)
+  entityId   String? // id venue/event/community/place
+
+  redirectUrl String? // untuk external link
+
+  isActive Boolean @default(true)
+  isGlobal Boolean @default(true)
+
+  priority Int @default(0) // urutan tampil (lebih tinggi lebih atas)
+
+  startAt DateTime?
+  endAt   DateTime?
+
+  totalViews  Int @default(0)
+  totalClicks Int @default(0)
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User? @relation(fields: [createdById], references: [id])
+
+  impressions PromotionImpression[]
+  clicks      PromotionClick[]
+
+  @@index([isActive])
+  @@index([startAt, endAt])
+  @@index([priority])
+  @@index([entityType, entityId])
+}
+
+model PromotionImpression {
+  id          String   @id @default(uuid())
+  promotionId String
+  userId      String?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  promotion Promotion @relation(fields: [promotionId], references: [id])
+  user      User?     @relation(fields: [userId], references: [id])
+
+  @@index([promotionId, createdAt])
+}
+
+model PromotionClick {
+  id          String   @id @default(uuid())
+  promotionId String
+  userId      String?
+  createdAt   DateTime @default(now())
+
+  promotion Promotion @relation(fields: [promotionId], references: [id])
+  user      User?     @relation(fields: [userId], references: [id])
+
+  @@index([promotionId, createdAt])
 }

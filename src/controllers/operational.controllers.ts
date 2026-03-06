@@ -1,6 +1,7 @@
+import { Request, Response } from "express";
+import { sendError, sendSuccess } from "helpers/response";
 import { OperationalServices } from "services";
 const operationalServices = new OperationalServices();
-import { Request, Response } from "express";
 
 export class OperationalControllers {
   async createOperationalHours(req: Request, res: Response) {
@@ -9,15 +10,11 @@ export class OperationalControllers {
       const { operationalHours } = req.body;
       const result = await operationalServices.createOperationalHours(
         venueId,
-        operationalHours
+        operationalHours,
       );
-
-      res.status(201).json(result);
-    } catch (error) {
-      res.status(400).json({
-        status: false,
-        message: error.message || "Internal Server Error",
-      });
+      sendSuccess(res, result, "Operational hours created");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -25,15 +22,9 @@ export class OperationalControllers {
     try {
       const venueId = req.params.venueId;
       const result = await operationalServices.getOperationalHours(venueId);
-
-      res.status(result.status_code).json(result);
-    } catch (error) {
-      res.status(500).json({
-        status: false,
-        status_code: 500,
-        message: error.message || "Internal Server Error",
-        data: null,
-      });
+      sendSuccess(res, result, "Operational hours retrieved");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
     }
   }
 }

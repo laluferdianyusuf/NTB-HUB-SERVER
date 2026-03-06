@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma, Community } from "@prisma/client";
+import { Community, Prisma } from "@prisma/client";
 import { prisma } from "config/prisma";
 
 interface FindAllOptions {
@@ -17,12 +17,18 @@ export class CommunityRepository {
     tx?: Prisma.TransactionClient,
   ): Promise<Community> {
     const client = this.transaction(tx);
-    return client.community.create({ data });
+    const community = await client.community.create({ data });
+
+    await client.communityBalance.create({
+      data: {
+        communityId: community.id,
+      },
+    });
+    return community;
   }
 
   async findById(
     id: string,
-
     tx?: Prisma.TransactionClient,
   ): Promise<Community | null> {
     const client = this.transaction(tx);

@@ -1,5 +1,4 @@
 import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcryptjs";
 import { withAccelerate } from "@prisma/extension-accelerate";
 
 const prisma = new PrismaClient().$extends(withAccelerate());
@@ -44,6 +43,15 @@ async function main() {
     create: {
       id: "platform-balance",
       balance: 0,
+    },
+  });
+
+  await prisma.account.upsert({
+    where: { id: "platform-main-account" },
+    update: {},
+    create: {
+      type: "PLATFORM",
+      id: "platform-main-account",
     },
   });
 }

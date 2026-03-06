@@ -1,484 +1,132 @@
-import { PrismaClient, Invoice, Prisma, InvoiceStatus } from "@prisma/client";
-import { Server } from "socket.io";
-const prisma = new PrismaClient();
+import {
+  Invoice,
+  InvoiceEntityType,
+  InvoiceStatus,
+  Prisma,
+} from "@prisma/client";
+import { prisma } from "config/prisma";
 
 export class InvoiceRepository {
-  private transaction(tx?: Prisma.TransactionClient) {
+  private getClient(tx?: Prisma.TransactionClient) {
     return tx ?? prisma;
   }
-
-  async findAll(): Promise<Invoice[]> {
-    return prisma.invoice.findMany({
-      include: {
-        booking: {
-          select: {
-            id: true,
-            startTime: true,
-            endTime: true,
-            totalPrice: true,
-            user: {
-              select: {
-                name: true,
-                address: true,
-                email: true,
-                photo: true,
-              },
-            },
-            venue: {
-              select: {
-                name: true,
-              },
-            },
-            service: {
-              select: {
-                subCategory: {
-                  select: {
-                    name: true,
-                  },
-                },
-              },
-            },
-            unit: {
-              select: {
-                name: true,
-                price: true,
-                type: true,
-                floor: {
-                  select: {
-                    name: true,
-                  },
-                },
-              },
-            },
-            orderItems: {
-              select: {
-                quantity: true,
-                subtotal: true,
-                menu: {
-                  select: {
-                    name: true,
-                    price: true,
-                  },
-                },
-              },
-            },
-            review: {
-              select: {
-                rating: true,
-              },
-            },
-          },
-        },
-      },
-    });
-  }
-
-  async findAllByUserId(userId: string): Promise<Invoice[]> {
-    return prisma.invoice.findMany({
-      where: {
-        booking: {
-          userId,
-        },
-      },
-      include: {
-        booking: {
-          select: {
-            id: true,
-            startTime: true,
-            endTime: true,
-            totalPrice: true,
-            user: {
-              select: {
-                name: true,
-                address: true,
-                email: true,
-                photo: true,
-              },
-            },
-            venue: {
-              select: {
-                name: true,
-              },
-            },
-            service: {
-              select: {
-                subCategory: {
-                  select: {
-                    name: true,
-                  },
-                },
-              },
-            },
-            unit: {
-              select: {
-                name: true,
-                price: true,
-                type: true,
-                floor: {
-                  select: {
-                    name: true,
-                  },
-                },
-              },
-            },
-            orderItems: {
-              select: {
-                quantity: true,
-                subtotal: true,
-                menu: {
-                  select: {
-                    name: true,
-                    price: true,
-                  },
-                },
-              },
-            },
-            review: {
-              select: {
-                rating: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { updatedAt: "desc" },
-    });
-  }
-
-  async findAllByVenueId(venueId: string): Promise<Invoice[]> {
-    return prisma.invoice.findMany({
-      where: {
-        booking: {
-          venueId,
-        },
-      },
-      include: {
-        booking: {
-          select: {
-            id: true,
-            startTime: true,
-            endTime: true,
-            totalPrice: true,
-
-            user: {
-              select: {
-                name: true,
-              },
-            },
-            review: {
-              select: {
-                rating: true,
-              },
-            },
-            venue: {
-              select: {
-                transactions: true,
-                name: true,
-              },
-            },
-            orderItems: {
-              select: {
-                quantity: true,
-                menu: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { updatedAt: "desc" },
-    });
-  }
-
-  async findAllPaidByVenueId(venueId: string): Promise<Invoice[]> {
-    return prisma.invoice.findMany({
-      where: {
-        booking: {
-          venueId,
-        },
-        status: InvoiceStatus.PAID,
-      },
-      include: {
-        booking: {
-          select: {
-            id: true,
-            startTime: true,
-            endTime: true,
-            totalPrice: true,
-
-            user: {
-              select: {
-                name: true,
-              },
-            },
-            review: {
-              select: {
-                rating: true,
-              },
-            },
-            venue: {
-              select: {
-                transactions: true,
-                name: true,
-              },
-            },
-            orderItems: {
-              select: {
-                quantity: true,
-                menu: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { updatedAt: "desc" },
-    });
-  }
-
-  async findById(id: string): Promise<Invoice | null> {
-    return prisma.invoice.findUnique({
-      where: { id },
-      include: {
-        booking: {
-          select: {
-            id: true,
-            startTime: true,
-            totalPrice: true,
-            review: {
-              select: { rating: true },
-            },
-            venue: {
-              select: { name: true },
-            },
-            orderItems: {
-              select: {
-                quantity: true,
-                menu: true,
-              },
-            },
-          },
-        },
-      },
-    });
-  }
-
-  async findByBookingId(bookingId: string): Promise<Invoice | null> {
-    return prisma.invoice.findFirst({
-      where: { bookingId },
-      include: {
-        booking: {
-          select: {
-            id: true,
-            startTime: true,
-            endTime: true,
-            totalPrice: true,
-            user: {
-              select: {
-                name: true,
-                address: true,
-                email: true,
-                photo: true,
-              },
-            },
-            venue: {
-              select: {
-                name: true,
-              },
-            },
-            service: {
-              select: {
-                subCategory: {
-                  select: {
-                    name: true,
-                  },
-                },
-              },
-            },
-            unit: {
-              select: {
-                name: true,
-                price: true,
-                type: true,
-                floor: {
-                  select: {
-                    name: true,
-                  },
-                },
-              },
-            },
-            orderItems: {
-              select: {
-                quantity: true,
-                subtotal: true,
-                menu: {
-                  select: {
-                    name: true,
-                    price: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-  }
-
   async create(
-    data: Prisma.InvoiceUncheckedCreateInput,
-    tx?: Prisma.TransactionClient,
-  ): Promise<Invoice> {
-    const client = this.transaction(tx);
-    return client.invoice.create({ data });
-  }
-
-  async updateInvoiceByEventOrderId(
-    eventOrderId: string,
-    status: InvoiceStatus,
+    data: {
+      entityType: InvoiceEntityType;
+      entityId: string;
+      invoiceNumber: string;
+      amount: number;
+      expiredAt?: Date;
+    },
     tx?: Prisma.TransactionClient,
   ) {
-    const client = this.transaction(tx);
-    return client.invoice.update({
-      where: { eventOrderId },
-      data: {
-        status: status,
-        paidAt: new Date(),
-      },
+    const client = this.getClient(tx);
+    return client.invoice.create({
+      data,
     });
   }
 
-  async updateInvoicePaid(bookingId: string, tx?: Prisma.TransactionClient) {
-    const client = this.transaction(tx);
-    return client.invoice.update({
-      where: { bookingId },
-      data: {
-        status: InvoiceStatus.PAID,
-        expiredAt: null,
-        paidAt: new Date(),
-      },
-    });
-  }
-
-  async updateInvoiceCanceled(
-    bookingId: string,
+  async findActiveByEntity(
+    entityType: InvoiceEntityType,
+    entityId: string,
     tx?: Prisma.TransactionClient,
   ) {
-    const client = this.transaction(tx);
-    return client.invoice.update({
-      where: { bookingId },
-      data: {
-        status: InvoiceStatus.CANCELLED,
-        cancelledAt: new Date(),
-      },
-    });
-  }
-
-  async updateInvoiceAmount(
-    bookingId: string,
-    totalIncrease: number,
-    tx: Prisma.TransactionClient,
-  ) {
-    return tx.invoice.update({
-      where: { bookingId },
-      data: { amount: { increment: totalIncrease } },
-    });
-  }
-
-  async findExpiredInvoices(now: Date, tx?: PrismaClient) {
-    const client = this.transaction(tx);
-
-    return client.invoice.findMany({
+    const client = this.getClient(tx);
+    return client.invoice.findFirst({
       where: {
-        status: "PENDING",
-        expiredAt: { lt: now },
+        entityType,
+        entityId,
+        status: InvoiceStatus.PENDING,
       },
-      include: {
-        booking: true,
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async markPaid(id: string, tx?: Prisma.TransactionClient) {
+    const client = this.getClient(tx);
+    return client.invoice.update({
+      where: { id },
+      data: { status: InvoiceStatus.PAID },
+    });
+  }
+
+  async markExpired(id: string, tx?: Prisma.TransactionClient) {
+    const client = this.getClient(tx);
+    return client.invoice.update({
+      where: { id },
+      data: { status: InvoiceStatus.EXPIRED },
+    });
+  }
+
+  async markFailed(id: string, tx?: Prisma.TransactionClient) {
+    const client = this.getClient(tx);
+    return client.invoice.update({
+      where: { id },
+      data: { status: InvoiceStatus.CANCELLED },
+    });
+  }
+
+  async cancelByEntity(
+    entityType: InvoiceEntityType,
+    entityId: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = tx ?? prisma;
+
+    return client.invoice.updateMany({
+      where: {
+        entityType,
+        entityId,
+        status: {
+          in: ["PENDING"],
+        },
+      },
+      data: {
+        status: "CANCELLED",
+        updatedAt: new Date(),
       },
     });
   }
 
-  async markInvoiceExpired(invoiceId: string, tx?: PrismaClient) {
-    const client = this.transaction(tx);
+  async findByEntity(
+    entityType: InvoiceEntityType,
+    entityId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Invoice | null> {
+    const client = tx ?? prisma;
 
-    return prisma.$transaction(async (trx) => {
-      const invoice = await trx.invoice.update({
-        where: { id: invoiceId },
-        data: { status: "EXPIRED" },
-        select: {
-          id: true,
-          booking: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  address: true,
-                  email: true,
-                  photo: true,
-                },
-              },
-              venue: {
-                select: {
-                  name: true,
-                },
-              },
-              service: {
-                select: {
-                  subCategory: {
-                    select: {
-                      name: true,
-                    },
-                  },
-                },
-              },
-              unit: {
-                select: {
-                  name: true,
-                  price: true,
-                  type: true,
-                  floor: {
-                    select: {
-                      name: true,
-                    },
-                  },
-                },
-              },
-              orderItems: {
-                select: {
-                  quantity: true,
-                  subtotal: true,
-                  menu: {
-                    select: {
-                      name: true,
-                      price: true,
-                    },
-                  },
-                },
-              },
-              invoice: {
-                select: {
-                  amount: true,
-                  paidAt: true,
-                  cancelledAt: true,
-                  expiredAt: true,
-                  issuedAt: true,
-                  invoiceNumber: true,
-                  status: true,
-                },
-              },
-            },
-          },
-        },
-      });
+    return client.invoice.findFirst({
+      where: {
+        entityType,
+        entityId,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
 
-      if (invoice.booking?.id) {
-        await trx.booking.update({
-          where: { id: invoice.booking.id },
-          data: { status: "CANCELLED" },
-        });
-      }
+  async findById(id: string, tx?: Prisma.TransactionClient) {
+    const client = this.getClient(tx);
+    return client.invoice.findUnique({
+      where: { id },
+      include: { payments: true },
+    });
+  }
 
-      return invoice;
+  async findAllInvoices(
+    limit = 20,
+    cursor?: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = this.getClient(tx);
+    return client.invoice.findMany({
+      take: limit,
+      ...(cursor && {
+        skip: 1,
+        cursor: { id: cursor },
+      }),
+      orderBy: { createdAt: "desc" },
     });
   }
 }

@@ -36,18 +36,28 @@ export class TaskController {
       });
       return sendSuccess(res, result, "Qr verified");
     } catch (error: any) {
+      console.log(error);
+
+      sendError(res, error.message || "Internal Server Error");
+    }
+  }
+
+  async findAllWithStatus(req: Request, res: Response) {
+    try {
+      const userId = req.user?.id as string;
+      const { communityId } = req.query;
+
+      const tasks = await service.getTasks(userId, communityId as string);
+
+      return sendSuccess(res, tasks, "Tasks fetched successfully");
+    } catch (error: any) {
       sendError(res, error.message || "Internal Server Error");
     }
   }
 
   async findAll(req: Request, res: Response) {
     try {
-      const { entityType, entityId } = req.query;
-
-      const tasks = await service.getTasks({
-        entityType: entityType as TaskEntityType | undefined,
-        entityId: entityId as string | undefined,
-      });
+      const tasks = await service.getAllTasks();
 
       return sendSuccess(res, tasks, "Tasks fetched successfully");
     } catch (error: any) {

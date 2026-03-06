@@ -1,5 +1,5 @@
-import ogs from "open-graph-scraper";
 import { Request, Response } from "express";
+import ogs from "open-graph-scraper";
 
 export const getLinkPreview = async (req: Request, res: Response) => {
   const { link } = req.body;
@@ -8,6 +8,7 @@ export const getLinkPreview = async (req: Request, res: Response) => {
 
   try {
     const { result } = await ogs({ url: link });
+    if (!result.ogImage || !result.twitterImage) return;
     return res.json({
       data: {
         title: result.ogTitle || result.twitterTitle || link,

@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { VenueCategoryService } from "../services";
 
 export class VenueCategoryController {
@@ -42,7 +42,7 @@ export class VenueCategoryController {
         message: "Categories retrieved successful",
         data: categories,
       });
-    } catch (err) {
+    } catch (err: any) {
       return res.status(404).json({
         status: false,
         message: err.message,

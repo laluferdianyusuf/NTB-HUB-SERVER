@@ -1,20 +1,26 @@
-import { Booking, PrismaClient, Review } from "@prisma/client";
+import { Booking, Prisma, PrismaClient, Review } from "@prisma/client";
 const prisma = new PrismaClient();
 
 export class ReviewRepository {
-  async create(data: Review, userId: string): Promise<Review> {
-    return await prisma.$transaction(async (tx) => {
-      const review = await tx.review.create({ data });
+  async create(data: Prisma.ReviewCreateInput, tx?: Prisma.TransactionClient) {
+    const client = tx ?? prisma;
 
-      await tx.point.create({
-        data: {
-          userId: userId,
-          points: 10,
-          activity: "REVIEW",
-          reference: review.id,
+    return client.review.create({
+      data,
+    });
+  }
+
+  async aggregateByVenue(venueId: string, tx?: Prisma.TransactionClient) {
+    const client = tx ?? prisma;
+
+    return client.review.aggregate({
+      where: {
+        booking: {
+          venueId: venueId,
         },
-      });
-      return review;
+      },
+      _avg: { rating: true },
+      _count: { rating: true },
     });
   }
 

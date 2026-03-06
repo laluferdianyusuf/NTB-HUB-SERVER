@@ -16,12 +16,23 @@ router.get("/all-top-spender", auth.authenticate, (req, res) =>
 router.get("/detail-user/:userId", (req, res) =>
   userController.findDetailUser(req, res),
 );
-router.put(
-  "/update-user/:id",
-  upload.single("image"),
+router.patch(
+  "/manage-profile",
   auth.authenticate,
-  auth.authorizeGlobalRole(["CUSTOMER"]),
+  upload.single("image"),
   (req, res) => userController.updateUser(req, res),
+);
+
+router.patch("/change-password", auth.authenticate, (req, res) =>
+  userController.changePassword(req, res),
+);
+
+router.post("/reset-password", (req, res) =>
+  userController.resetPassword(req, res),
+);
+
+router.post("/forgot-password", (req, res) =>
+  userController.forgotPassword(req, res),
 );
 router.delete(
   "/delete-user/:id",

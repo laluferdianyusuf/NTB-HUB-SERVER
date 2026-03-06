@@ -1,8 +1,7 @@
-import { getQueue, addDelayedJob, createWorker, cancelJob } from "./index";
-import { InvoiceRepository } from "../repositories";
-import { publisher } from "config/redis.config";
 import { Job } from "bullmq";
-import { Invoice } from "@prisma/client";
+import { publisher } from "config/redis.config";
+import { InvoiceRepository } from "../repositories";
+import { addDelayedJob, cancelJob, createWorker } from "./index";
 
 const invoiceRepository = new InvoiceRepository();
 const QUEUE_NAME = "invoice-expiry";
@@ -17,16 +16,16 @@ createWorker(QUEUE_NAME, async (job: Job<InvoiceExpiryJobData>) => {
   if (!invoice) return;
 
   if (invoice.status !== "PAID") {
-    const booking = await invoiceRepository.markInvoiceExpired(invoice.id);
+    const expired = await invoiceRepository.markExpired(invoice.id);
 
     publisher.publish(
       "booking-events",
       JSON.stringify({
         event: "booking:expired",
         payload: {
-          bookingId: booking.id,
-          booking,
-          userId: booking.booking.user.id,
+          bookingId: invoice.id,
+          expired,
+          userId: expired.entityId,
         },
       }),
     );

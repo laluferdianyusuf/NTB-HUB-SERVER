@@ -1,52 +1,50 @@
 import {
+  Invoice,
   Notification,
+  Order,
   OrderItem,
-  PointActivityType,
-  PrismaClient,
-  TransactionStatus,
-  TransactionType,
+  Prisma,
 } from "@prisma/client";
+import { prisma } from "config/prisma";
+import { publisher } from "config/redis.config";
+import { toLocalDBTime } from "helpers/formatIsoDate";
+import { cancelBookingReminders } from "queue/bookingReminderQueue";
+import { cancelInvoiceExpiry, enqueueInvoiceExpiry } from "queue/invoiceQueue";
+import { AccountRepository } from "repositories/account.repo";
 import {
   BookingRepository,
-  UserBalanceRepository,
   InvoiceRepository,
-  TransactionRepository,
+  LedgerRepository,
+  MenuRepository,
   NotificationRepository,
-  PointsRepository,
+  OperationalRepository,
+  OrderItemRepository,
+  OrderRepository,
+  PaymentRepository,
+  PlatformBalanceRepository,
+  UserBalanceRepository,
   VenueBalanceRepository,
   VenueServiceRepository,
   VenueUnitRepository,
-  OperationalRepository,
-  MenuRepository,
-  OrderRepository,
 } from "../repositories";
-import { publisher } from "config/redis.config";
-import { error, success } from "helpers/return";
-import { toLocalDBTime } from "helpers/formatIsoDate";
 import { NotificationService } from "./notification.services";
-import {
-  PLATFORM_BALANCE_ID,
-  PLATFORM_FEE_NUMBER,
-} from "config/finance.config";
-import { cancelInvoiceExpiry, enqueueInvoiceExpiry } from "queue/invoiceQueue";
-import {
-  cancelBookingReminders,
-  enqueueBookingReminders,
-} from "queue/bookingReminderQueue";
+
 const bookingRepository = new BookingRepository();
-const userBalanceRepository = new UserBalanceRepository();
-const venueBalanceRepository = new VenueBalanceRepository();
 const invoiceRepository = new InvoiceRepository();
-const transactionRepository = new TransactionRepository();
 const notificationRepository = new NotificationRepository();
 const notificationService = new NotificationService();
-const pointRepository = new PointsRepository();
 const venueServiceRepository = new VenueServiceRepository();
 const venueUnitRepository = new VenueUnitRepository();
 const operationalRepository = new OperationalRepository();
+const userBalanceRepository = new UserBalanceRepository();
+const venueBalanceRepository = new VenueBalanceRepository();
+const platformBalanceRepository = new PlatformBalanceRepository();
 const menuRepository = new MenuRepository();
 const orderRepository = new OrderRepository();
-const prisma = new PrismaClient();
+const orderItemRepository = new OrderItemRepository();
+const paymentRepository = new PaymentRepository();
+const ledgerRepository = new LedgerRepository();
+const accountRepository = new AccountRepository();
 
 interface CreateBookingProps {
   userId: string;
@@ -116,7 +114,7 @@ export class BookingServices {
     }
 
     const hours = data.endTime - data.startTime;
-    const totalPrice = hours * unit.price;
+    const totalPrice = hours * Number(unit.price);
 
     const invoiceNumber = `INV-${crypto
       .randomUUID()
@@ -138,30 +136,54 @@ export class BookingServices {
       });
 
       let orderAmount = 0;
+      let order: Order | null = null;
 
       if (data.orders?.length) {
+        const menusIds = data.orders.map((o) => o.menuId);
+        const menus = await menuRepository.findMenuByIds(menusIds, tx);
+
+        const menuMap = new Map(menus.map((m) => [m.id, m]));
+
+        const itemsToInsert = [];
+
         for (const o of data.orders) {
-          const menu = await menuRepository.findMenuById(o.menuId, tx);
+          const menu = menuMap.get(o.menuId);
           if (!menu) throw new Error("Menu not found");
 
-          const subtotal = menu.price * o.quantity;
+          const subtotal = Number(menu.price) * o.quantity;
           orderAmount += subtotal;
 
-          await orderRepository.createOrder(
-            {
-              bookingId: booking.id,
-              menuId: o.menuId,
-              quantity: o.quantity,
-              subtotal,
-            },
-            tx,
-          );
+          itemsToInsert.push({
+            menuId: menu.id,
+            quantity: o.quantity,
+            price: menu.price,
+            subtotal,
+          });
         }
+
+        order = await orderRepository.create(
+          {
+            bookingId: booking.id,
+            venueId: data.venueId,
+            userId: data.userId,
+            total: Prisma.Decimal(totalPrice + orderAmount),
+          },
+          tx,
+        );
+
+        await orderItemRepository.createBulkOrders(
+          itemsToInsert.map((item) => ({
+            ...item,
+            orderId: order!.id,
+          })),
+          tx,
+        );
       }
 
       const invoice = await invoiceRepository.create(
         {
-          bookingId: booking.id,
+          entityType: "BOOKING",
+          entityId: booking.id,
           invoiceNumber,
           amount: totalPrice + orderAmount,
           expiredAt: new Date(Date.now() + 5 * 60 * 1000),
@@ -195,214 +217,114 @@ export class BookingServices {
     return result;
   }
 
-  async updateBookingPayment(id: string) {
-    const invoice = await invoiceRepository.findByBookingId(id);
-    if (!invoice) {
-      throw new Error("Invoice not found");
-    }
+  async payBooking(bookingId: string, userId: string) {
+    const booking = await bookingRepository.findBookingById(bookingId);
 
-    const booking = await bookingRepository.findBookingById(id);
-    if (!booking) {
-      throw new Error("Book not found");
-    }
+    if (!booking) throw new Error("Booking not found");
+    if (booking.userId !== userId) throw new Error();
+    if (booking.status !== "PENDING")
+      throw new Error("Booking already processed");
 
-    if (invoice.status === "PAID") {
-      throw new Error("This book is already paid");
-    }
+    const invoice: Invoice = booking.invoice;
+    if (!invoice || invoice.status !== "PENDING")
+      throw new Error("Invoice invalid");
 
-    if (invoice.expiredAt && invoice.expiredAt < new Date()) {
-      throw new Error("Invoice expired");
-    }
+    const userBalance = await ledgerRepository.getBalance(userId);
 
-    const userBalance = await userBalanceRepository.getBalanceByUserId(
-      booking.userId,
-    );
-
-    const platformFee = Number(PLATFORM_FEE_NUMBER);
-    const venueAmount = invoice.amount - platformFee;
-
-    if (venueAmount < 0) {
-      throw new Error("Invoice amount must be greater than fee");
-    }
-
-    if (!userBalance || userBalance < invoice.amount) {
+    if (userBalance && Number(userBalance) < Number(invoice.amount))
       throw new Error("Insufficient balance");
-    }
-    const result = await prisma.$transaction(async (tx) => {
-      const processedBooking = await bookingRepository.processBookingPayment(
-        booking.id,
+
+    const platformFee = Number(invoice.amount) * 0.1;
+    const venueAmount = Number(invoice.amount) - platformFee;
+
+    await prisma.$transaction(async (tx) => {
+      const userAccount = await accountRepository.findUserAccount(userId);
+      const venueAccount = await accountRepository.findVenueAccount(
+        booking.venueId,
+      );
+      const platformAccount = await accountRepository.findPlatformAccount();
+
+      if (!userAccount || !venueAccount || !platformAccount) {
+        throw new Error("Account not found");
+      }
+
+      await paymentRepository.create({
+        invoiceId: invoice.id,
+        amount: Number(invoice.amount),
+        method: "WALLET",
+        provider: "NTB_HUB",
+        providerRef: invoice.invoiceNumber,
+      });
+
+      await ledgerRepository.createMany(
+        [
+          {
+            accountId: userAccount?.id as string,
+            type: "DEBIT",
+            amount: Number(invoice.amount),
+            referenceType: "BOOKING_PAYMENT",
+            referenceId: booking.id,
+          },
+          {
+            accountId: venueAccount.id,
+            type: "CREDIT",
+            amount: venueAmount,
+            referenceType: "BOOKING_PAYMENT",
+            referenceId: booking.id,
+          },
+          {
+            accountId: platformAccount.id,
+            type: "CREDIT",
+            amount: platformFee,
+            referenceType: "FEE",
+            referenceId: booking.id,
+          },
+        ],
         tx,
       );
 
-      const paymentId = `PAY-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
-
-      const platformFee = Number(PLATFORM_FEE_NUMBER);
-      const venueAmount = invoice.amount - platformFee;
-
-      if (venueAmount < 0)
-        throw new Error("Invoice amount must be greater than fee");
-
-      await transactionRepository.create(
-        {
-          userId: booking.userId,
-          amount: invoice.amount,
-          type: TransactionType.DEDUCTION,
-          status: TransactionStatus.SUCCESS,
-          reference: booking.id,
-          orderId: paymentId,
-        },
-        tx,
-      );
-
-      await transactionRepository.create(
-        {
-          venueId: booking.venueId,
-          amount: venueAmount,
-          type: TransactionType.DEDUCTION,
-          status: TransactionStatus.SUCCESS,
-          reference: booking.id,
-          orderId: paymentId,
-        },
-        tx,
-      );
-
-      await transactionRepository.create(
-        {
-          venueId: booking.venueId,
-          amount: platformFee,
-          type: TransactionType.FEE,
-          status: TransactionStatus.SUCCESS,
-          reference: booking.id,
-          orderId: `${paymentId}-FEE`,
-        },
-        tx,
-      );
-
-      const points = await pointRepository.generatePoints(
-        {
-          userId: booking.userId,
-          activity: PointActivityType.BOOKING,
-          points: 10,
-          reference: booking.id,
-        },
-        tx,
-      );
-
-      await userBalanceRepository.decrementBalance(
-        booking.userId,
-        invoice.amount,
-        tx,
+      await userBalanceRepository.incrementBalance(
+        userId,
+        Number(invoice.amount),
       );
       await venueBalanceRepository.incrementVenueBalance(
         booking.venueId,
-        venueAmount,
-        tx,
+        Number(venueAmount),
       );
+      await platformBalanceRepository.incrementBalance(Number(platformFee), tx);
 
-      await tx.platformBalance.update({
-        where: { id: PLATFORM_BALANCE_ID },
-        data: { balance: { increment: platformFee } },
-      });
+      await invoiceRepository.markPaid(invoice.id, tx);
 
-      const updatedInvoice = await invoiceRepository.updateInvoicePaid(
-        booking.id,
-        tx,
-      );
-
-      await cancelInvoiceExpiry(updatedInvoice.id);
-
-      const userNotification =
-        await notificationRepository.createNewNotification({
-          userId: booking.userId,
-          title: "Payment Successful",
-          message: `Your payment of ${invoice.amount} for booking ${invoice.invoiceNumber} has been successfully received. Thank you!`,
-          type: "Booking",
-          isGlobal: false,
-        } as Notification);
-
-      const venueBookingNotification =
-        await notificationRepository.createNewNotification({
-          venueId: booking.venueId,
-          title: "Booking Paid",
-          message: `Booking ${invoice.invoiceNumber} has been paid. Total received: ${venueAmount}`,
-          type: "Booking",
-          isGlobal: false,
-        } as Notification);
-
-      const venueFeeNotification =
-        await notificationRepository.createNewNotification({
-          venueId: booking.venueId,
-          title: "Platform Fee Collected",
-          message: `A platform fee of ${platformFee} has been collected from booking ${invoice.invoiceNumber}.`,
-          type: "Payment",
-          isGlobal: false,
-        } as Notification);
-
-      return {
-        booking: processedBooking,
-        points,
-        invoice: updatedInvoice,
-        userNotification,
-        venueBookingNotification,
-        venueFeeNotification,
-      };
+      await bookingRepository.updateBookingStatus(booking.id, "PAID", tx);
     });
 
-    await notificationService.sendToUser(
-      booking.venueId,
-      booking.userId,
-      result.userNotification.title,
-      result.userNotification.message,
-      null,
-    );
+    await cancelInvoiceExpiry(invoice.id);
 
-    await notificationService.sendToVenueOwner(
-      booking.venueId,
-      result.venueBookingNotification.title,
-      result.venueBookingNotification.message,
-      null,
-    );
-
-    await notificationService.sendToVenueOwner(
-      booking.venueId,
-      result.venueFeeNotification.title,
-      result.venueFeeNotification.message,
-      null,
-    );
-
-    await enqueueBookingReminders(
-      booking.id,
-      booking.userId,
-      booking.startTime,
-      booking.endTime,
-    );
-    const pendingBookings = await bookingRepository.findBookingPendingByUserId(
-      booking.userId,
-    );
-
-    const paidBookings = await bookingRepository.findBookingPaidByUserId(
-      booking.userId,
-    );
-
-    await publishEvent("booking-events", "booking:pending", {
+    await notificationRepository.createNewNotification({
       userId: booking.userId,
-      data: pendingBookings ?? [],
-    });
+      title: "Payment Successful",
+      message: `Your payment of ${invoice.amount} for booking ${invoice.invoiceNumber} has been successfully received. Thank you!`,
+      type: "Booking",
+      isGlobal: false,
+    } as Notification);
 
-    await publishEvent("booking-events", "booking:paid", {
-      userId: booking.userId,
-      data: paidBookings ?? [],
-    });
+    await notificationRepository.createNewNotification({
+      venueId: booking.venueId,
+      title: "Booking Paid",
+      message: `Booking ${invoice.invoiceNumber} has been paid. Total received: ${venueAmount}`,
+      type: "Booking",
+      isGlobal: false,
+    } as Notification);
 
-    await publishEvent("points-events", "point:updated", result.points);
-    await publishEvent("invoice-events", "invoice:updated", result.invoice);
-    await publishEvent(
-      "notification-events",
-      "notification:send",
-      result.userNotification,
-    );
+    await notificationRepository.createNewNotification({
+      venueId: booking.venueId,
+      title: "Platform Fee Collected",
+      message: `A platform fee of ${platformFee} has been collected from booking ${invoice.invoiceNumber}.`,
+      type: "Payment",
+      isGlobal: false,
+    } as Notification);
 
-    return result;
+    return { message: "Booking paid successfully" };
   }
 
   async getAllBookings() {
@@ -467,14 +389,54 @@ export class BookingServices {
     if (!booking) {
       throw new Error("Booking not found");
     }
+    if (booking.status === "PAID") {
+      await prisma.$transaction(async (tx) => {
+        const userAccount = await accountRepository.findUserAccount(
+          booking.userId,
+        );
+        const venueAccount = await accountRepository.findVenueAccount(
+          booking.venueId,
+        );
 
-    const result = await prisma.$transaction(async (tx) => {
-      const bookings = await bookingRepository.cancelBooking(id, tx);
+        if (!userAccount || !venueAccount) {
+          throw new Error("Account not found");
+        }
 
-      const invoice = await invoiceRepository.updateInvoiceCanceled(id, tx);
+        const invoice: Invoice = booking.invoice;
 
-      return { bookings, invoice };
-    });
+        await ledgerRepository.createMany([
+          {
+            accountId: userAccount?.id as string,
+            type: "CREDIT",
+            amount: Number(invoice.amount),
+            referenceType: "REFUND",
+            referenceId: booking.id,
+          },
+          {
+            accountId: booking.venueId,
+            type: "DEBIT",
+            amount: Number(invoice.amount) * 0.9,
+            referenceType: "REFUND",
+            referenceId: booking.id,
+          },
+        ]);
+        await userBalanceRepository.incrementBalance(
+          booking.userId,
+          Number(invoice.amount),
+          tx,
+        );
+
+        await venueBalanceRepository.decrementVenueBalance(
+          booking.venueId,
+          Number(invoice.amount),
+          tx,
+        );
+
+        await bookingRepository.cancelBooking(id, tx);
+      });
+    } else {
+      await bookingRepository.cancelBooking(id);
+    }
 
     const pendingBookings = await bookingRepository.findBookingPendingByUserId(
       booking.userId,
@@ -487,7 +449,7 @@ export class BookingServices {
 
     await cancelBookingReminders(booking.id);
 
-    return result;
+    return { message: "Booking cancelled" };
   }
 
   async completeBooking(id: string) {

@@ -1,13 +1,13 @@
 import { Menu, Notification, PrismaClient } from "@prisma/client";
+import { publisher } from "config/redis.config";
+import { uploadImage } from "utils/uploadS3";
 import {
   MenuRepository,
-  VenueRepository,
-  UserRepository,
   NotificationRepository,
+  UserRepository,
+  VenueRepository,
 } from "./../repositories";
-import { publisher } from "config/redis.config";
 import { NotificationService } from "./notification.services";
-import { uploadImage } from "utils/uploadS3";
 const prisma = new PrismaClient();
 
 const menuRepository = new MenuRepository();

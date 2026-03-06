@@ -1,4 +1,4 @@
-import { PrismaClient, Booking, BookingStatus, Prisma } from "@prisma/client";
+import { Booking, BookingStatus, Prisma, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -23,8 +23,9 @@ export class BookingRepository {
     });
   }
 
-  async findBookingById(id: string): Promise<Booking | null> {
-    return await prisma.booking.findUnique({
+  async findBookingById(id: string, tx?: Prisma.TransactionClient) {
+    const client = tx ?? prisma;
+    return await client.booking.findUnique({
       where: { id },
       include: {
         user: {
@@ -84,6 +85,7 @@ export class BookingRepository {
             status: true,
           },
         },
+        review: true,
       },
     });
   }
@@ -464,8 +466,10 @@ export class BookingRepository {
   async updateBookingStatus(
     id: string,
     status: BookingStatus,
+    tx?: Prisma.TransactionClient,
   ): Promise<Booking> {
-    return await prisma.booking.update({ where: { id }, data: { status } });
+    const client = this.transaction(tx);
+    return await client.booking.update({ where: { id }, data: { status } });
   }
 
   async processBookingPayment(id: string, tx?: Prisma.TransactionClient) {
@@ -505,7 +509,6 @@ export class BookingRepository {
     return db.booking.update({
       where: { id: bookingId },
       data: { totalPrice: { increment: totalIncrease } },
-      include: { invoice: true },
     });
   }
 

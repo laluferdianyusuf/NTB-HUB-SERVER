@@ -1,9 +1,9 @@
-import firebase from "../utils/firebase";
 import { Notification, Role } from "@prisma/client";
-import { NotificationRepository } from "../repositories/notification.repo";
-import { uploadToCloudinary } from "utils/image";
-import { DeviceRepository, UserRoleRepository } from "repositories";
 import { error, success } from "helpers/return";
+import { DeviceRepository, UserRoleRepository } from "repositories";
+import { uploadToCloudinary } from "utils/image";
+import { NotificationRepository } from "../repositories/notification.repo";
+import firebase from "../utils/firebase";
 
 const notificationRepository = new NotificationRepository();
 

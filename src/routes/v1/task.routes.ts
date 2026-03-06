@@ -23,7 +23,14 @@ router.post("/verify", auth.authenticate, (req, res) =>
 );
 
 router.get("/list-tasks", auth.authenticate, (req, res) =>
-  controller.findAll(req, res),
+  controller.findAllWithStatus(req, res),
+);
+
+router.get(
+  "/all/list-tasks",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["ADMIN"]),
+  (req, res) => controller.findAll(req, res),
 );
 
 export default router;

@@ -1,5 +1,5 @@
+import { Request, Response } from "express";
 import { InvoiceServices } from "services";
-import { Response, Request } from "express";
 
 export class InvoiceController {
   private invoiceService: InvoiceServices;
@@ -22,7 +22,7 @@ export class InvoiceController {
   }
 
   async findAllInvoiceByUserId(req: Request, res: Response) {
-    const userId = req.user?.id;
+    const userId = req.user?.id as string;
 
     const result = await this.invoiceService.findAllInvoiceByUserId(userId);
 

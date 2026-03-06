@@ -1,10 +1,10 @@
-import { Router } from "express";
 import {
   EventController,
   EventOrderController,
   EventTicketController,
   EventTicketTypeController,
 } from "controllers";
+import { Router } from "express";
 import { AuthMiddlewares } from "middlewares/auth.middleware";
 import { upload } from "middlewares/upload";
 
@@ -130,6 +130,13 @@ router.get(
   auth.authenticate,
   auth.authorizeGlobalRole(["CUSTOMER"]),
   (req, res) => eventOrderController.getDetail(req, res),
+);
+
+router.get(
+  "/orders",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["CUSTOMER"]),
+  (req, res) => eventOrderController.getEventOrders(req, res),
 );
 
 export default router;

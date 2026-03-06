@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { getClientIp } from "helpers/getClientIp";
 import { sendError, sendSuccess } from "helpers/response";
 import { UserService } from "services";
 
@@ -10,6 +11,7 @@ export class UserController {
       const result = await userService.register({
         email: req.body.email,
         name: req.body.name,
+        username: req.body.username,
         password: req.body.password,
         role: req.body.role,
         file: req.file,
@@ -21,9 +23,65 @@ export class UserController {
         data: result,
       });
     } catch (err: any) {
+      console.log(err);
+
       return res.status(400).json({
         status: false,
         message: err.message,
+      });
+    }
+  }
+
+  async verifyEmail(req: Request, res: Response) {
+    try {
+      const { token } = req.body;
+
+      if (!token) {
+        return res.status(400).json({
+          message: "TOKEN_REQUIRED",
+        });
+      }
+
+      const result = await userService.verifyEmail(token);
+
+      sendSuccess(res, result, "Email verified");
+    } catch (error: any) {
+      console.error("VERIFY EMAIL ERROR:", error.message);
+
+      if (
+        error.message === "INVALID_OR_EXPIRED_TOKEN" ||
+        error.message === "TOKEN_EXPIRED"
+      ) {
+        return res.status(400).json({
+          message: error.message,
+        });
+      }
+
+      return res.status(500).json({
+        message: "INTERNAL_SERVER_ERROR",
+      });
+    }
+  }
+
+  async resendVerification(req: Request, res: Response) {
+    try {
+      const { email } = req.body;
+      const ip = getClientIp(req);
+
+      if (!email) {
+        return res.status(400).json({
+          message: "Email is required",
+        });
+      }
+
+      const result = await userService.resendVerification(email, ip);
+
+      return res.status(200).json(result);
+    } catch (error: any) {
+      console.log(error);
+
+      return res.status(400).json({
+        message: error.message || "Something went wrong",
       });
     }
   }
@@ -142,21 +200,55 @@ export class UserController {
 
   async updateUser(req: Request, res: Response) {
     try {
-      const { id } = req.params;
+      const userId = req.user?.id as string;
       const payload = req.body;
       const file = req.file;
-      const user = await userService.updateUser(id, payload, file);
+      const user = await userService.updateUser(userId, payload, file);
 
-      return res.status(200).json({
-        status: true,
-        message: "User updated successfully",
-        data: user,
-      });
+      sendSuccess(res, user, "Update successful");
     } catch (error: any) {
-      return res.status(400).json({
-        status: false,
-        message: error.message,
+      console.log(error);
+      sendError(res, error.message || "Internal server error");
+    }
+  }
+
+  async changePassword(req: Request, res: Response) {
+    try {
+      const userId = req.user?.id as string;
+      const { oldPassword, newPassword } = req.body;
+      const user = await userService.changePassword(userId, {
+        oldPassword,
+        newPassword,
       });
+
+      sendSuccess(res, user, "Change password successful");
+    } catch (error: any) {
+      console.log(error);
+      sendError(res, error.message || "Internal server error");
+    }
+  }
+
+  async forgotPassword(req: Request, res: Response) {
+    try {
+      const { email } = req.body;
+      await userService.forgotPassword(email);
+
+      sendSuccess(res, "If the email exists, a reset form has been sent");
+    } catch (error: any) {
+      console.log(error);
+      sendError(res, error.message || "Internal server error");
+    }
+  }
+
+  async resetPassword(req: Request, res: Response) {
+    try {
+      const { token, newPassword } = req.body;
+      await userService.resetPassword(token, newPassword);
+
+      sendSuccess(res, "Reset password successful");
+    } catch (error: any) {
+      console.log(error);
+      sendError(res, error.message || "Internal server error");
     }
   }
 

@@ -1,4 +1,4 @@
-import { PrismaClient, PublicPlace, PublicPlaceType } from "@prisma/client";
+import { Prisma, PrismaClient, PublicPlace } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -94,6 +94,23 @@ export class PublicPlaceRepository {
         },
         likes: true,
         impressions: true,
+      },
+    });
+  }
+
+  async updateRating(
+    placeId: string,
+    averageRating: number,
+    totalReviews: number,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = tx ?? prisma;
+
+    return client.publicPlace.update({
+      where: { id: placeId },
+      data: {
+        averageRating,
+        totalReviews,
       },
     });
   }

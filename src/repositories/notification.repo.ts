@@ -1,16 +1,24 @@
-import { Prisma, PrismaClient, Notification } from "@prisma/client";
+import { Notification, Prisma, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 export class NotificationRepository {
+  private getClient(tx?: Prisma.TransactionClient) {
+    return tx ?? prisma;
+  }
+
   // find all notification
   async findNotificationByUserId(userId: string): Promise<Notification[]> {
     return prisma.notification.findMany({ where: { userId } });
   }
 
   //   create new notification
-  async createNewNotification(data: Notification): Promise<Notification> {
-    return prisma.notification.create({
+  async createNewNotification(
+    data: Notification,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Notification> {
+    const client = this.getClient(tx);
+    return client.notification.create({
       data,
     });
   }
@@ -43,7 +51,7 @@ export class NotificationRepository {
 
   async createManyNotification(
     data: Omit<Notification, "id" | "createdAt" | "updatedAt" | "isRead">[],
-    tx?: Prisma.TransactionClient
+    tx?: Prisma.TransactionClient,
   ) {
     const db = tx ?? prisma;
     return await db.notification.createMany({ data });

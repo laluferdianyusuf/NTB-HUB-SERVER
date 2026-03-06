@@ -1,10 +1,10 @@
 import { UnitType } from "@prisma/client";
 import {
+  FloorRepository,
+  OperationalRepository,
   VenueRepository,
   VenueServiceRepository,
   VenueUnitRepository,
-  FloorRepository,
-  OperationalRepository,
 } from "../repositories";
 
 export class VenueUnitService {
@@ -58,7 +58,7 @@ export class VenueUnitService {
     return this.venueUnitRepository.create({
       venueId,
       serviceId,
-      floorId,
+      floorId: String(floorId),
       name: name.trim(),
       price,
       type,

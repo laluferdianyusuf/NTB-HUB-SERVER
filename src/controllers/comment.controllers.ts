@@ -12,9 +12,10 @@ export class CommentController {
       entityId: z.string().min(1),
     });
 
+    const userId = req.user?.id as string;
     const { entityType, entityId } = paramsSchema.parse(req.params);
 
-    const comments = await this.service.list(entityType, entityId);
+    const comments = await this.service.list(entityType, entityId, userId);
     return res.json(comments);
   };
 

@@ -1,9 +1,4 @@
-import {
-  EventTicket,
-  Prisma,
-  PrismaClient,
-  TicketStatus,
-} from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -68,8 +63,9 @@ export class EventTicketRepository {
     });
   }
 
-  markAsUsed(ticketId: string) {
-    return prisma.eventTicket.updateMany({
+  markAsUsed(ticketId: string, tx?: Prisma.TransactionClient) {
+    const client = tx ?? prisma;
+    return client.eventTicket.updateMany({
       where: {
         id: ticketId,
         status: "ACTIVE",

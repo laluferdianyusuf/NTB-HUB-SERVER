@@ -55,6 +55,13 @@ export class CommunityMemberRepository {
     });
   }
 
+  async findAllByUser(userId: string) {
+    return prisma.communityMember.findMany({
+      where: { userId },
+      select: { communityId: true },
+    });
+  }
+
   getUserCommunities(userId: string) {
     return prisma.communityMember.findMany({
       where: {
@@ -146,5 +153,32 @@ export class CommunityMemberRepository {
     return client.communityMember.findUnique({
       where: { communityId_userId: { communityId, userId } },
     });
+  }
+
+  async isUserMember(userId: string, communityId: string): Promise<boolean> {
+    const member = await prisma.communityMember.findFirst({
+      where: {
+        userId,
+        communityId,
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+
+    return !!member;
+  }
+
+  async getUserCommunityIds(userId: string): Promise<string[]> {
+    const memberships = await prisma.communityMember.findMany({
+      where: {
+        userId,
+        deletedAt: null,
+      },
+      select: {
+        communityId: true,
+      },
+    });
+
+    return memberships.map((m) => m.communityId);
   }
 }

@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { VenueUnitService } from "services";
 
 export class VenueUnitControllers {
@@ -29,9 +29,7 @@ export class VenueUnitControllers {
         message: "Venue units created successfully",
         data: venueUnits,
       });
-    } catch (err) {
-      console.log(err);
-
+    } catch (err: any) {
       return res.status(400).json({
         status: false,
         message: err.message,
@@ -50,7 +48,7 @@ export class VenueUnitControllers {
         message: "Units by service retrieved successful",
         data: venueUnits,
       });
-    } catch (err) {
+    } catch (err: any) {
       return res.status(400).json({
         status: false,
         message: err.message,
@@ -75,9 +73,7 @@ export class VenueUnitControllers {
         message: "Units availability retrieved successful",
         data: result,
       });
-    } catch (err) {
-      console.log(err);
-
+    } catch (err: any) {
       return res.status(400).json({
         status: false,
         message: err.message,
@@ -96,7 +92,7 @@ export class VenueUnitControllers {
         message: "Units by venue retrieved successful",
         data: venueUnits,
       });
-    } catch (err) {
+    } catch (err: any) {
       return res.status(400).json({
         status: false,
         message: err.message,
@@ -115,7 +111,7 @@ export class VenueUnitControllers {
         message: "Units by venue retrieved successful",
         data: venueUnits,
       });
-    } catch (err) {
+    } catch (err: any) {
       return res.status(400).json({
         status: false,
         message: err.message,
@@ -139,7 +135,7 @@ export class VenueUnitControllers {
         message: "Venue units updated successfully",
         data: venueUnits,
       });
-    } catch (err) {
+    } catch (err: any) {
       return res.status(400).json({
         status: false,
         message: err.message,
@@ -157,7 +153,7 @@ export class VenueUnitControllers {
         status: true,
         message: "Venue unit deactivated successfully",
       });
-    } catch (err) {
+    } catch (err: any) {
       return res.status(400).json({
         status: false,
         message: err.message,

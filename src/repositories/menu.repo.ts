@@ -1,4 +1,4 @@
-import { Prisma, PrismaClient, Menu } from "@prisma/client";
+import { Menu, Prisma, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -28,6 +28,15 @@ export class MenuRepository {
     const client = this.transaction(tx);
 
     return client.menu.findUnique({ where: { id } });
+  }
+
+  async findMenuByIds(
+    ids: string[],
+    tx?: Prisma.TransactionClient,
+  ): Promise<Menu[]> {
+    const client = this.transaction(tx);
+
+    return client.menu.findMany({ where: { id: { in: ids } } });
   }
 
   //   create new menu at venue

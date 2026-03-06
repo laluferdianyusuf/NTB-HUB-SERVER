@@ -39,6 +39,8 @@ export class EventTicketController {
   async verify(req: Request, res: Response) {
     try {
       const { ticketId } = req.body;
+      const userId = req.user?.id as string;
+      const { eventId } = req.params;
 
       if (!ticketId) {
         return res.status(400).json({
@@ -46,7 +48,7 @@ export class EventTicketController {
         });
       }
 
-      await this.service.verifyTicket(ticketId);
+      await this.service.verifyTicket(ticketId, eventId, userId);
 
       return res.status(200).json({
         message: "TICKET_VERIFIED",

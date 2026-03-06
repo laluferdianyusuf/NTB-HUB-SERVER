@@ -1,5 +1,6 @@
 import { ReviewServices } from "services";
 import { Request, Response } from "express";
+import { sendError, sendSuccess } from "helpers/response";
 
 export class ReviewControllers {
   private reviewService: ReviewServices;
@@ -12,18 +13,10 @@ export class ReviewControllers {
     try {
       const data = req.body;
       const result = await this.reviewService.createReview(data, req.file);
-      res.status(201).json({
-        status: true,
-        message: "Rating successful",
-        data: result,
-      });
-    } catch (error) {
+      sendSuccess(res, result, "Rating success");
+    } catch (error: any) {
       console.log(error);
-
-      res.status(500).json({
-        status: false,
-        message: error.message || "Internal Server Error",
-      });
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -31,16 +24,9 @@ export class ReviewControllers {
     try {
       const bookingId = req.params.bookingId;
       const result = await this.reviewService.getReviewByBookingId(bookingId);
-      res.status(200).json({
-        status: true,
-        message: "Rating retrieved successful",
-        data: result,
-      });
-    } catch (error) {
-      res.status(500).json({
-        status: false,
-        message: error.message || "Internal Server Error",
-      });
+      sendSuccess(res, result, "Rating retrieved successful");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -48,16 +34,9 @@ export class ReviewControllers {
     try {
       const venueId = req.params.venueId;
       const result = await this.reviewService.getVenueRating(venueId);
-      res.status(200).json({
-        status: true,
-        message: "Rating retrieved successful",
-        data: result,
-      });
-    } catch (error) {
-      res.status(500).json({
-        status: false,
-        message: error.message || "Internal Server Error",
-      });
+      sendSuccess(res, result, "Rating retrieved successful");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
     }
   }
 }

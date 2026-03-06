@@ -67,7 +67,6 @@ export class PublicPlaceService {
       const liked = await this.likeRepo.isLikedByUser(id, userId);
       isLiked = !!liked;
     }
-    console.log("Is Liked", isLiked);
 
     return { ...place, isLiked };
   }

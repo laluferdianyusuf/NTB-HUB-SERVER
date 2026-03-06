@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { sendError, sendSuccess } from "helpers/response";
 import { EventOrderService } from "../services";
 
 export class EventOrderController {
@@ -17,31 +18,9 @@ export class EventOrderController {
 
       const result = await this.service.checkout(userId, eventId, items);
 
-      return res.status(201).json({
-        status: true,
-        message: "Ticket checked out",
-        data: result,
-      });
-    } catch (err: any) {
-      console.log(err);
-
-      const errorMap: Record<string, { code: number; message: string }> = {
-        TICKET_NOT_AVAILABLE: {
-          code: 404,
-          message: "Ticket not available",
-        },
-        TICKET_SOLD_OUT: {
-          code: 409,
-          message: "Ticket sold out",
-        },
-      };
-
-      const mappedError = errorMap[err.message];
-
-      return res.status(mappedError?.code || 500).json({
-        status: false,
-        message: mappedError?.message || "Internal server error",
-      });
+      sendSuccess(res, result, "Ticket checked out");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -58,18 +37,21 @@ export class EventOrderController {
 
       const result = await this.service.markPaid(eventOrderId, items);
 
-      return res.status(201).json({
-        status: true,
-        message: "Payment processed",
-        data: result,
-      });
-    } catch (err) {
-      console.log(err);
+      sendSuccess(res, result, "Payment successful", 201);
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
+    }
+  }
 
-      return res.status(500).json({
-        status: false,
-        message: "Failed to process payment",
-      });
+  async getEventOrders(req: Request, res: Response) {
+    try {
+      const userId = req.user?.id as string;
+
+      const order = await this.service.getEventOrders(userId);
+
+      sendSuccess(res, order, "Event orders retrieved");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -86,15 +68,9 @@ export class EventOrderController {
         });
       }
 
-      return res.json({
-        status: true,
-        data: order,
-      });
-    } catch (err) {
-      return res.status(500).json({
-        status: false,
-        message: "Internal server error",
-      });
+      sendSuccess(res, order, "Event orders retrieved");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
     }
   }
 }

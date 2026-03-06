@@ -1,5 +1,5 @@
-import { FindVenuesParams } from "./../types/venues.params";
 import { Prisma, PrismaClient, Venue } from "@prisma/client";
+import { FindVenuesParams } from "./../types/venues.params";
 const prisma = new PrismaClient();
 
 export class VenueRepository {
@@ -7,8 +7,16 @@ export class VenueRepository {
     data: Venue,
     tx?: Prisma.TransactionClient,
   ): Promise<Venue> {
-    const db = tx ?? prisma;
-    return db.venue.create({ data });
+    const client = tx ?? prisma;
+    const venue = await client.venue.create({ data });
+
+    await client.account.create({
+      data: {
+        type: "VENUE",
+        venueId: venue.id,
+      },
+    });
+    return venue;
   }
 
   async findAllVenues(params: FindVenuesParams = {}) {
@@ -240,6 +248,23 @@ export class VenueRepository {
     });
   }
 
+  async updateRating(
+    venueId: string,
+    averageRating: number,
+    totalReviews: number,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = tx ?? prisma;
+
+    return client.venue.update({
+      where: { id: venueId },
+      data: {
+        averageRating,
+        totalReviews,
+      },
+    });
+  }
+
   async findActiveVenue(): Promise<Venue[]> {
     return await prisma.venue.findMany({
       where: {
@@ -270,6 +295,9 @@ export class VenueRepository {
           where: { isActive: true },
           include: {
             units: { where: { isActive: true } },
+            subCategory: {
+              include: { category: true },
+            },
           },
         },
       },

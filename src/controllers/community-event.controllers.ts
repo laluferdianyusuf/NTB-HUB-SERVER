@@ -13,8 +13,6 @@ const collabSchema = z.object({
 
 export class CommunityEventController {
   create = async (req: Request, res: Response) => {
-    console.log(req.body);
-
     try {
       const {
         title,
@@ -23,7 +21,11 @@ export class CommunityEventController {
         endAt,
         type,
         location,
+        meetingLink,
+        latitude,
+        longitude,
         collaborations,
+        includeTicket,
       } = req.body;
       const { communityId } = req.params;
       const createdById = String(req.user?.id) as string;
@@ -37,11 +39,14 @@ export class CommunityEventController {
           endAt: endAt ? new Date(endAt) : undefined,
           type,
           location,
+          latitude,
+          longitude,
+          meetingLink,
           collaborations: collaborations ? JSON.parse(collaborations) : [],
+          includeTicket,
         },
         req.file as Express.Multer.File,
       );
-      console.log(communityId);
 
       return sendSuccess(res, event, "Event created", 201);
     } catch (error: any) {

@@ -1,9 +1,9 @@
-import { addDelayedJob, createWorker, cancelJob } from "./index";
-import { TransactionRepository } from "../repositories";
-import { publisher } from "config/redis.config";
 import { Job } from "bullmq";
+import { publisher } from "config/redis.config";
+import { PaymentRepository } from "../repositories";
+import { addDelayedJob, cancelJob, createWorker } from "./index";
 
-const transactionRepository = new TransactionRepository();
+const paymentRepository = new PaymentRepository();
 const QUEUE_NAME = "invoice-expiry";
 const JOB_NAME = "expire-invoice";
 
@@ -11,39 +11,45 @@ interface TransactionQueueJobData {
   transactionId: string;
 }
 
-createWorker(QUEUE_NAME, async (job: Job<TransactionQueueJobData>) => {
-  const transaction = await transactionRepository.findById(
-    job.data.transactionId,
-  );
-  if (!transaction) return;
+createWorker<TransactionQueueJobData>(
+  QUEUE_NAME,
+  async (job: Job<TransactionQueueJobData>) => {
+    const { transactionId } = job.data;
 
-  if (transaction.status !== "SUCCESS") {
-    const trans = await transactionRepository.markTransactionExpired(
-      transaction.id,
-    );
+    console.log(`[QUEUE] Running expiry job for ${transactionId}`);
 
-    publisher.publish(
-      "transactions-events",
-      JSON.stringify({
-        event: "transaction:expired",
-        payload: {
-          transactionId: trans.id,
-          trans,
-          userId: trans.userId,
-        },
-      }),
-    );
+    const transaction = await paymentRepository.findById(transactionId);
 
-    console.log(`[QUEUE] Transaction ${trans.amount} expired`);
-  }
-});
+    if (!transaction) return;
+
+    if (transaction.status !== "SUCCESS") {
+      const expired = await paymentRepository.markExpired(transaction.id);
+
+      await publisher.publish(
+        "transactions-events",
+        JSON.stringify({
+          event: "transaction:expired",
+          payload: {
+            transactionId: expired.id,
+            amount: expired.amount,
+          },
+        }),
+      );
+
+      console.log(`[QUEUE] Transaction ${expired.id} expired`);
+    }
+  },
+);
 
 export async function enqueueTransactionExpiry(
   transactionId: string,
   expiredAt: Date,
 ) {
   const delay = expiredAt.getTime() - Date.now();
-  await addDelayedJob(
+
+  if (delay <= 0) return;
+
+  await addDelayedJob<TransactionQueueJobData>(
     QUEUE_NAME,
     JOB_NAME,
     { transactionId },
@@ -51,6 +57,7 @@ export async function enqueueTransactionExpiry(
     transactionId,
   );
 }
+
 export async function cancelInvoiceExpiry(transactionId: string) {
   await cancelJob(QUEUE_NAME, transactionId);
 }

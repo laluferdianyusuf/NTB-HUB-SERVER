@@ -12,8 +12,21 @@ export class CommentService {
   private likeRepo = new CommentLikeRepository();
   private reportRepo = new CommentReportRepository();
 
-  async list(entityType: CommentEntityType, entityId: string) {
-    return this.repo.list(entityType, entityId);
+  async list(entityType: CommentEntityType, entityId: string, userId: string) {
+    const comments = this.repo.list(entityType, entityId);
+
+    const commentsWithLike = await Promise.all(
+      (await comments).map(async (comment) => {
+        const isLiked = !!(await this.likeRepo.isLikedByUser(
+          comment.id,
+          userId,
+        ));
+
+        return { ...comment, isLiked };
+      }),
+    );
+
+    return commentsWithLike;
   }
 
   async create(payload: Partial<Comment>) {
@@ -37,17 +50,14 @@ export class CommentService {
   }
 
   async like(commentId: string, userId: string) {
-    const comment = await this.repo.findById(commentId);
+    const liked = await this.likeRepo.isLikedByUser(commentId, userId);
 
-    if (!comment) {
-      throw new AppError("Comment not found", 404);
+    if (liked) {
+      await this.likeRepo.unlikeComment(commentId, userId);
+      return { liked: false };
     }
 
-    if (comment.userId === userId) {
-      throw new AppError("Cannot like your own comment", 400);
-    }
-
-    const liked = await this.likeRepo.toggle(commentId, userId);
+    await this.likeRepo.likeComment(commentId, userId);
 
     publishEvent("comment-events", "comment:liked", {
       commentId,
@@ -55,7 +65,9 @@ export class CommentService {
       liked,
     });
 
-    return liked;
+    return {
+      liked: true,
+    };
   }
 
   async report(commentId: string, userId: string, reason: string) {

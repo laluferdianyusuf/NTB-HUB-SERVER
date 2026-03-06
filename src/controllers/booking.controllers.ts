@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import { BookingServices } from "../services/booking.services";
 import { sendError, sendSuccess } from "helpers/response";
+import { BookingServices } from "../services/booking.services";
 
 export class BookingControllers {
   private bookingService: BookingServices;
@@ -87,11 +87,12 @@ export class BookingControllers {
   async processBookingPayment(req: Request, res: Response) {
     try {
       const id = req.params.id;
-      const result = await this.bookingService.updateBookingPayment(id);
+      const userId = req.user?.id as string;
+      const result = await this.bookingService.payBooking(id, userId);
 
       sendSuccess(res, result, "booking retrieved successfully", 201);
-    } catch (error) {
-      res.status(500).json("Internal server error");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal Server Error");
     }
   }
 

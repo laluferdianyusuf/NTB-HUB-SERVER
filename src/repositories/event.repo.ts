@@ -1,4 +1,4 @@
-import { PrismaClient, EventStatus } from "@prisma/client";
+import { EventStatus, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -12,11 +12,23 @@ export class EventRepository {
     startAt: Date;
     endAt: Date;
     capacity?: number;
+    latitude?: number;
+    longitude?: number;
     location: string;
     isCommunity?: boolean;
     isVenue?: boolean;
+    includeTicket?: boolean;
   }) {
-    return prisma.event.create({ data });
+    return prisma.$transaction(async (tx) => {
+      const event = await tx.event.create({ data });
+
+      await tx.eventBalance.create({
+        data: {
+          eventId: event.id,
+        },
+      });
+      return event;
+    });
   }
 
   async findAllActiveEvents(params: {
@@ -100,7 +112,6 @@ export class EventRepository {
     return prisma.event.findUnique({
       where: { id },
       include: {
-        venue: true,
         community: true,
         ticketTypes: true,
         tickets: true,

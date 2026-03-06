@@ -24,6 +24,7 @@ export class EventOrderRepository {
     return db.eventOrder.findUnique({
       where: { id },
       include: {
+        event: true,
         items: true,
         invoice: true,
         tickets: true,
@@ -64,6 +65,8 @@ export class EventOrderRepository {
       },
       select: {
         createdAt: true,
+        invoice: true,
+        tickets: true,
         event: {
           select: {
             id: true,

@@ -1,11 +1,11 @@
 import { BookingType, UnitType } from "@prisma/client";
-import {
-  VenueSubCategoryRepository,
-  VenueRepository,
-  VenueServiceRepository,
-} from "../repositories";
 import { jsonToObject } from "helpers/parser";
 import { uploadImage } from "utils/uploadS3";
+import {
+  VenueRepository,
+  VenueServiceRepository,
+  VenueSubCategoryRepository,
+} from "../repositories";
 
 type ServiceConfig = {
   sections?: {
@@ -136,7 +136,7 @@ export class VenueServiceService {
       bookingType,
       unitType,
       config: mergedConfig,
-      image: imageUrl,
+      image: String(imageUrl),
     });
   }
 
@@ -182,7 +182,7 @@ export class VenueServiceService {
     return this.venueServiceRepository.update(id, {
       ...input,
       config: mergedConfig,
-      image: imageUrl,
+      image: String(imageUrl),
     });
   }
 

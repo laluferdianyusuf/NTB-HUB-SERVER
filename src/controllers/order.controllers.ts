@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { sendError, sendSuccess } from "helpers/response";
 import { OrderServices } from "services/order.services";
 
 export class OrderControllers {
@@ -9,61 +10,57 @@ export class OrderControllers {
   }
 
   async createNewOrder(req: Request, res: Response) {
-    const { bookingId, items } = req.body;
+    try {
+      const userId = req.user?.id as string;
+      const { venueId, items } = req.body;
 
-    const result = await this.orderService.createNewOrder({
-      bookingId,
-      items,
-    });
+      const result = await this.orderService.createNewOrder({
+        venueId,
+        userId,
+        items,
+      });
 
-    res.status(result.status_code).json(result);
+      sendSuccess(res, result, "Order created", 201);
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
+    }
   }
 
-  async updateOrder(req: Request, res: Response) {
-    const { id } = req.params;
-    const { quantity } = req.body;
+  async cancelOrder(req: Request, res: Response) {
+    try {
+      const { orderId } = req.params;
+      const userId = req.user?.id as string;
 
-    const result = await this.orderService.updateOrder({
-      id,
-      quantity,
-    });
+      const result = await this.orderService.cancelOrder(orderId, userId);
 
-    res.status(result.status_code).json(result);
+      sendSuccess(res, result, "Order created", 203);
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
+    }
   }
 
-  async deleteOrder(req: Request, res: Response) {
-    const { id } = req.params;
+  async payOrder(req: Request, res: Response) {
+    try {
+      const { orderId } = req.params;
+      const userId = req.user?.id as string;
 
-    const result = await this.orderService.deleteOrder(id);
+      const result = await this.orderService.payOrder(orderId, userId);
 
-    res.status(result.status_code).json(result);
+      sendSuccess(res, result, "Order payed", 203);
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
+    }
   }
 
-  async getOrderById(req: Request, res: Response) {
-    const { id } = req.params;
+  async findAllUsersOrder(req: Request, res: Response) {
+    try {
+      const userId = req.user?.id as string;
 
-    const result = await this.orderService.getOrderById(id);
+      const result = await this.orderService.getAllByUser(userId);
 
-    res.status(result.status_code).json(result);
-  }
-
-  async findAllOrders(req: Request, res: Response) {
-    const result = await this.orderService.findAllOrder();
-
-    res.status(result.status_code).json(result);
-  }
-
-  async findByBookingId(req: Request, res: Response) {
-    const { bookingId } = req.params;
-
-    const result = await this.orderService.findByBookingId(bookingId);
-    res.status(result.status_code).json(result);
-  }
-
-  async processOrderPayment(req: Request, res: Response) {
-    const { bookingId } = req.params;
-    const result = await this.orderService.processOrderPayment(bookingId);
-
-    res.status(result.status_code).json(result);
+      sendSuccess(res, result, "Order retrieved");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
+    }
   }
 }

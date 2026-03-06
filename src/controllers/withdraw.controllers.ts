@@ -9,13 +9,13 @@ export class WithdrawController {
     try {
       const venueId = req.venue.id;
       const result = await withdrawService.requestWithdraw(
-        req.user.id,
+        req.user?.id as string,
         venueId,
         req.body,
       );
 
       sendSuccess(res, result, "Withdraw send to admin", 201);
-    } catch (error) {
+    } catch (error: any) {
       sendError(res, error.message || "Internal Server Error");
     }
   }
@@ -24,7 +24,7 @@ export class WithdrawController {
     try {
       const result = await withdrawService.approveWithdraw(req.params.id);
       sendSuccess(res, result, "Withdraw approved", 201);
-    } catch (error) {
+    } catch (error: any) {
       sendError(res, error.message || "Internal Server Error");
     }
   }
@@ -34,7 +34,7 @@ export class WithdrawController {
       const result = await withdrawService.rejectWithdraw(req.params.id);
 
       sendSuccess(res, result, "Withdraw rejected", 201);
-    } catch (error) {
+    } catch (error: any) {
       sendError(res, error.message || "Internal Server Error");
     }
   }
@@ -44,7 +44,7 @@ export class WithdrawController {
       const result = await withdrawService.markAsPaid(req.params.id);
 
       sendSuccess(res, result, "Withdraw paid successfully");
-    } catch (error) {
+    } catch (error: any) {
       sendError(res, error.message || "Internal Server Error");
     }
   }
@@ -55,7 +55,7 @@ export class WithdrawController {
       const result = await withdrawService.getWithdrawsByVenue(venueId);
 
       sendSuccess(res, result, "Withdraw retrieved successfully");
-    } catch (error) {
+    } catch (error: any) {
       sendError(res, error.message || "Internal Server Error");
     }
   }
@@ -64,7 +64,7 @@ export class WithdrawController {
     try {
       const result = await withdrawService.getAllWithdraws();
       sendSuccess(res, result, "Withdraw retrieved successfully");
-    } catch (error) {
+    } catch (error: any) {
       sendError(res, error.message || "Internal Server Error");
     }
   }

@@ -1,9 +1,4 @@
-import {
-  PrismaClient,
-  Prisma,
-  VenueSubCategory,
-  BookingType,
-} from "@prisma/client";
+import { Prisma, PrismaClient, VenueSubCategory } from "@prisma/client";
 
 const prisma = new PrismaClient();
 

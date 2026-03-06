@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import { Server } from "socket.io";
 import { NotificationService } from "../services/notification.services";
 
 export class NotificationController {
@@ -19,7 +18,7 @@ export class NotificationController {
   }
 
   async getNotification(req: Request, res: Response) {
-    const userId = req.user?.id;
+    const userId = req.user?.id as string;
 
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
@@ -35,7 +34,7 @@ export class NotificationController {
 
   async markAllAsRead(req: Request, res: Response) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user?.id as string;
 
       const result = await this.notificationService.markAllAsRead(userId);
 
@@ -51,7 +50,7 @@ export class NotificationController {
 
   async markAllAsUnread(req: Request, res: Response) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user?.id as string;
 
       const result = await this.notificationService.markAllAsUnread(userId);
 
@@ -67,7 +66,7 @@ export class NotificationController {
 
   async getGroupedNotifications(req: Request, res: Response) {
     try {
-      const userId = req.user?.id;
+      const userId = req.user?.id as string;
 
       const result =
         await this.notificationService.getGroupedNotifications(userId);

@@ -29,8 +29,11 @@ export class EventService {
       endAt: Date;
       capacity?: number;
       location: string;
+      latitude?: number;
+      longitude?: number;
       isCommunity?: boolean;
       isVenue?: boolean;
+      includeTicket?: boolean;
     },
     file: Express.Multer.File,
   ) {
