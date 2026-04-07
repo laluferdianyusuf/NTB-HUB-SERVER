@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { sendError } from "helpers/response";
+import { sendError, sendSuccess } from "helpers/response";
 import { MenuServices } from "../services/menu.services";
 
 export class MenuControllers {
@@ -16,11 +16,27 @@ export class MenuControllers {
         req.file as Express.Multer.File,
       );
 
-      res.status(201).json({
-        status: true,
-        message: "Menu created successful",
-        data: result,
-      });
+      sendSuccess(res, result, "Menu created", 201);
+    } catch (error: any) {
+      console.log(error);
+
+      sendError(res, error.message || "Internal server error");
+    }
+  }
+
+  async createManyMenus(req: Request, res: Response) {
+    try {
+      const { venueId, items } = req.body;
+
+      const parsedItems = JSON.parse(items);
+
+      const result = await this.menuService.createManyMenus(
+        venueId,
+        parsedItems,
+        req.files as Express.Multer.File[],
+      );
+
+      sendSuccess(res, result, "Menu created", 201);
     } catch (error: any) {
       console.log(error);
 
@@ -39,6 +55,8 @@ export class MenuControllers {
         data: result,
       });
     } catch (error: any) {
+      console.log(error);
+
       sendError(res, error.message || "Internal server error");
     }
   }

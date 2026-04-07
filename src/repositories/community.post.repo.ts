@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma, CommunityPost } from "@prisma/client";
+import { CommunityPost, Prisma } from "@prisma/client";
 import { prisma } from "config/prisma";
 
 interface Pagination {
@@ -24,7 +24,12 @@ export class CommunityPostRepository {
     tx?: Prisma.TransactionClient,
   ): Promise<CommunityPost | null> {
     const client = this.transaction(tx);
-    return client.communityPost.findUnique({ where: { id } });
+    return client.communityPost.findUnique({
+      where: { id },
+      include: {
+        reactions: true,
+      },
+    });
   }
 
   async findByCommunity(

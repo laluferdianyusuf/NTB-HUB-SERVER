@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { sendError, sendSuccess } from "helpers/response";
 import { VenueCategoryService } from "../services";
 
 export class VenueCategoryController {
@@ -37,16 +38,11 @@ export class VenueCategoryController {
     try {
       const categories = await this.venueCategoryService.getAll();
 
-      return res.status(200).json({
-        status: true,
-        message: "Categories retrieved successful",
-        data: categories,
-      });
+      sendSuccess(res, categories, "Categories retrieved");
     } catch (err: any) {
-      return res.status(404).json({
-        status: false,
-        message: err.message,
-      });
+      console.log(err);
+
+      sendError(err.message || "Internal server error");
     }
   }
 }

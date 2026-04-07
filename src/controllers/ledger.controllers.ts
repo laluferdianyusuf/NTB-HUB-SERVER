@@ -63,6 +63,24 @@ export class LedgerController {
     }
   };
 
+  async getBalance(req: Request, res: Response) {
+    try {
+      const { userId, venueId, courierId, eventId, communityId } = req.query;
+
+      const result = await this.ledgerService.getBalanceByOwner({
+        userId: userId as string | undefined,
+        venueId: venueId as string | undefined,
+        courierId: courierId as string | undefined,
+        eventId: eventId as string | undefined,
+        communityId: communityId as string | undefined,
+      });
+
+      sendSuccess(res, result, "Balances retrieved");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
+    }
+  }
+
   getUserTransactions = async (req: Request, res: Response) => {
     try {
       const userId = req.user?.id;

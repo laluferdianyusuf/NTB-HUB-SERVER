@@ -22,13 +22,8 @@ export class UserController {
         message: "User registered successfully",
         data: result,
       });
-    } catch (err: any) {
-      console.log(err);
-
-      return res.status(400).json({
-        status: false,
-        message: err.message,
-      });
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -46,20 +41,7 @@ export class UserController {
 
       sendSuccess(res, result, "Email verified");
     } catch (error: any) {
-      console.error("VERIFY EMAIL ERROR:", error.message);
-
-      if (
-        error.message === "INVALID_OR_EXPIRED_TOKEN" ||
-        error.message === "TOKEN_EXPIRED"
-      ) {
-        return res.status(400).json({
-          message: error.message,
-        });
-      }
-
-      return res.status(500).json({
-        message: "INTERNAL_SERVER_ERROR",
-      });
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -78,11 +60,7 @@ export class UserController {
 
       return res.status(200).json(result);
     } catch (error: any) {
-      console.log(error);
-
-      return res.status(400).json({
-        message: error.message || "Something went wrong",
-      });
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -95,13 +73,8 @@ export class UserController {
         message: "Login successful",
         data: result,
       });
-    } catch (err: any) {
-      console.log(err);
-
-      return res.status(401).json({
-        status: false,
-        message: err.message,
-      });
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -114,11 +87,8 @@ export class UserController {
         message: "Google login successful",
         data: result,
       });
-    } catch (err: any) {
-      return res.status(400).json({
-        status: false,
-        message: err.message,
-      });
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -131,11 +101,8 @@ export class UserController {
         message: "Token refreshed",
         data: result,
       });
-    } catch (err: any) {
-      return res.status(401).json({
-        status: false,
-        message: err.message,
-      });
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -149,23 +116,18 @@ export class UserController {
         status: true,
         data,
       });
-    } catch (err: any) {
-      if (err.message === "USER_NOT_FOUND") {
-        return res.status(404).json({
-          status: false,
-          message: "User not found",
-        });
-      }
+    } catch (error: any) {
+      console.log(error);
 
-      return res.status(500).json({
-        status: false,
-        message: "Internal server error",
-      });
+      sendError(res, error.message || "Internal server error");
     }
   }
+
   async findAllUsers(req: Request, res: Response) {
     try {
-      const users = await userService.findAllUsers();
+      const { search } = req.query;
+
+      const users = await userService.findAllUsers(search as string);
 
       return res.status(200).json({
         status: true,
@@ -173,10 +135,7 @@ export class UserController {
         data: users,
       });
     } catch (error: any) {
-      return res.status(500).json({
-        status: false,
-        message: error.message || "Internal server error",
-      });
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -191,10 +150,7 @@ export class UserController {
         data: user,
       });
     } catch (error: any) {
-      return res.status(500).json({
-        status: false,
-        message: error.message || "Internal server error",
-      });
+      sendError(res, error.message || "Internal server error");
     }
   }
 

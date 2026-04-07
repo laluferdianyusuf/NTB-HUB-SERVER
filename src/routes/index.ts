@@ -45,6 +45,7 @@ import eventAttendanceRouter from "./v1/event-attendance.routes";
 import ledgerRouter from "./v1/ledger.routes";
 import mapsRouter from "./v1/maps.routes";
 import profileRouter from "./v1/profile.routes";
+import promotionRouter from "./v1/promotion.routes";
 import searchRouter from "./v1/search.routes";
 import taskRouter from "./v1/task.routes";
 import urlPreviewRouter from "./v1/url-preview.routes";
@@ -55,7 +56,6 @@ const router = Router();
 
 // v1 router group
 const v1 = Router();
-const v2 = Router();
 
 v1.use("/auth", authRouter);
 v1.use("/bookings", bookingRouter);
@@ -105,6 +105,7 @@ v1.use("/attendances", eventAttendanceRouter);
 v1.use("/tasks", taskRouter);
 v1.use("/profiles", profileRouter);
 v1.use("/search", searchRouter);
+v1.use("/promotion", promotionRouter);
 
 // mount v1 API
 router.use("/api/v1", v1);

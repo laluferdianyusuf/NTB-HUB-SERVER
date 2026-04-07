@@ -4,6 +4,8 @@ export class CommunityReactionServices {
   private reactionRepo = new CommunityReactionRepository();
 
   async getReactions(postId: string) {
+    console.log(postId);
+
     return this.reactionRepo.findByPost(postId);
   }
 

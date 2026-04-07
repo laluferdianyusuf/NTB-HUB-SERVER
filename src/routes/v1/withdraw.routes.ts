@@ -7,18 +7,8 @@ const auth = new AuthMiddlewares();
 const controller = new WithdrawController();
 
 /* VENUE */
-router.post(
-  "/request",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["VENUE_OWNER"]),
-  controller.request,
-);
-router.get(
-  "/my/:venueId",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["VENUE_OWNER"]),
-  controller.venueWithdraws,
-);
+router.post("/request/:id", auth.authenticate, controller.request);
+router.get("/my/:venueId", auth.authenticate, controller.venueWithdraws);
 
 /* ADMIN */
 router.get(

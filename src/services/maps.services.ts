@@ -66,7 +66,6 @@ export class MapsService {
       if (!data.result) return null;
 
       const r = data.result;
-      console.log(r);
 
       const slim = {
         id: r.place_id,

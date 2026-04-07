@@ -1,5 +1,5 @@
+import { PromotionRedis } from "cache/promotion-banner.cache";
 import { promotionQueue } from "queue/promotion.queue";
-import { PromotionRedis } from "redis/promotion.redis";
 import { PromotionRepository } from "repositories";
 
 enum PromotionJobType {
@@ -7,7 +7,7 @@ enum PromotionJobType {
   CLICK = "CLICK",
 }
 
-export class PromotionService {
+export class PromotionBannerService {
   private repo = new PromotionRepository();
   private redis = new PromotionRedis();
 
@@ -65,7 +65,7 @@ export class PromotionService {
   }
 
   async deactivatePromotion(id: string) {
-    const result = await this.repo.deactivate(id);
+    const result = await this.repo.delete(id);
 
     await this.redis.invalidateBannerCache();
 

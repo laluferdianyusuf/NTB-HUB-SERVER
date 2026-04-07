@@ -100,8 +100,6 @@ export class CommunityEventTicketController {
         data: result,
       });
     } catch (error: any) {
-      console.log(res);
-
       return res.status(400).json({
         message: error.message || "TICKET NOT FOUND",
       });

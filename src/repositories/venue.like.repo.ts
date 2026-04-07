@@ -39,7 +39,6 @@ export class VenueLikeRepository {
   }
 
   async isLikedByUser(venueId: string, userId: string): Promise<boolean> {
-    console.log(venueId, userId);
     const like = await prisma.likeVenue.findUnique({
       where: {
         userId_venueId: { userId, venueId },

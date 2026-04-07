@@ -43,6 +43,7 @@ enum PointActivityType {
   PROMO
   REFUND
   ADMIN_GRANT
+  CHECK_IN
 }
 
 enum InvoiceStatus {
@@ -201,7 +202,7 @@ enum TaskExecutionStatus {
   FAILED
 }
 
-enum PromotionType {
+enum PromotionBannerType {
   INTERNAL
   EXTERNAL
 }
@@ -252,6 +253,25 @@ enum LedgerReferenceType {
 enum CheckInMethod {
   MANUAL
   TICKET
+}
+
+enum DiscountType {
+  PERCENT
+  FIXED
+}
+
+enum PromotionType {
+  MENU_DISCOUNT
+  BUNDLE
+  BUY_X_GET_Y
+  ORDER_DISCOUNT
+  FREE_ITEM
+}
+
+enum PromotionStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 // #regionUSER & AUTH
@@ -334,6 +354,8 @@ model User {
   accounts                  Account[]
   eventAttendances          EventAttendance[]
   communityEventAttendances CommunityEventAttendance[]
+  promotionUsages           PromotionUsage[]
+  promotionBanners          PromotionBanner[]
 
   @@index([email])
   @@index([phone])
@@ -505,6 +527,7 @@ model Venue {
   userRoles        UserRole[]
   orders           Order[]
   accounts         Account[]
+  promotions       Promotion[]
 
   @@index([city])
   @@index([province])
@@ -715,12 +738,104 @@ model Menu {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now()) @updatedAt
 
-  venue          Venue         @relation(fields: [venueId], references: [id])
+  venue          Venue           @relation(fields: [venueId], references: [id])
   orderItems     OrderItem[]
-  venueService   VenueService? @relation(fields: [venueServiceId], references: [id])
+  venueService   VenueService?   @relation(fields: [venueServiceId], references: [id])
   venueServiceId String?
+  promotionItems PromotionItem[]
 
   @@index([venueId])
+}
+
+model Promotion {
+  id String @id @default(uuid())
+
+  venueId String?
+
+  title       String
+  description String?
+
+  type PromotionType
+
+  discountType  DiscountType?
+  discountValue Decimal?      @db.Decimal(10, 2)
+
+  minOrderAmount Decimal? @db.Decimal(10, 2)
+  priority       Int      @default(0)
+  stackable      Boolean  @default(true)
+
+  startAt DateTime
+  endAt   DateTime
+
+  maxUsage   Int?
+  usageCount Int  @default(0)
+
+  perUserLimit Int?
+
+  promoCode String?
+
+  isActive Boolean         @default(false)
+  status   PromotionStatus @default(PENDING)
+
+  approvedBy String?
+  approvedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  venue Venue? @relation(fields: [venueId], references: [id])
+
+  items                PromotionItem[]
+  user                 User?                 @relation(fields: [userId], references: [id])
+  userId               String?
+  promotionUsages      PromotionUsage[]
+  promotionSchedules   PromotionSchedule[]
+  promotionImpressions PromotionImpression[]
+  promotionClicks      PromotionClick[]
+}
+
+model PromotionItem {
+  id String @id @default(uuid())
+
+  promotionId String
+
+  menuId String?
+
+  quantity Int?
+
+  isReward Boolean @default(false)
+
+  promotion Promotion @relation(fields: [promotionId], references: [id])
+  menu      Menu?     @relation(fields: [menuId], references: [id])
+}
+
+model PromotionUsage {
+  id String @id @default(uuid())
+
+  promotionId String
+  userId      String
+  orderId     String?
+
+  usedAt DateTime @default(now())
+
+  promotion Promotion @relation(fields: [promotionId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+  order     Order?    @relation(fields: [orderId], references: [id])
+
+  @@index([promotionId])
+  @@index([userId])
+}
+
+model PromotionSchedule {
+  id String @id @default(uuid())
+
+  promotionId String
+
+  dayOfWeek Int?
+
+  startHour Int?
+  endHour   Int?
+
+  promotion Promotion @relation(fields: [promotionId], references: [id])
 }
 
 model Order {
@@ -729,8 +844,9 @@ model Order {
   venueId   String
   bookingId String? // optional
 
-  total  Decimal           @db.Decimal(18, 2)
-  status TransactionStatus @default(PENDING)
+  total    Decimal           @db.Decimal(18, 2)
+  discount Decimal           @default(0)
+  status   TransactionStatus @default(PENDING)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -739,7 +855,8 @@ model Order {
   venue   Venue    @relation(fields: [venueId], references: [id])
   booking Booking? @relation(fields: [bookingId], references: [id])
 
-  items OrderItem[]
+  items           OrderItem[]
+  promotionUsages PromotionUsage[]
 }
 
 model OrderItem {
@@ -1305,7 +1422,7 @@ model Delivery {
 
 model CourierLocation {
   id        String   @id @default(uuid())
-  courierId String @unique
+  courierId String   @unique
   latitude  Float
   longitude Float
   updatedAt DateTime @default(now()) @updatedAt
@@ -1746,14 +1863,14 @@ model TaskQrSession {
   @@index([expiresAt])
 }
 
-model Promotion {
+model PromotionBanner {
   id          String  @id @default(uuid())
   title       String
   description String?
   image       String // banner image (wajib)
   mobileImage String? // optional versi mobile crop
 
-  type       PromotionType       @default(INTERNAL)
+  type       PromotionBannerType @default(INTERNAL)
   entityType PromotionEntityType @default(NONE)
   entityId   String? // id venue/event/community/place
 
@@ -1793,20 +1910,24 @@ model PromotionImpression {
   userAgent   String?
   createdAt   DateTime @default(now())
 
-  promotion Promotion @relation(fields: [promotionId], references: [id])
-  user      User?     @relation(fields: [userId], references: [id])
+  promotion         Promotion        @relation(fields: [promotionId], references: [id])
+  user              User?            @relation(fields: [userId], references: [id])
+  promotionBanner   PromotionBanner? @relation(fields: [promotionBannerId], references: [id])
+  promotionBannerId String?
 
   @@index([promotionId, createdAt])
 }
 
 model PromotionClick {
-  id          String   @id @default(uuid())
-  promotionId String
-  userId      String?
-  createdAt   DateTime @default(now())
+  id                String   @id @default(uuid())
+  promotionId       String
+  userId            String?
+  createdAt         DateTime @default(now())
+  promotionBannerId String?
 
-  promotion Promotion @relation(fields: [promotionId], references: [id])
-  user      User?     @relation(fields: [userId], references: [id])
+  promotion       Promotion        @relation(fields: [promotionId], references: [id])
+  user            User?            @relation(fields: [userId], references: [id])
+  promotionBanner PromotionBanner? @relation(fields: [promotionBannerId], references: [id])
 
   @@index([promotionId, createdAt])
 }

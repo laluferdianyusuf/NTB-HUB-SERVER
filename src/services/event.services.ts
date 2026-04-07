@@ -1,7 +1,7 @@
-import { uploadImage } from "utils/uploadS3";
-import { CommunityEventRepository, EventRepository } from "../repositories";
 import { Community, EventStatus, User, Venue } from "@prisma/client";
 import { toNum } from "helpers/parser";
+import { uploadImage } from "utils/uploadS3";
+import { CommunityEventRepository, EventRepository } from "../repositories";
 
 export type UnifiedEvent = {
   id: string;
@@ -29,8 +29,8 @@ export class EventService {
       endAt: Date;
       capacity?: number;
       location: string;
-      latitude?: number;
-      longitude?: number;
+      latitude?: string;
+      longitude?: string;
       isCommunity?: boolean;
       isVenue?: boolean;
       includeTicket?: boolean;
@@ -50,6 +50,8 @@ export class EventService {
 
     return this.repo.createEvent({
       ...payload,
+      latitude: toNum(payload.latitude) as number,
+      longitude: toNum(payload.longitude) as number,
       capacity: toNum(payload.capacity) as number,
       image: imageUrl as string,
     });

@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { sendError, sendSuccess } from "helpers/response";
 import { NotificationService } from "../services/notification.services";
 
 export class NotificationController {
@@ -14,22 +15,28 @@ export class NotificationController {
       req.file,
     );
 
-    res.status(result.status_code).json(result);
+    sendSuccess(res, result, "Notification Created", 201);
   }
 
   async getNotification(req: Request, res: Response) {
-    const userId = req.user?.id as string;
+    try {
+      const userId = req.user?.id as string;
 
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
 
-    const result = await this.notificationService.getUserNotifications(
-      userId,
-      page,
-      limit,
-    );
+      const result = await this.notificationService.getUserNotifications(
+        userId,
+        page,
+        limit,
+      );
 
-    res.status(result.status_code).json(result);
+      sendSuccess(res, result, "Notification Retrieved");
+    } catch (error: any) {
+      console.log(error);
+
+      sendError(res, error.message || "Internal server error");
+    }
   }
 
   async markAllAsRead(req: Request, res: Response) {

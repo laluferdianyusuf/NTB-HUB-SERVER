@@ -38,6 +38,16 @@ export class LedgerServices {
     return this.ledgerRepository.getBalance(accountId);
   }
 
+  async getBalanceByOwner(params: {
+    userId?: string;
+    venueId?: string;
+    courierId?: string;
+    eventId?: string;
+    communityId?: string;
+  }) {
+    return this.ledgerRepository.getBalanceByOwner(params);
+  }
+
   async getUserTransactions(userId: string, cursor?: string) {
     const account = await this.accountRepository.findUserAccount(userId);
 

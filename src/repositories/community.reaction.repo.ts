@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma, CommunityReaction } from "@prisma/client";
+import { CommunityReaction, Prisma } from "@prisma/client";
 import { prisma } from "config/prisma";
 
 export class CommunityReactionRepository {
@@ -29,6 +29,14 @@ export class CommunityReactionRepository {
     const client = this.transaction(tx);
     return client.communityReaction.findMany({
       where: { postId },
+      include: {
+        user: {
+          select: {
+            name: true,
+            photo: true,
+          },
+        },
+      },
       orderBy: { createdAt: "desc" },
     });
   }

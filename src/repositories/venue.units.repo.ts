@@ -6,10 +6,10 @@ export class VenueUnitRepository {
   create(data: {
     venueId: string;
     serviceId: string;
-    floorId: string;
     name: string;
     price: number;
     type: UnitType;
+    floorId?: string | null;
     isActive?: boolean;
   }) {
     return prisma.venueUnit.create({

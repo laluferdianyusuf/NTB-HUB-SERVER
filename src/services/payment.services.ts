@@ -10,12 +10,10 @@ import {
   LedgerRepository,
   PaymentRepository,
   UserRepository,
-  VirtualAccountRepository,
 } from "../repositories";
 
 const userRepository = new UserRepository();
 const paymentRepository = new PaymentRepository();
-const vaRepository = new VirtualAccountRepository();
 const invoiceRepository = new InvoiceRepository();
 const ledgerRepository = new LedgerRepository();
 const accountRepository = new AccountRepository();
@@ -62,12 +60,6 @@ export class PaymentServices {
     const expiredAt = new Date(Date.now() + 5 * 60 * 1000);
 
     return prisma.$transaction(async (tx) => {
-      let userVa = await vaRepository.findByUserAndBank(
-        data.userId,
-        data.bankCode,
-        tx,
-      );
-
       const parameter = {
         payment_type: "bank_transfer",
         transaction_details: {
@@ -87,22 +79,15 @@ export class PaymentServices {
         },
       };
 
-      if (!userVa) {
-        const charge = await midtrans.charge(parameter);
-        const vaNumber =
-          charge.va_numbers?.[0]?.va_number ||
-          charge.permata_va_number ||
-          charge.bill_key ||
-          null;
+      const charge = await midtrans.charge(parameter);
+      const vaNumber =
+        charge.va_numbers?.[0]?.va_number ||
+        charge.permata_va_number ||
+        charge.bill_key ||
+        null;
 
-        if (!vaNumber) {
-          throw new Error("Failed to generate VA");
-        }
-
-        userVa = await vaRepository.create(
-          { userId: data.userId, bank: data.bankCode, vaNumber: vaNumber },
-          tx,
-        );
+      if (!vaNumber) {
+        throw new Error("Failed to generate VA");
       }
 
       const invoice = await invoiceRepository.create(
@@ -116,16 +101,19 @@ export class PaymentServices {
         tx,
       );
 
-      const payment = await paymentRepository.create({
-        invoiceId: invoice.id,
-        amount: grossAmount,
-        method: "VA",
-        provider: "MIDTRANS",
-        providerRef: invoice.invoiceNumber,
-        vaNumber: userVa.vaNumber,
-        bankCode: data.bankCode,
-        expiredAt: expiredAt,
-      });
+      const payment = await paymentRepository.create(
+        {
+          invoiceId: invoice.id,
+          amount: grossAmount,
+          method: "VA",
+          provider: "MIDTRANS",
+          providerRef: invoice.invoiceNumber,
+          vaNumber: vaNumber,
+          bankCode: data.bankCode,
+          expiredAt: expiredAt,
+        },
+        tx,
+      );
 
       await enqueueTransactionExpiry(payment.id, payment.expiredAt as Date);
 
@@ -133,8 +121,8 @@ export class PaymentServices {
         id: invoice.id,
         amount: data.amount,
         grossAmount,
-        vaNumber: userVa.vaNumber,
-        bank: data.bankCode,
+        vaNumber: vaNumber,
+        bankCode: data.bankCode,
         expiredAt: invoice.expiredAt,
       };
     });
@@ -191,15 +179,18 @@ export class PaymentServices {
         tx,
       );
 
-      const payment = await paymentRepository.create({
-        invoiceId: invoice.id,
-        amount: grossAmount,
-        method: "QRIS",
-        provider: "MIDTRANS",
-        providerRef: invoice.invoiceNumber,
-        qrisUrl: qrUrl,
-        expiredAt: expiredAt,
-      });
+      const payment = await paymentRepository.create(
+        {
+          invoiceId: invoice.id,
+          amount: grossAmount,
+          method: "QRIS",
+          provider: "MIDTRANS",
+          providerRef: invoice.invoiceNumber,
+          qrisUrl: qrUrl,
+          expiredAt: expiredAt,
+        },
+        tx,
+      );
 
       await enqueueTransactionExpiry(payment.id, payment.expiredAt as Date);
 

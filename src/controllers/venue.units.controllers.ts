@@ -18,7 +18,7 @@ export class VenueUnitControllers {
       const venueUnits = await this.venueUnitServices.create({
         venueId,
         serviceId,
-        floorId,
+        floorId: floorId ?? null,
         name,
         price,
         type,
@@ -30,6 +30,8 @@ export class VenueUnitControllers {
         data: venueUnits,
       });
     } catch (err: any) {
+      console.log(err);
+
       return res.status(400).json({
         status: false,
         message: err.message,

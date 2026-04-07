@@ -7,12 +7,12 @@ import {
   TaskRepository,
 } from "repositories";
 
-import { TaskQrRedisService } from "./taskQrService";
+import { TaskEntityType, TaskType } from "@prisma/client";
 import { calcDistanceMeters, detectGpsSpoof } from "helpers/geo";
 import { detectTeleport } from "helpers/geoAntiFake.helper";
-import { TaskAnalyticsService } from "./taskAnalytics.service";
 import { PointQueueService } from "./reward.services";
-import { TaskEntityType, TaskType } from "@prisma/client";
+import { TaskAnalyticsService } from "./taskAnalytics.service";
+import { TaskQrRedisService } from "./taskQrService";
 
 interface RewardRule {
   points: number;

@@ -6,18 +6,12 @@ const router = Router();
 const auth = new AuthMiddlewares();
 const venueSubCategoryController = new VenueSubCategoryController();
 
-router.post(
-  "/create",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["ADMIN"]),
-  (req, res) => venueSubCategoryController.createSubCategory(req, res),
+router.post("/create", auth.authenticate, (req, res) =>
+  venueSubCategoryController.createSubCategory(req, res),
 );
 
-router.post(
-  "/create-many",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["ADMIN"]),
-  (req, res) => venueSubCategoryController.createMany(req, res),
+router.post("/create-many", auth.authenticate, (req, res) =>
+  venueSubCategoryController.createMany(req, res),
 );
 
 router.get("/by-category/:categoryId", (req, res) =>

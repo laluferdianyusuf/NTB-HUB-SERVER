@@ -43,7 +43,12 @@ export class BookingControllers {
   async getBookingByUserId(req: Request, res: Response) {
     try {
       const userId = req.params.userId;
-      const result = await this.bookingService.getBookingByUserId(userId);
+      const { search, status } = req.query;
+      const result = await this.bookingService.getBookingByUserId({
+        userId,
+        search: search as string,
+        status: status as string,
+      });
 
       sendSuccess(res, result, "Booking retrieved successfully");
     } catch (error: any) {

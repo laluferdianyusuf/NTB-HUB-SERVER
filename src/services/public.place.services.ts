@@ -1,12 +1,12 @@
-import { uploadToCloudinary } from "utils/image";
+import { PublicPlace } from "@prisma/client";
+import { calcDistanceMeters, formatDistance } from "helpers/haversine";
+import { toNum } from "helpers/parser";
+import { uploadImage } from "utils/uploadS3";
 import {
   PublicPlaceImpressionRepository,
   PublicPlaceLikeRepository,
   PublicPlaceRepository,
 } from "../repositories";
-import { PublicPlace, PublicPlaceType } from "@prisma/client";
-import { toNum } from "helpers/parser";
-import { uploadImage } from "utils/uploadS3";
 
 export class PublicPlaceService {
   private repo = new PublicPlaceRepository();
@@ -14,12 +14,21 @@ export class PublicPlaceService {
   private impressionRepo = new PublicPlaceImpressionRepository();
 
   async getAll(params: {
+    latitude?: number;
+    longitude?: number;
     type?: string;
     search?: string;
     page?: number;
     limit?: number;
   }) {
-    const { type = "all", search, page = 1, limit = 10 } = params;
+    const {
+      latitude,
+      longitude,
+      type = "all",
+      search,
+      page = 1,
+      limit = 10,
+    } = params;
 
     const skip = (page - 1) * limit;
 
@@ -33,21 +42,36 @@ export class PublicPlaceService {
       this.repo.countPublicPaces({ search, type }),
     ]);
 
-    const shapedData = data.map((place) => ({
-      id: place.id,
-      name: place.name,
-      type: place.type,
-      address: place.address,
-      description: place.description,
-      latitude: place.latitude,
-      longitude: place.longitude,
-      image: place.image,
-      gallery: place.gallery,
-      totalLikes: place.totalLikes,
-      totalReviews: place.totalReviews,
-      totalViews: place.totalViews,
-      updatedAll: place.updatedAt,
-    }));
+    const shapedData = data.map((place) => {
+      let distance: number | null = null;
+
+      if (latitude && longitude && place.latitude && place.longitude) {
+        distance = calcDistanceMeters(
+          latitude,
+          longitude,
+          place.latitude,
+          place.longitude,
+        );
+      }
+
+      return {
+        id: place.id,
+        name: place.name,
+        type: place.type,
+        address: place.address,
+        description: place.description,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        image: place.image,
+        gallery: place.gallery,
+        totalLikes: place.totalLikes,
+        totalReviews: place.totalReviews,
+        totalViews: place.totalViews,
+        updatedAll: place.updatedAt,
+        distance,
+        distanceLabel: formatDistance(distance),
+      };
+    });
 
     return {
       data: shapedData,
@@ -77,16 +101,18 @@ export class PublicPlaceService {
       "id" | "createdAt" | "updatedAt" | "gallery" | "image"
     >,
     files?: {
-      image?: Express.Multer.File;
+      image?: Express.Multer.File[];
       gallery?: Express.Multer.File[];
     },
   ): Promise<PublicPlace> {
     let imageUrl: string | null = null;
     let galleryUrls: string[] = [];
 
-    if (files?.image) {
+    const imageFile = files?.image?.[0];
+
+    if (imageFile) {
       const image = await uploadImage({
-        file: files.image,
+        file: imageFile,
         folder: "public_places",
       });
       imageUrl = image.url;

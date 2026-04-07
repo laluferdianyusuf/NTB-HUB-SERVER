@@ -474,8 +474,10 @@ export class UserService {
     };
   }
 
-  async findAllUsers() {
-    return userRepository.findAllUsers();
+  async findAllUsers(search?: string) {
+    console.log(search);
+
+    return userRepository.findAllUsers(search);
   }
 
   async findDetailUser(userId: string) {

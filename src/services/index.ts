@@ -32,6 +32,8 @@ export * from "./payment.services";
 export * from "./points.services";
 export * from "./presence.services";
 export * from "./profile.services";
+export * from "./promotion-banner.services";
+export * from "./promotion.services";
 export * from "./public.place.services";
 export * from "./review.place.services";
 export * from "./review.services";

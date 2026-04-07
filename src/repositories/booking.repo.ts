@@ -1,6 +1,52 @@
 import { Booking, BookingStatus, Prisma, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
+export const bookingInclude = {
+  user: {
+    select: {
+      name: true,
+      address: true,
+      email: true,
+      photo: true,
+    },
+  },
+  venue: {
+    select: { name: true },
+  },
+  service: {
+    select: {
+      subCategory: {
+        select: { name: true },
+      },
+    },
+  },
+  unit: {
+    select: {
+      name: true,
+      price: true,
+      type: true,
+      floor: {
+        select: { name: true },
+      },
+    },
+  },
+  orders: {
+    select: {
+      items: {
+        select: {
+          quantity: true,
+          subtotal: true,
+          menu: true,
+        },
+      },
+    },
+  },
+  review: true,
+} as const;
+
+export type BookingWithRelations = Prisma.BookingGetPayload<{
+  include: typeof bookingInclude;
+}>;
 
 export class BookingRepository {
   private transaction(tx?: Prisma.TransactionClient) {
@@ -27,133 +73,51 @@ export class BookingRepository {
     const client = tx ?? prisma;
     return await client.booking.findUnique({
       where: { id },
-      include: {
-        user: {
-          select: {
-            name: true,
-            address: true,
-            email: true,
-            photo: true,
-          },
-        },
-        venue: {
-          select: {
-            name: true,
-          },
-        },
-        service: {
-          select: {
-            subCategory: {
-              select: {
-                name: true,
-              },
-            },
-          },
-        },
-        unit: {
-          select: {
-            name: true,
-            price: true,
-            type: true,
-            floor: {
-              select: {
-                name: true,
-              },
-            },
-          },
-        },
-        orderItems: {
-          select: {
-            quantity: true,
-            subtotal: true,
-            menu: {
-              select: {
-                name: true,
-                price: true,
-              },
-            },
-          },
-        },
-        invoice: {
-          select: {
-            amount: true,
-            paidAt: true,
-            cancelledAt: true,
-            expiredAt: true,
-            issuedAt: true,
-            invoiceNumber: true,
-            status: true,
-          },
-        },
-        review: true,
-      },
+      include: bookingInclude,
     });
   }
 
-  async findBookingByUserId(userId: string): Promise<Booking[]> {
-    return await prisma.booking.findMany({
-      where: { userId },
-      include: {
-        venue: {
-          select: {
-            name: true,
-          },
-        },
-        review: {
-          select: {
-            rating: true,
-          },
-        },
-        service: {
-          select: {
-            subCategory: {
-              select: {
-                name: true,
+  async findBookingByUserId(params?: {
+    userId: string;
+    search?: string;
+  }): Promise<BookingWithRelations[]> {
+    const { userId, search } = params || {};
+
+    const where: any = {
+      userId: userId,
+      ...(search && {
+        OR: [
+          {
+            user: {
+              name: {
+                contains: search,
+                mode: "insensitive",
               },
             },
           },
-        },
-        unit: {
-          select: {
-            name: true,
-            price: true,
-            type: true,
-            floor: {
-              select: {
-                name: true,
+          {
+            venue: {
+              name: {
+                contains: search,
+                mode: "insensitive",
               },
             },
           },
-        },
-        user: {
-          select: {
-            name: true,
-            phone: true,
-            email: true,
-          },
-        },
-        orderItems: {
-          select: {
-            quantity: true,
-            subtotal: true,
-            menu: {
-              select: {
-                name: true,
-                price: true,
+          {
+            unit: {
+              name: {
+                contains: search,
+                mode: "insensitive",
               },
             },
           },
-        },
-        invoice: {
-          select: {
-            amount: true,
-            paidAt: true,
-            cancelledAt: true,
-            expiredAt: true,
-            issuedAt: true,
-          },
-        },
-      },
+        ],
+      }),
+    };
+
+    return prisma.booking.findMany({
+      where,
+      include: bookingInclude,
       orderBy: {
         updatedAt: "desc",
       },
@@ -163,67 +127,7 @@ export class BookingRepository {
   async findBookingByVenueId(venueId: string): Promise<Booking[]> {
     return await prisma.booking.findMany({
       where: { venueId },
-      include: {
-        venue: {
-          select: {
-            name: true,
-          },
-        },
-        review: {
-          select: {
-            rating: true,
-          },
-        },
-        service: {
-          select: {
-            subCategory: {
-              select: {
-                name: true,
-              },
-            },
-          },
-        },
-        unit: {
-          select: {
-            name: true,
-            price: true,
-            type: true,
-            floor: {
-              select: {
-                name: true,
-              },
-            },
-          },
-        },
-        user: {
-          select: {
-            name: true,
-            phone: true,
-            email: true,
-          },
-        },
-        orderItems: {
-          select: {
-            quantity: true,
-            subtotal: true,
-            menu: {
-              select: {
-                name: true,
-                price: true,
-              },
-            },
-          },
-        },
-        invoice: {
-          select: {
-            amount: true,
-            paidAt: true,
-            cancelledAt: true,
-            expiredAt: true,
-            issuedAt: true,
-          },
-        },
-      },
+      include: bookingInclude,
       orderBy: {
         updatedAt: "desc",
       },
@@ -287,15 +191,6 @@ export class BookingRepository {
             },
           },
         },
-        invoice: {
-          select: {
-            amount: true,
-            paidAt: true,
-            cancelledAt: true,
-            expiredAt: true,
-            issuedAt: true,
-          },
-        },
       },
       orderBy: {
         updatedAt: "desc",
@@ -355,15 +250,6 @@ export class BookingRepository {
                 price: true,
               },
             },
-          },
-        },
-        invoice: {
-          select: {
-            amount: true,
-            paidAt: true,
-            cancelledAt: true,
-            expiredAt: true,
-            issuedAt: true,
           },
         },
       },
@@ -442,10 +328,7 @@ export class BookingRepository {
     return count > 0;
   }
 
-  async createBooking({
-    data,
-    tx,
-  }: {
+  async createBooking(
     data: {
       userId: string;
       venueId: string;
@@ -454,9 +337,9 @@ export class BookingRepository {
       startTime: Date;
       endTime: Date;
       totalPrice: number;
-    };
-    tx?: Prisma.TransactionClient;
-  }) {
+    },
+    tx?: Prisma.TransactionClient,
+  ) {
     const client = this.transaction(tx);
     return await client.booking.create({
       data: data,

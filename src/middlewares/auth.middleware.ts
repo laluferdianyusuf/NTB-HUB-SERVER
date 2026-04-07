@@ -1,11 +1,11 @@
-import { NextFunction, Request, Response } from "express";
-import jwt from "jsonwebtoken";
-import Redis from "ioredis";
 import { Role } from "@prisma/client";
+import { NextFunction, Request, Response } from "express";
+import Redis from "ioredis";
+import jwt from "jsonwebtoken";
 import {
   UserRepository,
-  VenueRepository,
   UserRoleRepository,
+  VenueRepository,
 } from "repositories";
 
 const redis = new Redis();
@@ -87,7 +87,6 @@ export class AuthMiddlewares {
       const user = (req as any).user;
       const venueId =
         req.params.venueId || req.body.venueId || req.query.venueId;
-      console.log(venueId);
 
       if (!venueId) {
         return res.status(400).json({

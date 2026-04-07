@@ -7,7 +7,7 @@ const withdrawService = new WithdrawService();
 export class WithdrawController {
   async request(req: Request, res: Response) {
     try {
-      const venueId = req.venue.id;
+      const { venueId } = req.params;
       const result = await withdrawService.requestWithdraw(
         req.user?.id as string,
         venueId,
@@ -51,7 +51,7 @@ export class WithdrawController {
 
   async venueWithdraws(req: Request, res: Response) {
     try {
-      const venueId = req.params.venueId;
+      const { venueId } = req.params;
       const result = await withdrawService.getWithdrawsByVenue(venueId);
 
       sendSuccess(res, result, "Withdraw retrieved successfully");

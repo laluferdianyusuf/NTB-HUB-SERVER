@@ -2,16 +2,57 @@ import { DeliveryStatus, Prisma } from "@prisma/client";
 import { prisma } from "config/prisma";
 
 export class DeliveryRepository {
-  async create(data: Prisma.DeliveryCreateInput) {
-    return prisma.delivery.create({ data });
+  async create(
+    data: {
+      courierId: string;
+      userId?: string;
+      bookingId?: string;
+      pickupAddress: string;
+      dropoffAddress: string;
+    },
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = tx ?? prisma;
+
+    return client.delivery.create({
+      data: {
+        ...data,
+        status: "PENDING",
+      },
+    });
   }
 
-  async findById(id: string) {
-    return prisma.delivery.findUnique({
+  async findById(id: string, tx?: Prisma.TransactionClient) {
+    const client = tx ?? prisma;
+
+    return client.delivery.findUnique({
       where: { id },
       include: {
         courier: true,
+        user: true,
         booking: true,
+      },
+    });
+  }
+
+  async findActiveByCourier(courierId: string) {
+    return prisma.delivery.findFirst({
+      where: {
+        courierId,
+        status: {
+          in: ["ASSIGNED", "PICKED_UP", "ON_THE_WAY"],
+        },
+      },
+    });
+  }
+
+  async findPending() {
+    return prisma.delivery.findMany({
+      where: {
+        status: "PENDING",
+      },
+      orderBy: {
+        createdAt: "asc",
       },
     });
   }
@@ -24,10 +65,7 @@ export class DeliveryRepository {
     const client = tx ?? prisma;
 
     return client.delivery.update({
-      where: {
-        id: deliveryId,
-        status: "PENDING",
-      },
+      where: { id: deliveryId },
       data: {
         courierId,
         status: "ASSIGNED",
@@ -36,47 +74,61 @@ export class DeliveryRepository {
     });
   }
 
+  private allowedTransitions: Record<DeliveryStatus, DeliveryStatus[]> = {
+    PENDING: ["ASSIGNED", "CANCELLED"],
+    ASSIGNED: ["PICKED_UP", "CANCELLED"],
+    PICKED_UP: ["ON_THE_WAY"],
+    ON_THE_WAY: ["DELIVERED"],
+    DELIVERED: [],
+    CANCELLED: [],
+  };
+
   async updateStatus(
     deliveryId: string,
-    currentStatus: DeliveryStatus,
-    nextStatus: DeliveryStatus,
+    newStatus: DeliveryStatus,
     tx?: Prisma.TransactionClient,
   ) {
     const client = tx ?? prisma;
 
-    return client.delivery.updateMany({
-      where: {
-        id: deliveryId,
-        status: currentStatus,
-      },
-      data: {
-        status: nextStatus,
-        ...(nextStatus === "PICKED_UP" && {
-          pickedUpAt: new Date(),
-        }),
-        ...(nextStatus === "DELIVERED" && {
-          deliveredAt: new Date(),
-        }),
-      },
+    const delivery = await client.delivery.findUnique({
+      where: { id: deliveryId },
+    });
+
+    if (!delivery) throw new Error("Delivery not found");
+
+    const allowed = this.allowedTransitions[delivery.status];
+
+    if (!allowed.includes(newStatus)) {
+      throw new Error(
+        `Invalid status transition: ${delivery.status} → ${newStatus}`,
+      );
+    }
+
+    const data: any = {
+      status: newStatus,
+    };
+
+    // auto set timestamp
+    if (newStatus === "PICKED_UP") data.pickedUpAt = new Date();
+    if (newStatus === "DELIVERED") data.deliveredAt = new Date();
+
+    return client.delivery.update({
+      where: { id: deliveryId },
+      data,
     });
   }
 
-  async findActiveDeliveryByCourier(courierId: string) {
-    return prisma.delivery.findFirst({
-      where: {
-        courierId,
-        status: {
-          in: ["ASSIGNED", "PICKED_UP", "ON_THE_WAY"],
-        },
-      },
-    });
+  async cancel(deliveryId: string, tx?: Prisma.TransactionClient) {
+    const client = tx ?? prisma;
+
+    return this.updateStatus(deliveryId, "CANCELLED", tx);
   }
 
-  async findPending(limit = 20) {
-    return prisma.delivery.findMany({
-      where: { status: "PENDING" },
-      take: limit,
-      orderBy: { createdAt: "asc" },
-    });
+  async lockDelivery(deliveryId: string) {
+    return prisma.$queryRaw`
+      SELECT * FROM "Delivery"
+      WHERE id = ${deliveryId}
+      FOR UPDATE
+    `;
   }
 }

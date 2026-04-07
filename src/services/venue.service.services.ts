@@ -125,8 +125,8 @@ export class VenueServiceService {
       ...(input.config || {}),
     };
 
-    const bookingType = input.bookingType ?? null;
-    const unitType = input.unitType ?? null;
+    const bookingType = input.bookingType;
+    const unitType = input.unitType;
 
     validateVenueServiceConfig(bookingType, unitType, mergedConfig);
 

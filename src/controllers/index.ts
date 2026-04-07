@@ -31,6 +31,7 @@ export * from "./payment.controllers";
 export * from "./points.controllers";
 export * from "./presence.controllers";
 export * from "./profile.controllers";
+export * from "./promotion.controllers";
 export * from "./public.place.controllers";
 export * from "./review.controllers";
 export * from "./review.place.controllers";

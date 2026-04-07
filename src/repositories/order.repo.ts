@@ -7,6 +7,7 @@ export interface CreateOrderData {
   bookingId?: string | null;
   total: Prisma.Decimal;
   status?: TransactionStatus;
+  discount?: Prisma.Decimal;
 }
 
 export interface CreateOrderItemData {
@@ -25,6 +26,7 @@ export interface UpdateOrderStatusData {
 export class OrderRepository {
   async create(data: CreateOrderData, tx?: Prisma.TransactionClient) {
     const client = tx ?? prisma;
+    console.log(data);
 
     return client.order.create({
       data: {
@@ -32,7 +34,7 @@ export class OrderRepository {
         venueId: data.venueId,
         bookingId: data.bookingId,
         total: data.total,
-        status: data.status ?? TransactionStatus.PENDING,
+        discount: data.discount,
       },
     });
   }

@@ -6,11 +6,8 @@ const router = Router();
 const auth = new AuthMiddlewares();
 const venueCategoryController = new VenueCategoryController();
 
-router.post(
-  "/create",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["ADMIN"]),
-  (req, res) => venueCategoryController.createCategory(req, res),
+router.post("/create", auth.authenticate, (req, res) =>
+  venueCategoryController.createCategory(req, res),
 );
 
 router.get("/categories", (req, res) =>

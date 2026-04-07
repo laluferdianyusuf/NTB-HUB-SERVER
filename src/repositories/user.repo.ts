@@ -19,14 +19,46 @@ export class UserRepository {
     const client = tx ?? prisma;
     return client;
   }
-  async findAllUsers() {
+
+  async findAllUsers(search?: string) {
+    const where: any = {
+      isVerified: true,
+    };
+
+    if (search && search.trim().length >= 3) {
+      const words = search.trim().split(/\s+/);
+
+      where.AND = words.map((word) => ({
+        OR: [
+          {
+            name: {
+              contains: word,
+              mode: "insensitive",
+            },
+          },
+          {
+            email: {
+              contains: word,
+              mode: "insensitive",
+            },
+          },
+        ],
+      }));
+    }
+
     return prisma.user.findMany({
+      where,
+      take: 10,
+      orderBy: {
+        name: "asc",
+      },
       select: {
         id: true,
         name: true,
         email: true,
         photo: true,
         address: true,
+
         eventOrders: {
           include: {
             event: {
@@ -39,6 +71,7 @@ export class UserRepository {
             },
           },
         },
+
         communityMemberships: {
           where: { status: "APPROVED" },
           include: {

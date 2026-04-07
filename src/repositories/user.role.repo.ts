@@ -217,10 +217,8 @@ export class UserRoleRepository {
   async findUsersByRoleAndAdmin(role: Role, userId: string) {
     return prisma.userRole.findMany({
       where: {
-        role_userId: {
-          role,
-          userId,
-        },
+        role,
+        userId,
         isActive: true,
       },
       include: {
@@ -234,10 +232,8 @@ export class UserRoleRepository {
   async findUsersByRoleAndVenue(role: Role, venueId: string) {
     return prisma.userRole.findMany({
       where: {
-        role_venueId: {
-          role,
-          venueId,
-        },
+        role,
+        venueId,
         isActive: true,
       },
       include: {
@@ -251,10 +247,8 @@ export class UserRoleRepository {
   async findUsersByRoleAndEvent(role: Role, eventId: string) {
     return prisma.userRole.findMany({
       where: {
-        role_eventId: {
-          role,
-          eventId,
-        },
+        role,
+        eventId,
         isActive: true,
       },
       include: {

@@ -4,8 +4,6 @@ export class MapsRepository {
   constructor(private readonly apiKey: string) {}
 
   autocomplete(input: string) {
-    console.log("THIS API KEY", this.apiKey);
-
     return googleApi.get("/place/autocomplete/json", {
       params: {
         input,

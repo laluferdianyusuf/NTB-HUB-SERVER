@@ -30,23 +30,16 @@ router.get("/detail-event/:id", auth.authenticate, (req, res) =>
 router.post(
   "/create-event",
   auth.authenticate,
-  auth.authorizeGlobalRole(["ADMIN", "EVENT_OWNER"]),
   upload.single("image"),
   (req, res) => eventController.create(req, res),
 );
 
-router.put(
-  "/update/:id/status",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["ADMIN", "EVENT_OWNER"]),
-  (req, res) => eventController.updateStatusEvent(req, res),
+router.put("/update/:id/status", auth.authenticate, (req, res) =>
+  eventController.updateStatusEvent(req, res),
 );
 
-router.delete(
-  "/remove/:id",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["ADMIN", "EVENT_OWNER"]),
-  (req, res) => eventController.removeEvent(req, res),
+router.delete("/remove/:id", auth.authenticate, (req, res) =>
+  eventController.removeEvent(req, res),
 );
 
 // event scan ticket
@@ -88,25 +81,16 @@ router.get(
 );
 
 // event ticket type
-router.post(
-  "/ticket/type/create",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["ADMIN", "EVENT_OWNER"]),
-  (req, res) => eventTicketTypeController.create(req, res),
+router.post("/ticket/type/create", auth.authenticate, (req, res) =>
+  eventTicketTypeController.create(req, res),
 );
 
-router.put(
-  "/ticket/type/update/:id",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["ADMIN", "EVENT_OWNER"]),
-  (req, res) => eventTicketTypeController.update(req, res),
+router.put("/ticket/type/update/:id", auth.authenticate, (req, res) =>
+  eventTicketTypeController.update(req, res),
 );
 
-router.delete(
-  "/ticket/type/delete/:id",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["ADMIN", "EVENT_OWNER"]),
-  (req, res) => eventTicketTypeController.delete(req, res),
+router.delete("/ticket/type/delete/:id", auth.authenticate, (req, res) =>
+  eventTicketTypeController.delete(req, res),
 );
 
 router.get("/ticket/type/event/:eventId", (req, res) =>

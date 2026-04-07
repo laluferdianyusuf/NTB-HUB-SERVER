@@ -1,15 +1,17 @@
 import { Request, Response } from "express";
-import { PublicPlaceService } from "../services";
 import { sendError, sendSuccess } from "helpers/response";
+import { PublicPlaceService } from "../services";
 
 export class PublicPlaceController {
   private publicPlaceService = new PublicPlaceService();
 
   async list(req: Request, res: Response) {
     try {
-      const { search, type, page, limit } = req.query;
+      const { latitude, longitude, search, type, page, limit } = req.query;
 
       const result = await this.publicPlaceService.getAll({
+        latitude: Number(latitude),
+        longitude: Number(longitude),
         search: search as string,
         type: type as string,
         page: Number(page) || 1,
@@ -39,7 +41,7 @@ export class PublicPlaceController {
 
   async create(req: Request, res: Response) {
     const files = req.files as {
-      image?: Express.Multer.File;
+      image?: Express.Multer.File[];
       gallery?: Express.Multer.File[];
     };
 

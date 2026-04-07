@@ -1,9 +1,12 @@
-import { Menu, Notification, PrismaClient } from "@prisma/client";
+import { Menu, Notification, PrismaClient, Promotion } from "@prisma/client";
+import { PromotionCache } from "cache/promotion.cache";
 import { publisher } from "config/redis.config";
 import { uploadImage } from "utils/uploadS3";
 import {
   MenuRepository,
   NotificationRepository,
+  PromotionItemRepository,
+  PromotionRepository,
   UserRepository,
   VenueRepository,
 } from "./../repositories";
@@ -15,6 +18,8 @@ const venueRepository = new VenueRepository();
 const userRepository = new UserRepository();
 const notificationRepository = new NotificationRepository();
 const notificationService = new NotificationService();
+const promotionRepository = new PromotionRepository();
+const promotionItemRepository = new PromotionItemRepository();
 
 export class MenuServices {
   async createMenu(
@@ -39,7 +44,7 @@ export class MenuServices {
       typeof data.price === "string" ? parseFloat(data.price) : data.price;
 
     const result = await prisma.$transaction(async (tx) => {
-      const menu = await menuRepository.createNewMenuByService(
+      const menu = await menuRepository.createNewMenu(
         {
           name: data.name,
           category: data.category,
@@ -85,9 +90,122 @@ export class MenuServices {
     return result;
   }
 
+  async createManyMenus(
+    venueId: string,
+    items: Array<{
+      name: string;
+      price: number | string;
+      category: string;
+    }>,
+    files: Express.Multer.File[],
+  ) {
+    const venue = await venueRepository.findVenueById(venueId);
+
+    if (!venue) {
+      throw new Error("Venue not found");
+    }
+
+    if (items.length !== files.length) {
+      throw new Error("Items and images count must match");
+    }
+
+    const menusData = await Promise.all(
+      items.map(async (item, index) => {
+        const file = files[index];
+
+        let imageUrl: string | null = null;
+
+        if (file) {
+          const image = await uploadImage({
+            file,
+            folder: "menus",
+          });
+
+          imageUrl = image.url;
+        }
+
+        const price =
+          typeof item.price === "string" ? parseFloat(item.price) : item.price;
+
+        return {
+          name: item.name,
+          category: item.category,
+          venueId,
+          price,
+          image: imageUrl as string,
+        };
+      }),
+    );
+
+    await prisma.$transaction(async (tx) => {
+      await menuRepository.createManyMenus(venueId, menusData, tx);
+    });
+
+    return menusData;
+  }
+
   async getMenuByVenueId(venueId: string) {
     const menus = await menuRepository.findMenuByVenueId(venueId);
-    return menus;
+
+    if (!menus.length) return [];
+
+    let promotions = await PromotionCache.getVenuePromos(venueId);
+
+    if (!promotions) {
+      promotions = await promotionRepository.findActiveByVenue(
+        venueId,
+        new Date(),
+      );
+
+      await PromotionCache.setVenuePromos(venueId, promotions);
+    }
+
+    const promoMenuMap = new Map<string, any>();
+
+    for (const promo of promotions) {
+      const items = await promotionItemRepository.findByPromotion({
+        promotionId: promo.id,
+      });
+
+      for (const item of items) {
+        promoMenuMap.set(item.menuId as string, promo);
+      }
+    }
+
+    const result = menus.map((menu) => {
+      const promo: Promotion = promoMenuMap.get(menu.id);
+
+      if (!promo) {
+        return {
+          id: menu.id,
+          name: menu.name,
+          image: menu.image,
+          price: Number(menu.price),
+          discount: 0,
+          finalPrice: Number(menu.price),
+          promotionId: null,
+          isAvailable: menu.isAvailable,
+          category: menu.category,
+        };
+      }
+
+      const discount =
+        promo.discountType === "PERCENT"
+          ? Number(menu.price) * (Number(promo.discountValue) / 100)
+          : Number(promo.discountValue);
+
+      return {
+        id: menu.id,
+        name: menu.name,
+        image: menu.image,
+        price: Number(menu.price),
+        discount,
+        finalPrice: Number(menu.price) - discount,
+        promotionId: promo.id,
+      };
+    });
+
+    return result;
   }
 
   async getMenuById(id: string) {
@@ -142,6 +260,16 @@ export class MenuServices {
 
     if (menus.length < 1) {
       throw new Error("Menus not found");
+    }
+
+    return menus;
+  }
+
+  async getMostPopularMenus(limit = 10) {
+    const menus = await menuRepository.getMostPopularMenus(limit);
+
+    if (!menus.length) {
+      throw new Error("Popular menus not found");
     }
 
     return menus;

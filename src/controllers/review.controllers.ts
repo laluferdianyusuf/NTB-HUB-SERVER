@@ -1,6 +1,6 @@
-import { ReviewServices } from "services";
 import { Request, Response } from "express";
 import { sendError, sendSuccess } from "helpers/response";
+import { ReviewServices } from "services";
 
 export class ReviewControllers {
   private reviewService: ReviewServices;
@@ -36,6 +36,8 @@ export class ReviewControllers {
       const result = await this.reviewService.getVenueRating(venueId);
       sendSuccess(res, result, "Rating retrieved successful");
     } catch (error: any) {
+      console.log(error);
+
       sendError(res, error.message || "Internal server error");
     }
   }

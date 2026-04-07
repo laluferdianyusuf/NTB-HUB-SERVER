@@ -18,7 +18,7 @@ router.post(
   auth.authorizeGlobalRole(["CUSTOMER"]),
   (req, res) => paymentController.topUpQris(req, res),
 );
-router.post("/payment/callback", (req, res) =>
+router.post("/callback", (req, res) =>
   paymentController.midtransCallback(req, res),
 );
 

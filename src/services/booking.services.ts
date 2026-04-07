@@ -1,10 +1,4 @@
-import {
-  Invoice,
-  Notification,
-  Order,
-  OrderItem,
-  Prisma,
-} from "@prisma/client";
+import { Notification, Prisma } from "@prisma/client";
 import { prisma } from "config/prisma";
 import { publisher } from "config/redis.config";
 import { toLocalDBTime } from "helpers/formatIsoDate";
@@ -28,6 +22,7 @@ import {
   VenueUnitRepository,
 } from "../repositories";
 import { NotificationService } from "./notification.services";
+import { PromotionService } from "./promotion.services";
 
 const bookingRepository = new BookingRepository();
 const invoiceRepository = new InvoiceRepository();
@@ -39,12 +34,12 @@ const operationalRepository = new OperationalRepository();
 const userBalanceRepository = new UserBalanceRepository();
 const venueBalanceRepository = new VenueBalanceRepository();
 const platformBalanceRepository = new PlatformBalanceRepository();
-const menuRepository = new MenuRepository();
-const orderRepository = new OrderRepository();
-const orderItemRepository = new OrderItemRepository();
 const paymentRepository = new PaymentRepository();
 const ledgerRepository = new LedgerRepository();
 const accountRepository = new AccountRepository();
+const orderRepository = new OrderRepository();
+const menuRepository = new MenuRepository();
+const orderItemRepository = new OrderItemRepository();
 
 interface CreateBookingProps {
   userId: string;
@@ -53,7 +48,8 @@ interface CreateBookingProps {
   unitId: string;
   startTime: number;
   endTime: number;
-  orders?: OrderItem[];
+  orders?: { menuId: string; quantity: number }[];
+  promoCode?: string;
   sessionId?: string;
   date?: string;
 }
@@ -62,6 +58,8 @@ const publishEvent = (channel: string, event: string, payload: any) =>
   publisher.publish(channel, JSON.stringify({ event, payload }));
 
 export class BookingServices {
+  private promotionService = new PromotionService();
+
   async createBooking(data: CreateBookingProps) {
     const service = await venueServiceRepository.findById(data.serviceId);
     if (!service || !service.isActive) {
@@ -114,7 +112,7 @@ export class BookingServices {
     }
 
     const hours = data.endTime - data.startTime;
-    const totalPrice = hours * Number(unit.price);
+    const bookingPrice = hours * Number(unit.price);
 
     const invoiceNumber = `INV-${crypto
       .randomUUID()
@@ -122,70 +120,119 @@ export class BookingServices {
       .toUpperCase()}`;
 
     const result = await prisma.$transaction(async (tx) => {
-      const booking = await bookingRepository.createBooking({
-        data: {
+      const booking = await bookingRepository.createBooking(
+        {
           userId: data.userId,
           venueId: data.venueId,
           serviceId: data.serviceId,
           unitId: data.unitId,
           startTime,
           endTime,
-          totalPrice,
+          totalPrice: bookingPrice,
         },
         tx,
-      });
+      );
 
-      let orderAmount = 0;
-      let order: Order | null = null;
+      let orderTotal = 0;
+      let discount = 0;
 
-      if (data.orders?.length) {
-        const menusIds = data.orders.map((o) => o.menuId);
-        const menus = await menuRepository.findMenuByIds(menusIds, tx);
+      const orderItemsData: any[] = [];
+      const promotionInputItems: any[] = [];
+
+      if (data.orders && data.orders.length > 0) {
+        const menuIds = data.orders.map((o) => o.menuId);
+
+        const menus = await menuRepository.findMenuByIds(menuIds);
 
         const menuMap = new Map(menus.map((m) => [m.id, m]));
 
-        const itemsToInsert = [];
-
-        for (const o of data.orders) {
-          const menu = menuMap.get(o.menuId);
+        for (const item of data.orders) {
+          const menu = menuMap.get(item.menuId);
           if (!menu) throw new Error("Menu not found");
 
-          const subtotal = Number(menu.price) * o.quantity;
-          orderAmount += subtotal;
+          const subtotal = Number(menu.price) * item.quantity;
+          orderTotal += subtotal;
 
-          itemsToInsert.push({
+          orderItemsData.push({
             menuId: menu.id,
-            quantity: o.quantity,
+            quantity: item.quantity,
             price: menu.price,
             subtotal,
           });
-        }
 
+          promotionInputItems.push({
+            menuId: menu.id,
+            quantity: item.quantity,
+            price: Number(menu.price),
+          });
+        }
+      }
+
+      const promotions = await this.promotionService.applyPromotions({
+        venueId: data.venueId,
+        userId: data.userId,
+        promoCode: data.promoCode,
+        items: promotionInputItems,
+        orderTotal,
+      });
+
+      const freeItems: any[] = [];
+
+      for (const promo of promotions) {
+        discount += promo.discountAmount;
+        freeItems.push(...promo.freeItems);
+      }
+      const finalOrderTotal = orderTotal - discount;
+
+      let order = null;
+
+      if (orderItemsData.length > 0 || freeItems.length > 0) {
         order = await orderRepository.create(
           {
-            bookingId: booking.id,
-            venueId: data.venueId,
             userId: data.userId,
-            total: Prisma.Decimal(totalPrice + orderAmount),
+            venueId: data.venueId,
+            bookingId: booking.id,
+            total: new Prisma.Decimal(finalOrderTotal),
+            discount: new Prisma.Decimal(discount),
           },
           tx,
         );
 
-        await orderItemRepository.createBulkOrders(
-          itemsToInsert.map((item) => ({
-            ...item,
+        const itemsToInsert = [
+          ...orderItemsData.map((i) => ({
+            // ...i,
             orderId: order!.id,
+            menuId: i.menuId,
+            quantity: i.quantity,
+            subtotal: i.subtotal,
           })),
-          tx,
-        );
+          ...freeItems.map((f) => ({
+            orderId: order!.id,
+            menuId: f.menuId,
+            quantity: f.quantity,
+            subtotal: 0,
+          })),
+        ];
+
+        await orderItemRepository.createBulkOrders(itemsToInsert, tx);
+
+        for (const promo of promotions) {
+          await this.promotionService.recordPromotionUsage(
+            promo.promotionId,
+            data.userId,
+            order.id,
+          );
+        }
       }
+
+      const invoiceTotal = bookingPrice + finalOrderTotal;
 
       const invoice = await invoiceRepository.create(
         {
           entityType: "BOOKING",
           entityId: booking.id,
           invoiceNumber,
-          amount: totalPrice + orderAmount,
+          amount: invoiceTotal,
           expiredAt: new Date(Date.now() + 5 * 60 * 1000),
         },
         tx,
@@ -193,7 +240,14 @@ export class BookingServices {
 
       await enqueueInvoiceExpiry(invoice.id, invoice.expiredAt!);
 
-      return { booking, invoice };
+      return {
+        booking,
+        order,
+        invoice,
+        discount,
+        total: invoiceTotal,
+        expiredAt: invoice.expiredAt,
+      };
     });
 
     await notificationService.sendToVenueOwner(
@@ -225,13 +279,19 @@ export class BookingServices {
     if (booking.status !== "PENDING")
       throw new Error("Booking already processed");
 
-    const invoice: Invoice = booking.invoice;
+    const invoice = await invoiceRepository.findActiveByEntity(
+      "BOOKING",
+      booking.id,
+    );
     if (!invoice || invoice.status !== "PENDING")
       throw new Error("Invoice invalid");
 
-    const userBalance = await ledgerRepository.getBalance(userId);
+    const userBalance = await ledgerRepository.getBalanceByOwner({ userId });
 
-    if (userBalance && Number(userBalance) < Number(invoice.amount))
+    if (
+      userBalance &&
+      Number(userBalance.totalBalance) < Number(invoice.amount)
+    )
       throw new Error("Insufficient balance");
 
     const platformFee = Number(invoice.amount) * 0.1;
@@ -340,17 +400,114 @@ export class BookingServices {
       throw new Error("Book not found");
     }
 
-    return booking;
+    const invoice = await invoiceRepository.findActiveByEntity(
+      "BOOKING",
+      booking.id,
+    );
+
+    if (!invoice) throw new Error("Invoice invalid");
+
+    const totalOrder =
+      booking.orders.reduce((orderAcc, order) => {
+        const itemsTotal =
+          order.items.reduce((itemAcc, item) => {
+            return itemAcc + Number(item.subtotal ?? 0);
+          }, 0) ?? 0;
+
+        return orderAcc + itemsTotal;
+      }, 0) ?? 0;
+
+    const start = new Date(booking.startTime);
+    const end = new Date(booking.endTime);
+
+    const durationMs = end.getTime() - start.getTime();
+    const durationHours = durationMs / (1000 * 60 * 60);
+
+    const unitPrice = booking.unit?.price ?? 0;
+    const totalField = Number(unitPrice) * durationHours;
+
+    const grandTotal = totalField + totalOrder;
+
+    return {
+      ...booking,
+      invoice: invoice,
+      totals: {
+        fields: totalField,
+        order: totalOrder,
+        grand: grandTotal,
+        durationHours,
+      },
+    };
   }
 
-  async getBookingByUserId(userId: string) {
-    const booking = await bookingRepository.findBookingByUserId(userId);
+  async getBookingByUserId(params: {
+    userId: string;
+    search?: string;
+    status?: string;
+  }) {
+    const { userId, search, status } = params || {};
 
-    if (!booking) {
-      throw new Error("booking not found");
-    }
+    const bookings = await bookingRepository.findBookingByUserId({
+      userId,
+      search,
+    });
 
-    return booking;
+    const now = Date.now();
+
+    const result = await Promise.all(
+      bookings.map(async (booking) => {
+        const invoice = await invoiceRepository.findActiveByEntity(
+          "BOOKING",
+          booking.id,
+        );
+
+        const start = new Date(booking.startTime).getTime();
+        const end = new Date(booking.endTime).getTime();
+
+        let statusKey = "completed_book";
+
+        if (booking.status === "PENDING") statusKey = "paying_book";
+        else if (booking.status === "CANCELLED") statusKey = "cancelled_book";
+        else if (booking.status === "PAID") {
+          if (now < start) statusKey = "upcoming_book";
+          else if (now >= start && now <= end) statusKey = "ongoing_book";
+          else statusKey = "completed_book";
+        }
+
+        if (status && status !== "all_book" && status !== statusKey) {
+          return null;
+        }
+
+        const totalOrder =
+          booking.orders.reduce((orderAcc, order) => {
+            const itemsTotal =
+              order.items?.reduce((itemAcc, item) => {
+                return itemAcc + Number(item.subtotal ?? 0);
+              }, 0) ?? 0;
+
+            return orderAcc + itemsTotal;
+          }, 0) ?? 0;
+
+        const durationHours = (end - start) / (1000 * 60 * 60);
+
+        const unitPrice = booking.unit?.price ?? 0;
+        const totalField = Number(unitPrice) * durationHours;
+
+        return {
+          ...booking,
+          invoice: invoice ?? null,
+          statusKey,
+          totals: {
+            fields: totalField,
+            order: totalOrder,
+            grand: totalField + totalOrder,
+            durationHours,
+          },
+        };
+      }),
+    );
+
+    return result.filter(Boolean);
   }
 
   async getBookingByVenueId(venueId: string) {
@@ -402,7 +559,12 @@ export class BookingServices {
           throw new Error("Account not found");
         }
 
-        const invoice: Invoice = booking.invoice;
+        const invoice = await invoiceRepository.findActiveByEntity(
+          "BOOKING",
+          booking.id,
+        );
+
+        if (!invoice) throw new Error("Invoice invalid");
 
         await ledgerRepository.createMany([
           {

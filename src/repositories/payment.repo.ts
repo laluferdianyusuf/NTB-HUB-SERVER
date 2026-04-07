@@ -74,6 +74,9 @@ export class PaymentRepository {
     return client.payment.update({
       where: { id },
       data: { status: TransactionStatus.SUCCESS },
+      include: {
+        invoice: true,
+      },
     });
   }
 
@@ -82,6 +85,9 @@ export class PaymentRepository {
     return client.payment.update({
       where: { id },
       data: { status: TransactionStatus.FAILED },
+      include: {
+        invoice: true,
+      },
     });
   }
 
@@ -90,6 +96,9 @@ export class PaymentRepository {
     return client.payment.update({
       where: { id },
       data: { status: TransactionStatus.EXPIRED },
+      include: {
+        invoice: true,
+      },
     });
   }
 

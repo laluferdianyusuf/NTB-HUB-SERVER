@@ -68,7 +68,7 @@ createWorker<PaymentWebhookJob>(
           [
             {
               accountId: userAccount.id,
-              type: "DEBIT",
+              type: "CREDIT",
               amount: Number(payment.amount),
               referenceType: "TOPUP",
               referenceId: payment.invoiceId,

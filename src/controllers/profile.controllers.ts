@@ -13,6 +13,8 @@ export class ProfileController {
       const profile = await service.getProfile(profileId, viewerId);
       sendSuccess(res, profile);
     } catch (error: any) {
+      console.log(error);
+
       sendError(res, error.message || "Internal server error");
     }
   }

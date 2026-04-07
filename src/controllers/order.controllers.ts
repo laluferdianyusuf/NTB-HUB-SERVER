@@ -12,12 +12,13 @@ export class OrderControllers {
   async createNewOrder(req: Request, res: Response) {
     try {
       const userId = req.user?.id as string;
-      const { venueId, items } = req.body;
+      const { venueId, items, promoCode } = req.body;
 
       const result = await this.orderService.createNewOrder({
         venueId,
         userId,
         items,
+        promoCode,
       });
 
       sendSuccess(res, result, "Order created", 201);

@@ -36,7 +36,6 @@ export class InvoiceRepository {
       where: {
         entityType,
         entityId,
-        status: InvoiceStatus.PENDING,
       },
       orderBy: { createdAt: "desc" },
     });

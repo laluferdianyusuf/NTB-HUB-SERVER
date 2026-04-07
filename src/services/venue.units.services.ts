@@ -21,10 +21,10 @@ export class VenueUnitService {
   async create(input: {
     venueId: string;
     serviceId: string;
-    floorId?: string;
     name: string;
     price: number;
     type: UnitType;
+    floorId?: string;
     isActive?: boolean;
   }) {
     const {
@@ -58,7 +58,7 @@ export class VenueUnitService {
     return this.venueUnitRepository.create({
       venueId,
       serviceId,
-      floorId: String(floorId),
+      floorId: floorId ?? null,
       name: name.trim(),
       price,
       type,
@@ -87,7 +87,6 @@ export class VenueUnitService {
     serviceId: string,
     date: string, // format: "YYYY-MM-DD"
   ) {
-    // trim dan cek kosong
     if (!date || typeof date !== "string") {
       throw new Error("Date is required");
     }

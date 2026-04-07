@@ -1,4 +1,6 @@
 export interface GetVenuesParams {
+  latitude?: number;
+  longitude?: number;
   search?: string;
   category?: string; // "all" atau code
   subCategory?: string; // "all" atau code

@@ -12,6 +12,7 @@ export class PaymentController {
   async topUp(req: Request, res: Response) {
     try {
       const { userId, amount, bankCode } = req.body;
+
       const result = await this.paymentServices.TopUp({
         userId,
         amount,
@@ -20,18 +21,26 @@ export class PaymentController {
 
       sendSuccess(res, result, "Top up successful", 201);
     } catch (error: any) {
+      console.log(error);
+
       sendError(res, error.message || "Internal server error");
     }
   }
   async topUpQris(req: Request, res: Response) {
-    const { userId, amount } = req.body;
-    const result = await this.paymentServices.TopUpQris({
-      userId,
-      amount,
-    });
+    try {
+      const { userId, amount } = req.body;
+      const result = await this.paymentServices.TopUpQris({
+        userId,
+        amount,
+      });
 
-    sendSuccess(res, result, "Top up successful", 201);
+      sendSuccess(res, result, "Top up successful", 201);
+    } catch (error: any) {
+      console.log(error);
+      sendError(res, error.message || "Internal server error");
+    }
   }
+
   async midtransCallback(req: Request, res: Response) {
     res.status(200).send("OK");
 

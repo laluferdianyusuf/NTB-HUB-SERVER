@@ -1,3 +1,4 @@
+import { sendError, sendSuccess } from "helpers/response";
 import { VenueBalanceServices } from "services";
 
 export class VenueBalanceController {
@@ -8,8 +9,12 @@ export class VenueBalanceController {
   }
 
   async getVenueBalance(req: any, res: any) {
-    const venueId = req.params.venueId;
-    const result = await this.venueBalanceServices.getVenueBalance(venueId);
-    res.status(result.status_code).json(result);
+    try {
+      const venueId = req.params.venueId;
+      const result = await this.venueBalanceServices.getVenueBalance(venueId);
+      sendSuccess(res, result, "Balance retrieved");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
+    }
   }
 }

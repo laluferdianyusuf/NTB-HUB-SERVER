@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import { VenueServices } from "../services/venue.services";
 import { sendError, sendSuccess } from "helpers/response";
+import { VenueServices } from "../services/venue.services";
 
 export class VenueControllers {
   private venueServices: VenueServices;
@@ -25,9 +25,19 @@ export class VenueControllers {
 
   async getVenues(req: Request, res: Response) {
     try {
-      const { search, category, subCategory, page, limit, includeServices } =
-        req.query;
+      const {
+        latitude,
+        longitude,
+        search,
+        category,
+        subCategory,
+        page,
+        limit,
+        includeServices,
+      } = req.query;
       const result = await this.venueServices.getVenues({
+        latitude: Number(latitude),
+        longitude: Number(longitude),
         search: search as string,
         category: category as string,
         subCategory: subCategory as string,
@@ -44,9 +54,19 @@ export class VenueControllers {
 
   async getPopularVenues(req: Request, res: Response) {
     try {
-      const { search, category, subCategory, page, limit, includeServices } =
-        req.query;
+      const {
+        latitude,
+        longitude,
+        search,
+        category,
+        subCategory,
+        page,
+        limit,
+        includeServices,
+      } = req.query;
       const result = await this.venueServices.getPopularVenues({
+        latitude: Number(latitude),
+        longitude: Number(longitude),
         search: search as string,
         category: category as string,
         subCategory: subCategory as string,

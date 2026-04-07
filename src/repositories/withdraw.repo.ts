@@ -1,28 +1,31 @@
-import { Prisma, PrismaClient, WithdrawStatus } from "@prisma/client";
+import { Prisma, WithdrawStatus } from "@prisma/client";
+import { prisma } from "config/prisma";
 
 export class WithdrawRepository {
-  constructor(private prisma = new PrismaClient()) {}
-
   private db(tx?: Prisma.TransactionClient) {
-    return tx ?? this.prisma;
+    return tx ?? prisma;
   }
 
-  create(data: {
-    venueId: string;
-    withdrawNumber: string;
-    amount: number;
-    fee: number;
-    netAmount: number;
-    bankCode: string;
-    bankAccount: string;
-    accountName: string;
-    note?: string;
-  }) {
-    return this.prisma.withdrawRequest.create({ data });
+  create(
+    data: {
+      venueId: string;
+      withdrawNumber: string;
+      amount: number;
+      fee: number;
+      netAmount: number;
+      bankCode: string;
+      bankAccount: string;
+      accountName: string;
+      note?: string;
+    },
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = this.db(tx);
+    return client.withdrawRequest.create({ data });
   }
 
   findById(id: string) {
-    return this.prisma.withdrawRequest.findUnique({ where: { id } });
+    return prisma.withdrawRequest.findUnique({ where: { id } });
   }
 
   async findByVenue(venueId: string, tx?: Prisma.TransactionClient) {
@@ -77,9 +80,11 @@ export class WithdrawRepository {
   updateStatus(
     id: string,
     status: WithdrawStatus,
-    dateField?: "approvedAt" | "paidAt",
+    dateField?: "approvedAt" | "paidAt" | null,
+    tx?: Prisma.TransactionClient,
   ) {
-    return this.prisma.withdrawRequest.update({
+    const client = this.db(tx);
+    return client.withdrawRequest.update({
       where: { id },
       data: {
         status,

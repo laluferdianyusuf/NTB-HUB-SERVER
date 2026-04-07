@@ -1,14 +1,15 @@
 import { Venue } from "@prisma/client";
-import {
-  VenueRepository,
-  VenueBalanceRepository,
-  VenueLikeRepository,
-  VenueImpressionRepository,
-} from "../repositories";
 import { publisher } from "config/redis.config";
+import { calcDistanceMeters, formatDistance } from "helpers/haversine";
 import { toNum } from "helpers/parser";
-import { uploadImage } from "utils/uploadS3";
 import { GetVenuesParams } from "types/venues.params";
+import { uploadImage } from "utils/uploadS3";
+import {
+  VenueBalanceRepository,
+  VenueImpressionRepository,
+  VenueLikeRepository,
+  VenueRepository,
+} from "../repositories";
 
 const venueRepository = new VenueRepository();
 const venueBalanceRepository = new VenueBalanceRepository();
@@ -98,6 +99,8 @@ export class VenueServices {
 
   async getVenues(params: GetVenuesParams) {
     const {
+      latitude,
+      longitude,
       search,
       category = "all",
       subCategory = "all",
@@ -120,21 +123,36 @@ export class VenueServices {
       venueRepository.countVenues({ search, category }),
     ]);
 
-    const shapedData = data.map((venue) => ({
-      id: venue.id,
-      name: venue.name,
-      address: venue.address,
-      image: venue.image,
-      gallery: venue.gallery,
-      totalLikes: venue.totalLikes,
-      totalReviews: venue.totalReviews,
-      totalViews: venue.totalViews,
-      latitude: venue.latitude,
-      longitude: venue.longitude,
-      category: venue.services?.[0]?.subCategory?.category || null,
-      services: includeServices ? venue.services : undefined,
-      updatedAll: venue.updatedAt,
-    }));
+    const shapedData = data.map((venue) => {
+      let distance: number | null = null;
+
+      if (latitude && longitude && venue.latitude && venue.longitude) {
+        distance = calcDistanceMeters(
+          latitude,
+          longitude,
+          venue.latitude,
+          venue.longitude,
+        );
+      }
+      return {
+        id: venue.id,
+        name: venue.name,
+        address: venue.address,
+        image: venue.image,
+        gallery: venue.gallery,
+        totalLikes: venue.totalLikes,
+        totalReviews: venue.totalReviews,
+        totalViews: venue.totalViews,
+        latitude: venue.latitude,
+        longitude: venue.longitude,
+        category: venue.services?.[0]?.subCategory?.category || null,
+        services: includeServices ? venue.services : undefined,
+        updatedAll: venue.updatedAt,
+
+        distance,
+        distanceLabel: formatDistance(distance),
+      };
+    });
 
     return {
       data: shapedData,
@@ -149,6 +167,8 @@ export class VenueServices {
 
   async getPopularVenues(params: GetVenuesParams) {
     const {
+      latitude,
+      longitude,
       search,
       category = "all",
       subCategory = "all",
@@ -171,21 +191,36 @@ export class VenueServices {
       venueRepository.countVenues({ search, category }),
     ]);
 
-    const shapedData = data.map((venue) => ({
-      id: venue.id,
-      name: venue.name,
-      address: venue.address,
-      image: venue.image,
-      gallery: venue.gallery,
-      totalLikes: venue.totalLikes,
-      totalReviews: venue.totalReviews,
-      totalViews: venue.totalViews,
-      latitude: venue.latitude,
-      longitude: venue.longitude,
-      category: venue.services?.[0]?.subCategory?.category || null,
-      services: includeServices ? venue.services : undefined,
-      updatedAll: venue.updatedAt,
-    }));
+    const shapedData = data.map((venue) => {
+      let distance: number | null = null;
+
+      if (latitude && longitude && venue.latitude && venue.longitude) {
+        distance = calcDistanceMeters(
+          latitude,
+          longitude,
+          venue.latitude,
+          venue.longitude,
+        );
+      }
+
+      return {
+        id: venue.id,
+        name: venue.name,
+        address: venue.address,
+        image: venue.image,
+        gallery: venue.gallery,
+        totalLikes: venue.totalLikes,
+        totalReviews: venue.totalReviews,
+        totalViews: venue.totalViews,
+        latitude: venue.latitude,
+        longitude: venue.longitude,
+        category: venue.services?.[0]?.subCategory?.category || null,
+        services: includeServices ? venue.services : undefined,
+        updatedAll: venue.updatedAt,
+        distance,
+        distanceLabel: formatDistance(distance),
+      };
+    });
 
     return {
       data: shapedData,
@@ -288,7 +323,6 @@ export class VenueServices {
 
   async toggleLike(venueId: string, userId: string) {
     const liked = await venueLikeRepository.isLikedByUser(venueId, userId);
-    console.log(liked);
 
     if (liked) {
       await venueLikeRepository.unlikeVenue(venueId, userId);

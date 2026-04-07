@@ -10,7 +10,6 @@ const auth = new AuthMiddlewares();
 router.post(
   "/create-community",
   auth.authenticate,
-  auth.authorizeGlobalRole(["ADMIN"]),
   upload.single("image"),
   (req, res) => controller.createCommunity(req, res),
 );

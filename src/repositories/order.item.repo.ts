@@ -40,11 +40,12 @@ export class OrderItemRepository {
       orderId: string;
       menuId: string;
       quantity: number;
-      price: Prisma.Decimal | number;
       subtotal: number;
     }[],
     tx?: Prisma.TransactionClient,
   ) {
+    console.log(data);
+
     const client = tx ?? prisma;
 
     return client.orderItem.createMany({

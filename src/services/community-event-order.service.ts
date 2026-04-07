@@ -223,11 +223,11 @@ export class CommunityEventOrderService {
       const platformFee = Number(invoice.amount) * 0.1;
       const eventAmount = Number(invoice.amount) - platformFee;
 
-      if (!balance || balance < Number(order.total)) {
+      if (!balance || balance.totalBalance < Number(order.total)) {
         throw new Error("Insufficient balance");
       }
 
-      if (!balance || balance < Number(order.total)) {
+      if (!balance || balance.balance < Number(order.total)) {
         throw new Error("Insufficient balance");
       }
 

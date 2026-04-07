@@ -14,6 +14,14 @@ router.get("/account/:accountId/balance", auth.authenticate, (req, res) =>
   controller.getBalances(req, res),
 );
 
+router.get("/account/:accountId/balance", auth.authenticate, (req, res) =>
+  controller.getBalances(req, res),
+);
+
+router.get("/balance", auth.authenticate, (req, res) =>
+  controller.getBalance(req, res),
+);
+
 router.get("/user-transactions", auth.authenticate, (req, res) =>
   controller.getUserTransactions(req, res),
 );
