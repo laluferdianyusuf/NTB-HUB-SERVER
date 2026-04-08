@@ -10,6 +10,9 @@ const userController = new UserController();
 router.post("/register", upload.single("image"), (req, res) =>
   userController.register(req, res),
 );
+router.post("/register-admin", upload.single("image"), (req, res) =>
+  userController.registerAdmin(req, res),
+);
 router.post("/login", (req, res) => userController.login(req, res));
 router.post("/refresh", (req, res) => userController.refreshToken(req, res));
 router.post("/verify-email", (req, res) =>

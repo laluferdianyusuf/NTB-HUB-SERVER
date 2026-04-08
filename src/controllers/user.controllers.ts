@@ -27,6 +27,26 @@ export class UserController {
     }
   }
 
+  async registerAdmin(req: Request, res: Response) {
+    try {
+      const result = await userService.registerAdmin({
+        email: req.body.email,
+        name: req.body.name,
+        username: req.body.username,
+        password: req.body.password,
+        file: req.file,
+      });
+
+      return res.status(201).json({
+        status: true,
+        message: "Admin registered successfully",
+        data: result,
+      });
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
+    }
+  }
+
   async verifyEmail(req: Request, res: Response) {
     try {
       const { token } = req.body;

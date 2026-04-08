@@ -266,7 +266,13 @@ export class BookingServices {
       data: pendingBookings ?? [],
     });
 
-    await publishEvent("invoice-events", "invoice:created", result.invoice);
+    await publishEvent("booking-events", "booking:sync", {
+      userId: result.booking.userId,
+      bookings: await this.getBookingByUserId({
+        userId: result.booking.userId,
+        status: "all_book",
+      }),
+    });
 
     return result;
   }
@@ -384,6 +390,14 @@ export class BookingServices {
       isGlobal: false,
     } as Notification);
 
+    await publishEvent("booking-events", "booking:sync", {
+      userId,
+      bookings: await this.getBookingByUserId({
+        userId,
+        status: "all_book",
+      }),
+    });
+
     return { message: "Booking paid successfully" };
   }
 
@@ -464,10 +478,19 @@ export class BookingServices {
         const start = new Date(booking.startTime).getTime();
         const end = new Date(booking.endTime).getTime();
 
+        const expiredAt = invoice?.expiredAt
+          ? new Date(invoice.expiredAt).getTime()
+          : null;
+
         let statusKey = "completed_book";
 
-        if (booking.status === "PENDING") statusKey = "paying_book";
-        else if (booking.status === "CANCELLED") statusKey = "cancelled_book";
+        if (booking.status === "PENDING") {
+          if (expiredAt && now > expiredAt) {
+            statusKey = "expired_book";
+          } else {
+            statusKey = "paying_book";
+          }
+        } else if (booking.status === "CANCELLED") statusKey = "cancelled_book";
         else if (booking.status === "PAID") {
           if (now < start) statusKey = "upcoming_book";
           else if (now >= start && now <= end) statusKey = "ongoing_book";
@@ -600,13 +623,12 @@ export class BookingServices {
       await bookingRepository.cancelBooking(id);
     }
 
-    const pendingBookings = await bookingRepository.findBookingPendingByUserId(
-      booking.userId,
-    );
-
-    await publishEvent("booking-events", "booking:pending", {
+    await publishEvent("booking-events", "booking:sync", {
       userId: booking.userId,
-      data: pendingBookings ?? [],
+      bookings: await this.getBookingByUserId({
+        userId: booking.userId,
+        status: "all_book",
+      }),
     });
 
     await cancelBookingReminders(booking.id);
@@ -627,9 +649,12 @@ export class BookingServices {
       booking.userId,
     );
 
-    await publishEvent("booking-events", "booking:paid", {
+    await publishEvent("booking-events", "booking:sync", {
       userId: booking.userId,
-      data: paidBookings ?? [],
+      bookings: await this.getBookingByUserId({
+        userId: booking.userId,
+        status: "all_book",
+      }),
     });
 
     return updated;

@@ -1,9 +1,21 @@
 import { Job } from "bullmq";
 import { publisher } from "config/redis.config";
-import { InvoiceRepository } from "../repositories";
+import { BookingServices } from "services";
+import { BookingRepository, InvoiceRepository } from "../repositories";
 import { addDelayedJob, cancelJob, createWorker } from "./index";
 
 const invoiceRepository = new InvoiceRepository();
+const bookingRepository = new BookingRepository();
+
+let bookingService: BookingServices;
+
+function getBookingService() {
+  if (!bookingService) {
+    bookingService = new BookingServices();
+  }
+  return bookingService;
+}
+
 const QUEUE_NAME = "invoice-expiry";
 const JOB_NAME = "expire-invoice";
 
@@ -12,20 +24,28 @@ interface InvoiceExpiryJobData {
 }
 
 createWorker(QUEUE_NAME, async (job: Job<InvoiceExpiryJobData>) => {
+  const bookingService = getBookingService();
+
   const invoice = await invoiceRepository.findById(job.data.invoiceId);
   if (!invoice) return;
 
   if (invoice.status !== "PAID") {
     const expired = await invoiceRepository.markExpired(invoice.id);
 
+    const booking = await bookingRepository.findBookingById(expired.entityId);
+
+    if (!booking) return;
+
     publisher.publish(
       "booking-events",
       JSON.stringify({
-        event: "booking:expired",
+        event: "booking:sync",
         payload: {
-          bookingId: invoice.id,
-          expired,
-          userId: expired.entityId,
+          userId: booking.userId,
+          bookings: await bookingService.getBookingByUserId({
+            userId: booking.userId,
+            status: "all_book",
+          }),
         },
       }),
     );

@@ -8,8 +8,8 @@ export type CreateUserInput = {
   email: string;
   password: string;
   isVerified: boolean;
-  emailVerifyToken: string | null;
-  emailVerifyExpiry: Date | null;
+  emailVerifyToken?: string | null;
+  emailVerifyExpiry?: Date | null;
   photo?: string | null;
   googleId?: string | null;
 };

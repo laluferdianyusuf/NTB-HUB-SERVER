@@ -173,6 +173,53 @@ export class UserService {
     };
   }
 
+  async registerAdmin(
+    data: {
+      email: string;
+      name: string;
+      username: string;
+      password: string;
+      file?: Express.Multer.File;
+    },
+    secretKey?: string,
+  ) {
+    if (secretKey !== process.env.ADMIN_SECRET_KEY) {
+      throw new Error("UNAUTHORIZED");
+    }
+
+    // cek email
+    const existing = await userRepository.findByEmail(data.email);
+    if (existing) throw new Error("EMAIL_ALREADY_REGISTERED");
+
+    let photo: string | null = null;
+
+    if (data.file) {
+      const img = await uploadImage({ file: data.file, folder: "users" });
+      photo = img.url;
+    }
+
+    const hashedPassword = await bcrypt.hash(data.password, 12);
+
+    const user = await userRepository.create({
+      email: data.email,
+      name: data.name,
+      username: data.username,
+      password: hashedPassword,
+      photo,
+      isVerified: true,
+    });
+
+    await userRoleRepository.assignGlobalRole({
+      userId: user.id,
+      role: Role.ADMIN,
+    });
+
+    return {
+      message: "Admin registered successfully",
+      userId: user.id,
+    };
+  }
+
   async verifyEmail(token: string) {
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
