@@ -11,7 +11,6 @@ export class CommunityEventOrderRepository {
       where: { id },
       include: {
         tickets: true,
-        invoice: true,
         communityEvent: {
           select: {
             community: {
@@ -31,7 +30,6 @@ export class CommunityEventOrderRepository {
       where: { userId },
       include: {
         tickets: true,
-        invoice: true,
         communityEvent: {
           select: {
             community: {

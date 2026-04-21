@@ -20,7 +20,27 @@ export class UserRepository {
     return client;
   }
 
-  async findAllUsers(search?: string) {
+  async getUsersByVenue(venueId: string, search?: string) {
+    return prisma.user.findMany({
+      where: {
+        OR: search
+          ? [
+              { name: { contains: search, mode: "insensitive" } },
+              { phone: { contains: search } },
+            ]
+          : undefined,
+      },
+    });
+  }
+
+  async findAllUsers(params?: {
+    search?: string;
+    limit?: number;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const { search, limit, page = 1, pageSize = 10 } = params || {};
+
     const where: any = {
       isVerified: true,
     };
@@ -87,14 +107,49 @@ export class UserRepository {
     });
   }
 
+  async countAllUsers(params?: { search?: string }) {
+    const { search } = params || {};
+
+    const where: any = {
+      isVerified: true,
+    };
+
+    if (search && search.trim().length >= 3) {
+      const words = search.trim().split(/\s+/);
+
+      where.AND = words.map((word) => ({
+        OR: [
+          {
+            name: {
+              contains: word,
+              mode: "insensitive",
+            },
+          },
+          {
+            email: {
+              contains: word,
+              mode: "insensitive",
+            },
+          },
+        ],
+      }));
+    }
+
+    return prisma.user.count({
+      where,
+    });
+  }
+
   async findById(id: string) {
     return prisma.user.findUnique({
       where: { id },
       select: {
         id: true,
         name: true,
+        username: true,
         photo: true,
         email: true,
+        address: true,
         profileViewCount: true,
         profileLikeCount: true,
         isVerified: true,
@@ -103,6 +158,21 @@ export class UserRepository {
         pinLockedUntil: true,
         pinFailedCount: true,
         createdAt: true,
+      },
+    });
+  }
+
+  async findUsersWithCommunities(userIds: string[]) {
+    return prisma.user.findMany({
+      where: {
+        id: { in: userIds },
+      },
+      include: {
+        communityMemberships: {
+          include: {
+            community: true,
+          },
+        },
       },
     });
   }
@@ -226,6 +296,17 @@ export class UserRepository {
     const db = tx ?? prisma;
     return db.user.findMany({
       select: { id: true, name: true },
+    });
+  }
+
+  async findManyUsersByIds(ids: string[], tx?: Prisma.TransactionClient) {
+    const db = tx ?? prisma;
+
+    return db.user.findMany({
+      where: {
+        id: { in: ids },
+      },
+      select: { id: true, name: true, username: true, photo: true },
     });
   }
 

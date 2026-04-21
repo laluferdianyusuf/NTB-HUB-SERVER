@@ -21,8 +21,10 @@ enum Role {
 enum BookingStatus {
   PENDING
   PAID
+  ONGOING
   CANCELLED
   COMPLETED
+  EXPIRED
 }
 
 enum TransactionStatus {
@@ -1395,14 +1397,16 @@ model Courier {
 
 model Delivery {
   id        String  @id @default(uuid())
-  courierId String
+  courierId String?
   userId    String?
   bookingId String? @unique
 
   pickupAddress  String
   dropoffAddress String
 
-  status DeliveryStatus @default(PENDING)
+  status         DeliveryStatus @default(PENDING)
+  attemptCount   Int            @default(0)
+  lastAssignedAt DateTime?
 
   assignedAt  DateTime?
   pickedUpAt  DateTime?
@@ -1411,13 +1415,37 @@ model Delivery {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  courier Courier  @relation(fields: [courierId], references: [id])
+  rejectedCouriers DeliveryRejectedCourier[]
+  assignmentLogs   DeliveryAssignmentLog[]
+
+  courier Courier? @relation(fields: [courierId], references: [id])
   user    User?    @relation(fields: [userId], references: [id])
   booking Booking? @relation(fields: [bookingId], references: [id])
 
   @@index([courierId, status])
   @@index([bookingId])
   @@index([status])
+}
+
+model DeliveryAssignmentLog {
+  id         String   @id @default(uuid())
+  deliveryId String
+  courierId  String
+  status     String // ASSIGNED | REJECTED | TIMEOUT
+  createdAt  DateTime @default(now())
+  delivery   Delivery @relation(fields: [deliveryId], references: [id])
+
+  @@index([deliveryId])
+  @@index([courierId])
+}
+
+model DeliveryRejectedCourier {
+  id         String   @id @default(uuid())
+  deliveryId String
+  courierId  String
+  delivery   Delivery @relation(fields: [deliveryId], references: [id])
+
+  @@unique([deliveryId, courierId])
 }
 
 model CourierLocation {

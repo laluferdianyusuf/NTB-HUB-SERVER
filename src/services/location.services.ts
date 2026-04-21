@@ -1,42 +1,93 @@
-import { getDistance } from "geolib";
-import { LocationRepository } from "../repositories/location.repo";
+import { redis } from "config/redis.config";
+import { UserRepository } from "repositories";
 
-const locationRepository = new LocationRepository();
+const LOCATION_KEY = "locations:users";
+const userRepository = new UserRepository();
 
 export class LocationService {
-  private lastSaved: Map<string, { latitude: number; longitude: number }> =
-    new Map();
-
   async trackLocation(userId: string, latitude: number, longitude: number) {
-    const last = this.lastSaved.get(userId);
+    await redis.geoadd(LOCATION_KEY, longitude, latitude, userId);
 
-    if (last) {
-      const distance = getDistance(
-        { latitude: last.latitude, longitude: last.longitude },
-        { latitude, longitude },
-      );
-      if (distance < 10) {
-        return null;
-      }
-    }
+    await redis.set(`location:${userId}`, "1", "EX", 60);
 
-    const location = await locationRepository.save(userId, latitude, longitude);
-    this.lastSaved.set(userId, { latitude, longitude });
-
-    return location;
+    return { userId, latitude, longitude };
   }
 
-  async getUserLocations(userId: string) {
-    if (!userId) {
-      throw new Error("Missing userId");
-    }
+  async getNearbyUsers(userId: string, radius = 2000) {
+    const pos = await redis.geopos(LOCATION_KEY, userId);
 
-    const locations = await locationRepository.getLast(userId);
+    if (!pos || !pos[0]) return [];
 
-    if (!locations || locations.length === 0) {
-      throw new Error("No locations found for user");
-    }
+    const [lng, lat] = pos[0];
 
-    return locations;
+    const results = await redis.georadius(
+      LOCATION_KEY,
+      lng,
+      lat,
+      radius,
+      "m",
+      "WITHDIST",
+      "WITHCOORD",
+    );
+
+    const users = await Promise.all(
+      results
+        .map((item: any) => ({
+          userId: String(item[0]),
+          distance: parseFloat(item[1]),
+          longitude: Number(item[2][0]),
+          latitude: Number(item[2][1]),
+        }))
+        .filter((u) => String(u.userId) !== String(userId))
+        .map(async (loc) => {
+          try {
+            const cached = await redis.get(`user:${loc.userId}`);
+
+            if (cached) {
+              const user = JSON.parse(cached);
+
+              return {
+                ...loc,
+                username: user.username,
+                avatar: user.avatar,
+              };
+            }
+
+            const user = await userRepository.findById(loc.userId);
+
+            if (user) {
+              const userData = {
+                username: user.username,
+                avatar: user.photo,
+              };
+
+              await redis.set(
+                `user:${loc.userId}`,
+                JSON.stringify(userData),
+                "EX",
+                3600,
+              );
+
+              return {
+                ...loc,
+                ...userData,
+              };
+            }
+
+            return loc;
+          } catch {
+            return loc;
+          }
+        }),
+    );
+
+    return users
+      .filter(Boolean)
+      .sort((a: any, b: any) => a.distance - b.distance);
+  }
+
+  async removeUser(userId: string) {
+    await redis.zrem(LOCATION_KEY, userId);
+    await redis.del(`location:${userId}`);
   }
 }

@@ -123,4 +123,16 @@ export class MenuControllers {
       sendError(res, error.message || "Internal server error");
     }
   }
+
+  toggleMenuStatus = async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      const result = await this.menuService.toggleMenuStatus(id);
+
+      sendSuccess(res, result.data, result.message);
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
+    }
+  };
 }

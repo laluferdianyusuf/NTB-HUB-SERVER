@@ -1,7 +1,9 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "config/prisma";
 
+import { dispatchAssignDelivery } from "queue/dispatch";
 import {
+  DeliveryRepository,
   InvoiceRepository,
   LedgerRepository,
   MenuRepository,
@@ -9,9 +11,9 @@ import {
   OrderRepository,
   PaymentRepository,
   UserBalanceRepository,
+  UserRepository,
   VenueRepository,
 } from "repositories";
-
 import { AccountRepository } from "repositories/account.repo";
 import { PromotionService } from "./promotion.services";
 
@@ -24,8 +26,9 @@ const venueRepository = new VenueRepository();
 const ledgerRepository = new LedgerRepository();
 const paymentRepository = new PaymentRepository();
 const accountRepository = new AccountRepository();
-
 const promotionService = new PromotionService();
+const deliveryRepository = new DeliveryRepository();
+const userRepository = new UserRepository();
 
 export class OrderServices {
   async createNewOrder({
@@ -188,6 +191,8 @@ export class OrderServices {
       if (order.status !== "PENDING") {
         throw new Error("Invalid order status");
       }
+      const venue = await venueRepository.findVenueById(order.venueId);
+      const user = await userRepository.findById(order.userId);
 
       const userAccount = await accountRepository.findUserAccount(order.userId);
       const venueAccount = await accountRepository.findVenueAccount(
@@ -255,6 +260,17 @@ export class OrderServices {
       await invoiceRepository.markPaid(invoice.id, tx);
 
       await orderRepository.updateStatus(orderId, "SUCCESS", tx);
+
+      const delivery = await deliveryRepository.createDelivery({
+        userId: order.userId,
+        bookingId: order.bookingId ?? null,
+        pickupAddress: venue?.address as string,
+        dropoffAddress: user?.address as string,
+      });
+
+      setImmediate(() => {
+        dispatchAssignDelivery(delivery.id);
+      });
 
       return payment;
     });

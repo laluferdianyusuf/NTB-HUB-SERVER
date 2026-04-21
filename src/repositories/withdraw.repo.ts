@@ -28,6 +28,54 @@ export class WithdrawRepository {
     return prisma.withdrawRequest.findUnique({ where: { id } });
   }
 
+  async getWithdrawals(venueId: string) {
+    return prisma.withdrawRequest.findMany({
+      where: { venueId },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+
+  async getWithdrawalsByDate(venueId: string, fromDate: Date) {
+    return prisma.withdrawRequest.findMany({
+      where: {
+        venueId,
+        createdAt: {
+          gte: fromDate,
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+
+  async getWithdrawalsPaginated(venueId: string, skip = 0, take = 20) {
+    const where = { venueId };
+
+    const [data, total] = await prisma.$transaction([
+      prisma.withdrawRequest.findMany({
+        where,
+        skip,
+        take,
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+
+      prisma.withdrawRequest.count({
+        where,
+      }),
+    ]);
+
+    return {
+      data,
+      total,
+      totalPages: Math.ceil(total / take),
+    };
+  }
+
   async findByVenue(venueId: string, tx?: Prisma.TransactionClient) {
     const db = this.db(tx);
 

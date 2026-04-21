@@ -50,26 +50,35 @@ createWorker<PaymentWebhookJob>(
       }
 
       const status = payload.transaction_status;
-
       if (["capture", "settlement"].includes(status)) {
         const settlement = await paymentRepository.markSuccess(payment.id, tx);
 
         await invoiceRepository.markPaid(payment.invoiceId, tx);
 
-        const userAccount = await accountRepository.findUserAccount(
-          payment.invoice.entityId,
-        );
+        const userId = payment.invoice.entityId;
 
-        if (!userAccount) {
-          throw new Error("User account not found");
+        const userAccount = await accountRepository.findUserAccount(userId, tx);
+        const platformAccount = await accountRepository.findPlatformAccount(tx);
+
+        if (!userAccount || !platformAccount) {
+          throw new Error("Account not found");
         }
+
+        const actualAmount = Number(payment.amount) - 4440;
 
         await ledgerRepository.createMany(
           [
             {
               accountId: userAccount.id,
+              type: "DEBIT",
+              amount: actualAmount,
+              referenceType: "TOPUP",
+              referenceId: payment.invoiceId,
+            },
+            {
+              accountId: platformAccount.id,
               type: "CREDIT",
-              amount: Number(payment.amount),
+              amount: 4440,
               referenceType: "TOPUP",
               referenceId: payment.invoiceId,
             },
@@ -77,17 +86,11 @@ createWorker<PaymentWebhookJob>(
           tx,
         );
 
-        await balanceRepository.createBalance(
-          {
-            userId: payment.invoice.entityId,
-            balance: Number(payment.amount),
-          },
-          tx,
-        );
+        await balanceRepository.incrementBalance(userId, actualAmount, tx);
 
         await pointsRepository.generatePoints(
           {
-            userId: payment.invoice.entityId,
+            userId,
             points: 10,
             activity: "PAYMENT",
             reference: payment.id,
@@ -102,8 +105,6 @@ createWorker<PaymentWebhookJob>(
             payload: settlement,
           }),
         );
-
-        console.log(`[QUEUE] Payment success ${payment.id}`);
       }
 
       if (status === "expire") {

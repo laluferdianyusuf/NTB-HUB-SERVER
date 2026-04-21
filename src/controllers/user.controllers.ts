@@ -132,10 +132,21 @@ export class UserController {
 
       const data = await userService.getCurrentUser(user.id);
 
-      return res.json({
-        status: true,
-        data,
-      });
+      sendSuccess(res, data, "User retrieved");
+    } catch (error: any) {
+      console.log(error);
+
+      sendError(res, error.message || "Internal server error");
+    }
+  }
+
+  async findUserById(req: Request, res: Response) {
+    try {
+      const userId = req.params.userId as string;
+
+      const data = await userService.getUserById(userId);
+
+      sendSuccess(res, data, "User retrieved");
     } catch (error: any) {
       console.log(error);
 
@@ -145,30 +156,16 @@ export class UserController {
 
   async findAllUsers(req: Request, res: Response) {
     try {
-      const { search } = req.query;
+      const { search, limit, page, pageSize } = req.query;
 
-      const users = await userService.findAllUsers(search as string);
-
-      return res.status(200).json({
-        status: true,
-        message: "Users retrieved successfully",
-        data: users,
+      const users = await userService.findAllUsers({
+        search: search as string,
+        limit: Number(limit),
+        page: Number(page),
+        pageSize: Number(pageSize),
       });
-    } catch (error: any) {
-      sendError(res, error.message || "Internal server error");
-    }
-  }
 
-  async findDetailUser(req: Request, res: Response) {
-    try {
-      const userId = req.params.userId;
-      const user = await userService.findDetailUser(userId);
-
-      return res.status(200).json({
-        status: true,
-        message: "User retrieved successfully",
-        data: user,
-      });
+      sendSuccess(res, users, "User retrieved");
     } catch (error: any) {
       sendError(res, error.message || "Internal server error");
     }
@@ -283,7 +280,16 @@ export class UserController {
 
   async findTopSpender(req: Request, res: Response) {
     try {
-      const result = await userService.getUserTopSpender();
+      const { limit, page, pageSize } = req.query;
+      const parsedLimit = limit ? Number(limit) : undefined;
+      const parsedPage = page ? Number(page) : 1;
+      const parsedPageSize = pageSize ? Number(pageSize) : 10;
+
+      const result = await userService.getUserTopSpender({
+        limit: parsedLimit,
+        page: parsedPage,
+        pageSize: parsedPageSize,
+      });
 
       sendSuccess(res, result, "User top spender");
     } catch (error: any) {

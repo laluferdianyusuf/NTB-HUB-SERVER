@@ -24,17 +24,17 @@ export class MapsService {
 
     if (data.status !== "OK" || !data.predictions) return [];
 
-    const filtered = data.predictions.filter((p) =>
-      p.types.some((t) => allowedTypes.includes(t)),
+    const filtered = data.predictions.filter((p: any) =>
+      p.types.some((t: any) => allowedTypes.includes(t)),
     );
 
-    const slim = filtered.map((p) => {
+    const slim = filtered.map((p: any) => {
       const mainText = p.structured_formatting.main_text;
       const secondaryText = p.structured_formatting.secondary_text;
 
       const highlighted = mainText.replace(
         new RegExp(input, "gi"),
-        (match) => `${match}`,
+        (match: any) => `${match}`,
       );
 
       return {
@@ -104,7 +104,7 @@ export class MapsService {
     const slim = {
       distanceKm: leg.distance.value / 1000,
       durationMin: Math.ceil(leg.duration.value / 60),
-      steps: leg.steps.map((s) => ({
+      steps: leg.steps.map((s: any) => ({
         instruction: s.html_instructions.replace(/<[^>]+>/g, ""),
         lat: s.start_location.lat,
         lng: s.start_location.lng,

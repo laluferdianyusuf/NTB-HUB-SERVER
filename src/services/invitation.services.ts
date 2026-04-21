@@ -1,4 +1,4 @@
-import { PrismaClient, Role } from "@prisma/client";
+import { Role } from "@prisma/client";
 import { prisma } from "config/prisma";
 import { randomUUID } from "crypto";
 import {
@@ -8,10 +8,12 @@ import {
   UserRoleRepository,
 } from "repositories";
 import { sendEmail } from "utils/mail";
+import { AccountService } from "./account.services";
 const invitationKeyRepository = new InvitationKeyRepository();
 const userRoleRepository = new UserRoleRepository();
 const communityRepository = new CommunityRepository();
 const communityMemberRepository = new CommunityMemberRepository();
+const accountService = new AccountService();
 
 export class InvitationServices {
   async generateInvitationKey(email: string, venueId: string) {
@@ -138,6 +140,14 @@ export class InvitationServices {
         tx,
       );
 
+      await accountService.ensureAccount(
+        {
+          type: "VENUE",
+          venueId: invitation.venueId!,
+        },
+        tx,
+      );
+
       await invitationKeyRepository.markUsed(invitation.id, tx);
 
       return {
@@ -163,6 +173,14 @@ export class InvitationServices {
           userId,
           eventId: invitation.eventId,
           role: invitation.role,
+        },
+        tx,
+      );
+
+      await accountService.ensureAccount(
+        {
+          type: "EVENT",
+          eventId: invitation.eventId!,
         },
         tx,
       );
@@ -201,6 +219,14 @@ export class InvitationServices {
           community: { connect: { id: invitation.communityId } },
           role: "OWNER",
           status: "APPROVED",
+        },
+        tx,
+      );
+
+      await accountService.ensureAccount(
+        {
+          type: "COMMUNITY",
+          communityId: invitation.communityId!,
         },
         tx,
       );

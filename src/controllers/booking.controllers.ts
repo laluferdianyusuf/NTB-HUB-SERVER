@@ -58,8 +58,35 @@ export class BookingControllers {
 
   async getBookingByVenueId(req: Request, res: Response) {
     try {
+      const { venueId } = req.params;
+
+      const tab =
+        typeof req.query.tab === "string" ? req.query.tab : "all_book";
+
+      const search =
+        typeof req.query.search === "string" ? req.query.search : "";
+
+      const page = Number(req.query.page || 1);
+      const limit = Number(req.query.limit || 10);
+
+      const result = await this.bookingService.getBookingByVenueId(
+        venueId,
+        tab,
+        search,
+        page,
+        limit,
+      );
+
+      sendSuccess(res, result, "Booking retrieved successfully");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal Server Error");
+    }
+  }
+
+  async getVenueDashboard(req: Request, res: Response) {
+    try {
       const venueId = req.params.venueId;
-      const result = await this.bookingService.getBookingByVenueId(venueId);
+      const result = await this.bookingService.getVenueDashboard(venueId);
 
       sendSuccess(res, result, "Booking retrieved successfully");
     } catch (error: any) {
@@ -77,6 +104,19 @@ export class BookingControllers {
       sendError(res, error.message || "Internal Server Error");
     }
   }
+
+  async getBookingCompleteByUserId(req: Request, res: Response) {
+    try {
+      const userId = req.params.userId;
+      const result =
+        await this.bookingService.getBookingCompleteByUserId(userId);
+
+      sendSuccess(res, result, "Booking retrieved successfully");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal Server Error");
+    }
+  }
+
   async getBookingPendingByUserId(req: Request, res: Response) {
     try {
       const userId = req.params.userId;

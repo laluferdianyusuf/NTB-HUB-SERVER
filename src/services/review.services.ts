@@ -1,9 +1,8 @@
-import { Review } from "@prisma/client";
 import { prisma } from "config/prisma";
 import {
+  BookingRepository,
   ReviewRepository,
   VenueRepository,
-  BookingRepository,
 } from "repositories";
 import { uploadImage } from "utils/uploadS3";
 const reviewRepository = new ReviewRepository();
@@ -35,8 +34,8 @@ export class ReviewServices {
         throw new Error("Review already exists");
       }
 
-      if (booking.status !== "PAID") {
-        throw new Error("Cannot review unpaid booking");
+      if (booking.status !== "COMPLETED") {
+        throw new Error("Cannot review uncompleted booking");
       }
 
       const review = await reviewRepository.create(

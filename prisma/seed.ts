@@ -52,6 +52,7 @@ async function main() {
     create: {
       type: "PLATFORM",
       id: "platform-main-account",
+      isPlatform: true,
     },
   });
 }

@@ -17,6 +17,12 @@ export class VenueBalanceRepository {
     return venueBalance ? Number(venueBalance.balance) : null;
   }
 
+  async getVenueBalance(venueId: string) {
+    return prisma.venueBalance.findUnique({
+      where: { venueId },
+    });
+  }
+
   async incrementVenueBalance(
     venueId: string,
     amount: number,

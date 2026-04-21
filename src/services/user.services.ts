@@ -15,6 +15,7 @@ import {
   UserRoleRepository,
   VenueRepository,
 } from "../repositories";
+import { AccountService } from "./account.services";
 import { RateLimiterService } from "./rateLimiterService";
 
 const prisma = new PrismaClient();
@@ -27,6 +28,7 @@ const bookingRepository = new BookingRepository();
 const userBalanceRepository = new UserBalanceRepository();
 const userRoleRepository = new UserRoleRepository();
 const venueRepository = new VenueRepository();
+const accountService = new AccountService();
 const rateLimiter = new RateLimiterService();
 
 export class UserService {
@@ -187,7 +189,6 @@ export class UserService {
       throw new Error("UNAUTHORIZED");
     }
 
-    // cek email
     const existing = await userRepository.findByEmail(data.email);
     if (existing) throw new Error("EMAIL_ALREADY_REGISTERED");
 
@@ -200,23 +201,41 @@ export class UserService {
 
     const hashedPassword = await bcrypt.hash(data.password, 12);
 
-    const user = await userRepository.create({
-      email: data.email,
-      name: data.name,
-      username: data.username,
-      password: hashedPassword,
-      photo,
-      isVerified: true,
-    });
+    const result = await prisma.$transaction(async (tx) => {
+      const user = await userRepository.create(
+        {
+          email: data.email,
+          name: data.name,
+          username: data.username,
+          password: hashedPassword,
+          photo,
+          isVerified: true,
+        },
+        tx,
+      );
 
-    await userRoleRepository.assignGlobalRole({
-      userId: user.id,
-      role: Role.ADMIN,
+      await userRoleRepository.assignGlobalRole(
+        {
+          userId: user.id,
+          role: Role.ADMIN,
+        },
+        tx,
+      );
+
+      await accountService.ensureAccount(
+        {
+          type: "USER",
+          userId: user.id,
+        },
+        tx,
+      );
+
+      return user;
     });
 
     return {
       message: "Admin registered successfully",
-      userId: user.id,
+      userId: result.id,
     };
   }
 
@@ -251,6 +270,14 @@ export class UserService {
         {
           userId: user.id,
           role: Role.CUSTOMER,
+        },
+        tx,
+      );
+
+      await accountService.ensureAccount(
+        {
+          type: "USER",
+          userId: user.id,
         },
         tx,
       );
@@ -407,6 +434,16 @@ export class UserService {
 
     const tokens = await this.generateTokens(user.id);
 
+    await redis.set(
+      `user:${user.id}`,
+      JSON.stringify({
+        username: user.username,
+        avatar: user.photo,
+      }),
+      "EX",
+      3600,
+    );
+
     return {
       user: {
         id: user.id,
@@ -432,23 +469,51 @@ export class UserService {
     let user = await userRepository.findByEmail(String(email));
 
     if (!user) {
-      user = await userRepository.create({
-        email: String(email),
-        name: name || "Google User",
-        username: name || "Google User",
-        password: "",
-        photo: picture,
-        googleId: sub,
-        isVerified: true,
-        emailVerifyToken: null,
-        emailVerifyExpiry: null,
-      });
+      user = await prisma.$transaction(async (tx) => {
+        const newUser = await userRepository.create(
+          {
+            email: String(email),
+            name: name || "Google User",
+            username: name || "Google User",
+            password: "",
+            photo: picture,
+            googleId: sub,
+            isVerified: true,
+            emailVerifyToken: null,
+            emailVerifyExpiry: null,
+          },
+          tx,
+        );
 
-      await userRoleRepository.assignGlobalRole({
-        userId: user.id,
-        role: Role.CUSTOMER,
+        await userRoleRepository.assignGlobalRole(
+          {
+            userId: newUser.id,
+            role: Role.CUSTOMER,
+          },
+          tx,
+        );
+
+        await accountService.ensureAccount(
+          {
+            type: "USER",
+            userId: newUser.id,
+          },
+          tx,
+        );
+
+        return newUser;
       });
     }
+
+    await redis.set(
+      `user:${user.id}`,
+      JSON.stringify({
+        username: user.username,
+        avatar: user.photo,
+      }),
+      "EX",
+      3600,
+    );
 
     const tokens = await this.generateTokens(user.id);
 
@@ -504,9 +569,20 @@ export class UserService {
         role: r.role,
       }));
 
+    await redis.set(
+      `user:${user.id}`,
+      JSON.stringify({
+        username: user.username,
+        avatar: user.photo,
+      }),
+      "EX",
+      3600,
+    );
+
     return {
       id: user.id,
       name: user.name,
+      username: user.username,
       email: user.email,
       avatar: user.photo,
       isVerified: user.isVerified,
@@ -521,10 +597,95 @@ export class UserService {
     };
   }
 
-  async findAllUsers(search?: string) {
-    console.log(search);
+  async getUserById(userId: string) {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new Error("USER_NOT_FOUND");
+    }
 
-    return userRepository.findAllUsers(search);
+    const roles = await userRoleRepository.findByUserId(userId);
+
+    const globalRoles = roles
+      .filter((r) => !r.venueId && !r.eventId && r.isActive)
+      .map((r) => r.role);
+
+    const venueRoles = roles
+      .filter((r) => r.venueId && r.isActive)
+      .map((r) => ({
+        venueId: r.venueId!,
+        role: r.role,
+      }));
+
+    const eventRoles = roles
+      .filter((r) => r.eventId && r.isActive)
+      .map((r) => ({
+        eventId: r.eventId!,
+        role: r.role,
+      }));
+
+    await redis.set(
+      `user:${user.id}`,
+      JSON.stringify({
+        username: user.username,
+        avatar: user.photo,
+      }),
+      "EX",
+      3600,
+    );
+
+    return {
+      id: user.id,
+      name: user.name,
+      username: user.username,
+      email: user.email,
+      photo: user.photo,
+      isVerified: user.isVerified,
+      biometricEnabled: user.biometricEnabled,
+      profileLikeCount: user.profileLikeCount,
+      profileViewCount: user.profileViewCount,
+      roles: {
+        global: globalRoles,
+        venues: venueRoles,
+        events: eventRoles,
+      },
+    };
+  }
+
+  async findAllUsers(params?: {
+    search?: string;
+    limit?: number;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const { search, limit, page = 1, pageSize = 10 } = params || {};
+
+    const take = limit ?? pageSize;
+    const skip = (page - 1) * take;
+
+    const [users, total] = await Promise.all([
+      userRepository.findAllUsers({
+        search,
+        limit: take,
+        page,
+        pageSize: take,
+      }),
+
+      userRepository.countAllUsers({
+        search,
+      }),
+    ]);
+
+    return {
+      data: users,
+      meta: {
+        total,
+        page,
+        pageSize: take,
+        totalPages: Math.ceil(total / take),
+        hasNextPage: page * take < total,
+        hasPrevPage: page > 1,
+      },
+    };
   }
 
   async findDetailUser(userId: string) {
@@ -727,47 +888,45 @@ export class UserService {
     });
   }
 
-  async getUserTopSpender() {
-    const users = await userRepository.findAllUsers();
-    const bookings = await bookingRepository.findAllBooking();
+  async getUserTopSpender(params?: {
+    limit?: number;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const aggregated = await bookingRepository.getTotalSpendingPerUser(params);
 
-    const topSpender: Record<string, { venueId: string; totalSpend: number }> =
-      {};
+    const userIds = aggregated.map((a) => a.userId);
+    if (!userIds.length) return [];
 
-    bookings.forEach((booking) => {
-      const key = booking.userId;
-      if (!topSpender[key]) {
-        topSpender[key] = {
-          venueId: booking.venueId,
-          totalSpend: Number(booking.totalPrice),
-        };
-      } else {
-        topSpender[key].totalSpend += Number(booking.totalPrice);
+    const users = await userRepository.findUsersWithCommunities(userIds);
+
+    const venueAgg = await bookingRepository.getTopVenuePerUser(userIds);
+
+    const bestVenueMap = new Map<string, string>();
+
+    for (const v of venueAgg) {
+      if (!bestVenueMap.has(v.userId)) {
+        bestVenueMap.set(v.userId, v.venueId);
       }
+    }
+
+    const venueIds = [...new Set(venueAgg.map((v) => v.venueId))];
+    const venues = await venueRepository.findByIds(venueIds);
+
+    const venueMap = new Map(venues.map((v) => [v.id, v]));
+
+    return aggregated.map((a, index) => {
+      const user = users.find((u) => u.id === a.userId);
+
+      return {
+        id: user?.id,
+        name: user?.name,
+        avatar: user?.photo,
+        totalSpending: Number(a._sum.totalPrice || 0),
+        rank: index + 1 + ((params?.page || 1) - 1) * (params?.pageSize || 10),
+        venue: venueMap.get(bestVenueMap.get(a.userId) || ""),
+        communities: user?.communityMemberships.map((cm) => cm.community) ?? [],
+      };
     });
-
-    const result = await Promise.all(
-      users.map(async (user) => {
-        const topSpenderInfo = topSpender[user.id];
-        let venue = null;
-
-        if (topSpenderInfo?.venueId) {
-          venue = await venueRepository.findVenueById(topSpenderInfo.venueId);
-        }
-
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          avatar: user.photo,
-          events: user.eventOrders.map((eo) => eo.event),
-          venue: venue,
-          total: topSpenderInfo?.totalSpend ?? 0,
-          communities: user.communityMemberships.map((cm) => cm.community),
-        };
-      }),
-    );
-
-    return result;
   }
 }

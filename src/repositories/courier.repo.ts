@@ -1,121 +1,74 @@
-import { CourierStatus, Prisma } from "@prisma/client";
-import { prisma } from "config/prisma";
+import { Prisma } from "@prisma/client";
 
 export class CourierRepository {
-  async findById(id: string, tx?: Prisma.TransactionClient) {
-    const client = tx ?? prisma;
-
-    return client.courier.findUnique({
+  async findById(id: string, tx: Prisma.TransactionClient) {
+    return tx.courier.findUnique({
       where: { id },
-      include: {
-        locations: true,
-      },
     });
   }
 
-  async findByUserId(userId: string) {
-    return prisma.courier.findUnique({
-      where: { userId },
-    });
+  async findByIdsWithLockOrdered(ids: string[], tx: Prisma.TransactionClient) {
+    if (!ids.length) return [];
+
+    const rows = await tx.$queryRawUnsafe<any[]>(
+      `
+    SELECT * FROM "Courier"
+    WHERE id = ANY($1)
+    FOR UPDATE
+  `,
+      ids,
+    );
+
+    const map = new Map(rows.map((r) => [r.id, r]));
+
+    return ids.map((id) => map.get(id)).filter(Boolean);
   }
 
-  async updateStatus(
-    courierId: string,
-    status: CourierStatus,
-    tx?: Prisma.TransactionClient,
+  async findAvailableCouriersWithLock(
+    { limit, excludeIds }: { limit: number; excludeIds: string[] },
+    tx: Prisma.TransactionClient,
   ) {
-    const client = tx ?? prisma;
+    if (excludeIds.length === 0) {
+      return tx.$queryRawUnsafe<any[]>(`
+        SELECT * FROM "Courier"
+        WHERE status = 'ONLINE'
+        AND "isActive" = true
+        ORDER BY rating DESC
+        LIMIT ${limit}
+        FOR UPDATE SKIP LOCKED
+      `);
+    }
 
-    return client.courier.update({
-      where: { id: courierId },
-      data: { status },
-    });
-  }
+    const placeholders = excludeIds.map((_, i) => `$${i + 1}`).join(",");
 
-  async setOnline(courierId: string, tx?: Prisma.TransactionClient) {
-    return this.updateStatus(courierId, "ONLINE", tx);
-  }
-
-  async setOffline(courierId: string, tx?: Prisma.TransactionClient) {
-    return this.updateStatus(courierId, "OFFLINE", tx);
-  }
-
-  async findAvailableCouriers(limit = 20) {
-    return prisma.courier.findMany({
-      where: {
-        status: "ONLINE",
-        isActive: true,
-        deliveries: {
-          none: {
-            status: {
-              in: ["ASSIGNED", "PICKED_UP", "ON_THE_WAY"],
-            },
-          },
-        },
-      },
-      include: {
-        locations: true,
-      },
-      take: limit,
-    });
-  }
-
-  async lockCourier(courierId: string) {
-    // Raw query untuk SELECT FOR UPDATE
-    return prisma.$queryRaw`
+    return tx.$queryRawUnsafe<any[]>(
+      `
       SELECT * FROM "Courier"
-      WHERE id = ${courierId}
-      FOR UPDATE
-    `;
+      WHERE status = 'ONLINE'
+      AND "isActive" = true
+      AND id NOT IN (${placeholders})
+      ORDER BY rating DESC
+      LIMIT ${limit}
+      FOR UPDATE SKIP LOCKED
+      `,
+      ...excludeIds,
+    );
   }
 
-  async assignCourier(courierId: string, tx?: Prisma.TransactionClient) {
-    const client = tx ?? prisma;
-
-    return client.courier.update({
-      where: {
-        id: courierId,
-        status: "ONLINE",
-      },
+  async setOnDelivery(id: string, tx: Prisma.TransactionClient) {
+    return tx.courier.update({
+      where: { id },
       data: {
         status: "ON_DELIVERY",
       },
     });
   }
 
-  async incrementTripAndRating(
-    courierId: string,
-    newRating: number,
-    tx?: Prisma.TransactionClient,
-  ) {
-    const client = tx ?? prisma;
-
-    const courier = await client.courier.findUnique({
-      where: { id: courierId },
-    });
-
-    if (!courier) throw new Error("Courier not found");
-
-    const totalTrips = courier.totalTrips + 1;
-
-    const updatedRating =
-      (courier.rating * courier.totalTrips + newRating) / totalTrips;
-
-    return client.courier.update({
-      where: { id: courierId },
+  async setOnline(id: string, tx: Prisma.TransactionClient) {
+    return tx.courier.update({
+      where: { id },
       data: {
-        totalTrips,
-        rating: updatedRating,
-      },
-    });
-  }
-
-  async suspendCourier(courierId: string) {
-    return prisma.courier.update({
-      where: { id: courierId },
-      data: {
-        status: "SUSPENDED",
-        isActive: false,
+        status: "ONLINE",
       },
     });
   }

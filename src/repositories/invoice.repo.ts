@@ -26,6 +26,35 @@ export class InvoiceRepository {
     });
   }
 
+  async getInvoicesPaidByVenue(venueId: string) {
+    return prisma.invoice.findMany({
+      where: {
+        venueId,
+        status: "PAID",
+      },
+      select: {
+        id: true,
+        userId: true,
+        amount: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async getInvoicesByBookingIds(bookingIds: string[]) {
+    return prisma.invoice.findMany({
+      where: {
+        entityType: InvoiceEntityType.BOOKING,
+        entityId: { in: bookingIds },
+        status: InvoiceStatus.PAID,
+      },
+      select: {
+        entityId: true,
+        amount: true,
+      },
+    });
+  }
+
   async findActiveByEntity(
     entityType: InvoiceEntityType,
     entityId: string,
@@ -38,6 +67,85 @@ export class InvoiceRepository {
         entityId,
       },
       orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async getInvoicesByVenue(venueId: string, fromDate: Date) {
+    const bookings = await prisma.booking.findMany({
+      where: { venueId },
+      select: { id: true },
+    });
+
+    const bookingIds = bookings.map((b) => b.id);
+
+    if (!bookingIds.length) return [];
+
+    return prisma.invoice.findMany({
+      where: {
+        entityType: "BOOKING",
+        entityId: {
+          in: bookingIds,
+        },
+        createdAt: {
+          gte: fromDate,
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+
+  async getPaidInvoicesThisMonth(venueId: string, monthStart: Date) {
+    const bookings = await prisma.booking.findMany({
+      where: { venueId },
+      select: { id: true },
+    });
+
+    const ids = bookings.map((x) => x.id);
+
+    return prisma.invoice.findMany({
+      where: {
+        entityType: "BOOKING",
+        entityId: { in: ids },
+        status: "PAID",
+        createdAt: {
+          gte: monthStart,
+        },
+      },
+    });
+  }
+
+  async getPendingInvoices(venueId: string) {
+    const bookings = await prisma.booking.findMany({
+      where: { venueId },
+      select: { id: true },
+    });
+
+    const ids = bookings.map((x) => x.id);
+
+    return prisma.invoice.findMany({
+      where: {
+        entityType: "BOOKING",
+        entityId: { in: ids },
+        status: "PENDING",
+      },
+    });
+  }
+
+  async findActiveByIds(bookingIds: string[], tx?: Prisma.TransactionClient) {
+    const client = this.getClient(tx);
+
+    return client.invoice.findMany({
+      where: {
+        entityType: "BOOKING",
+        entityId: {
+          in: bookingIds,
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
     });
   }
 

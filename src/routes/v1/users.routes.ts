@@ -14,7 +14,7 @@ router.get("/all-top-spender", auth.authenticate, (req, res) =>
   userController.findTopSpender(req, res),
 );
 router.get("/detail-user/:userId", (req, res) =>
-  userController.findDetailUser(req, res),
+  userController.findUserById(req, res),
 );
 router.patch(
   "/manage-profile",

@@ -5,22 +5,128 @@ import { toNum } from "helpers/parser";
 import { GetVenuesParams } from "types/venues.params";
 import { uploadImage } from "utils/uploadS3";
 import {
+  BookingRepository,
+  InvoiceRepository,
+  UserRepository,
   VenueBalanceRepository,
   VenueImpressionRepository,
   VenueLikeRepository,
   VenueRepository,
 } from "../repositories";
 
+type Segment = "VIP" | "Returning" | "New" | "Blocked";
+
 const venueRepository = new VenueRepository();
+const userRepository = new UserRepository();
+const bookingRepository = new BookingRepository();
+const invoiceRepository = new InvoiceRepository();
 const venueBalanceRepository = new VenueBalanceRepository();
 const venueLikeRepository = new VenueLikeRepository();
 const venueImpressionRepository = new VenueImpressionRepository();
 
 export class VenueServices {
+  private getSegment(bookings: number, spent: number): Segment {
+    if (spent > 5_000_000) return "VIP";
+    if (bookings > 3) return "Returning";
+    if (bookings === 1) return "New";
+    return "Blocked";
+  }
+
+  async getCustomers(
+    venueId: string,
+    search?: string,
+    segment?: "all" | "vip" | "returning" | "new" | "blocked",
+  ) {
+    let users = await userRepository.getUsersByVenue(venueId, search);
+
+    const bookings = await bookingRepository.getBookingsByVenue(venueId);
+
+    const bookingIds = bookings.map((b) => b.id);
+
+    const invoices =
+      await invoiceRepository.getInvoicesByBookingIds(bookingIds);
+
+    const bookingMap = new Map<string, any[]>();
+
+    for (const b of bookings) {
+      if (!bookingMap.has(b.userId)) {
+        bookingMap.set(b.userId, []);
+      }
+      bookingMap.get(b.userId)!.push(b);
+    }
+
+    const invoiceMap = new Map<string, number>();
+
+    for (const inv of invoices) {
+      const prev = invoiceMap.get(inv.entityId) ?? 0;
+      invoiceMap.set(inv.entityId, prev + Number(inv.amount));
+    }
+
+    let enriched = users.map((user) => {
+      const userBookings = bookingMap.get(user.id) ?? [];
+
+      let spent = 0;
+
+      for (const b of userBookings) {
+        spent += invoiceMap.get(b.id) ?? 0;
+      }
+
+      const bookingsCount = userBookings.length;
+
+      const lastVisit =
+        userBookings.length > 0
+          ? userBookings.reduce((latest, curr) =>
+              new Date(curr.createdAt) > new Date(latest.createdAt)
+                ? curr
+                : latest,
+            ).createdAt
+          : null;
+
+      const segmentCalculated = this.getSegment(bookingsCount, spent);
+
+      return {
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        bookings: bookingsCount,
+        spent,
+        lastVisit,
+        segment: segmentCalculated,
+      };
+    });
+
+    if (segment && segment !== "all") {
+      enriched = enriched.filter((u) => u.segment.toLowerCase() === segment);
+    }
+
+    const summary = {
+      total: enriched.length,
+      vip: 0,
+      returning: 0,
+      new: 0,
+      blocked: 0,
+      totalSpent: 0,
+    };
+
+    for (const u of enriched) {
+      summary.totalSpent += u.spent;
+
+      if (u.segment === "VIP") summary.vip++;
+      if (u.segment === "Returning") summary.returning++;
+      if (u.segment === "New") summary.new++;
+      if (u.segment === "Blocked") summary.blocked++;
+    }
+
+    return {
+      data: enriched,
+      summary,
+    };
+  }
+
   async createVenue(
     payload: Venue,
     files?: {
-      image?: Express.Multer.File;
+      image?: Express.Multer.File[];
       gallery?: Express.Multer.File[];
     },
   ): Promise<Venue> {
@@ -29,7 +135,7 @@ export class VenueServices {
 
     if (files?.image) {
       const image = await uploadImage({
-        file: files?.image,
+        file: files?.image[0],
         folder: "public_places",
       });
       imageUrl = image.url;
@@ -134,6 +240,7 @@ export class VenueServices {
           venue.longitude,
         );
       }
+
       return {
         id: venue.id,
         name: venue.name,

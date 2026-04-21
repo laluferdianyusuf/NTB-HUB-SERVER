@@ -2,69 +2,62 @@ import { DeliveryStatus, Prisma } from "@prisma/client";
 import { prisma } from "config/prisma";
 
 export class DeliveryRepository {
-  async create(
+  async createDelivery(
     data: {
-      courierId: string;
       userId?: string;
-      bookingId?: string;
+      bookingId?: string | null;
       pickupAddress: string;
       dropoffAddress: string;
     },
     tx?: Prisma.TransactionClient,
   ) {
-    const client = tx ?? prisma;
+    const client = tx || prisma;
 
     return client.delivery.create({
       data: {
-        ...data,
+        userId: data.userId ?? null,
+        bookingId: data.bookingId ?? null,
+        pickupAddress: data.pickupAddress,
+        dropoffAddress: data.dropoffAddress,
         status: "PENDING",
       },
     });
   }
 
-  async findById(id: string, tx?: Prisma.TransactionClient) {
-    const client = tx ?? prisma;
-
-    return client.delivery.findUnique({
+  async updateLastAssignedAt(id: string, tx: Prisma.TransactionClient) {
+    return tx.delivery.update({
       where: { id },
-      include: {
-        courier: true,
-        user: true,
-        booking: true,
+      data: {
+        lastAssignedAt: new Date(),
       },
     });
   }
 
-  async findActiveByCourier(courierId: string) {
-    return prisma.delivery.findFirst({
-      where: {
-        courierId,
-        status: {
-          in: ["ASSIGNED", "PICKED_UP", "ON_THE_WAY"],
-        },
-      },
-    });
+  async lockDelivery(id: string, tx: Prisma.TransactionClient) {
+    const result = await tx.$queryRawUnsafe<any[]>(
+      `
+      SELECT * FROM "Delivery"
+      WHERE id = $1
+      FOR UPDATE
+    `,
+      id,
+    );
+
+    return result[0];
   }
 
-  async findPending() {
-    return prisma.delivery.findMany({
-      where: {
-        status: "PENDING",
-      },
-      orderBy: {
-        createdAt: "asc",
-      },
+  async findById(id: string, tx: Prisma.TransactionClient) {
+    return tx.delivery.findUnique({
+      where: { id },
     });
   }
 
   async assignCourier(
     deliveryId: string,
     courierId: string,
-    tx?: Prisma.TransactionClient,
+    tx: Prisma.TransactionClient,
   ) {
-    const client = tx ?? prisma;
-
-    return client.delivery.update({
+    return tx.delivery.update({
       where: { id: deliveryId },
       data: {
         courierId,
@@ -74,61 +67,80 @@ export class DeliveryRepository {
     });
   }
 
-  private allowedTransitions: Record<DeliveryStatus, DeliveryStatus[]> = {
-    PENDING: ["ASSIGNED", "CANCELLED"],
-    ASSIGNED: ["PICKED_UP", "CANCELLED"],
-    PICKED_UP: ["ON_THE_WAY"],
-    ON_THE_WAY: ["DELIVERED"],
-    DELIVERED: [],
-    CANCELLED: [],
-  };
-
   async updateStatus(
     deliveryId: string,
-    newStatus: DeliveryStatus,
-    tx?: Prisma.TransactionClient,
+    status: DeliveryStatus,
+    tx: Prisma.TransactionClient,
   ) {
-    const client = tx ?? prisma;
-
-    const delivery = await client.delivery.findUnique({
+    return tx.delivery.update({
       where: { id: deliveryId },
+      data: { status },
+    });
+  }
+
+  async incrementAttempt(deliveryId: string, tx: Prisma.TransactionClient) {
+    return tx.delivery.update({
+      where: { id: deliveryId },
+      data: {
+        attemptCount: {
+          increment: 1,
+        },
+      },
+    });
+  }
+
+  async resetToPending(deliveryId: string, tx: Prisma.TransactionClient) {
+    return tx.delivery.update({
+      where: { id: deliveryId },
+      data: {
+        status: "PENDING",
+        courierId: undefined,
+      },
+    });
+  }
+
+  async getRejectedCourierIds(
+    deliveryId: string,
+    tx: Prisma.TransactionClient,
+  ) {
+    const data = await tx.deliveryRejectedCourier.findMany({
+      where: { deliveryId },
+      select: { courierId: true },
     });
 
-    if (!delivery) throw new Error("Delivery not found");
+    return data.map((d) => d.courierId);
+  }
 
-    const allowed = this.allowedTransitions[delivery.status];
+  async addRejectedCourier(
+    deliveryId: string,
+    courierId: string,
+    tx: Prisma.TransactionClient,
+  ) {
+    return tx.deliveryRejectedCourier.upsert({
+      where: {
+        deliveryId_courierId: {
+          deliveryId,
+          courierId,
+        },
+      },
+      update: {},
+      create: {
+        deliveryId,
+        courierId,
+      },
+    });
+  }
 
-    if (!allowed.includes(newStatus)) {
-      throw new Error(
-        `Invalid status transition: ${delivery.status} → ${newStatus}`,
-      );
-    }
-
-    const data: any = {
-      status: newStatus,
-    };
-
-    // auto set timestamp
-    if (newStatus === "PICKED_UP") data.pickedUpAt = new Date();
-    if (newStatus === "DELIVERED") data.deliveredAt = new Date();
-
-    return client.delivery.update({
-      where: { id: deliveryId },
+  async createAssignmentLog(
+    data: {
+      deliveryId: string;
+      courierId: string;
+      status: string;
+    },
+    tx: Prisma.TransactionClient,
+  ) {
+    return tx.deliveryAssignmentLog.create({
       data,
     });
-  }
-
-  async cancel(deliveryId: string, tx?: Prisma.TransactionClient) {
-    const client = tx ?? prisma;
-
-    return this.updateStatus(deliveryId, "CANCELLED", tx);
-  }
-
-  async lockDelivery(deliveryId: string) {
-    return prisma.$queryRaw`
-      SELECT * FROM "Delivery"
-      WHERE id = ${deliveryId}
-      FOR UPDATE
-    `;
   }
 }

@@ -86,6 +86,7 @@ export class EventTicketController {
   async getTicketByUserId(req: Request, res: Response) {
     try {
       const { userId } = req.params;
+      console.log(userId);
 
       if (!userId) {
         return res.status(400).json({

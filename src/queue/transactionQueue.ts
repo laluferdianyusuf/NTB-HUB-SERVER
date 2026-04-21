@@ -4,7 +4,7 @@ import { PaymentRepository } from "../repositories";
 import { addDelayedJob, cancelJob, createWorker } from "./index";
 
 const paymentRepository = new PaymentRepository();
-const QUEUE_NAME = "invoice-expiry";
+const QUEUE_NAME = "transaction-expiry";
 const JOB_NAME = "expire-invoice";
 
 interface TransactionQueueJobData {

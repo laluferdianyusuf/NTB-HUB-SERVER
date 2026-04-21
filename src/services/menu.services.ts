@@ -274,4 +274,24 @@ export class MenuServices {
 
     return menus;
   }
+
+  async toggleMenuStatus(menuId: string): Promise<{
+    message: string;
+    data: Menu;
+  }> {
+    const menu = await menuRepository.findMenuById(menuId);
+
+    if (!menu) {
+      throw new Error("Menu not found");
+    }
+
+    const updatedMenu = await menuRepository.toggleMenuStatus(menuId);
+
+    return {
+      message: updatedMenu.isAvailable
+        ? "Menu activated successfully"
+        : "Menu deactivated successfully",
+      data: updatedMenu,
+    };
+  }
 }

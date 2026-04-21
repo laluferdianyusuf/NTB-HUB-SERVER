@@ -157,8 +157,16 @@ export class EventOrderService {
       const platformAccount =
         await this.accountRepository.findPlatformAccount();
 
-      if (!userAccount || !eventAccount || !platformAccount) {
-        throw new Error("Account not found");
+      if (!userAccount) {
+        throw new Error("User Account not found");
+      }
+
+      if (!eventAccount) {
+        throw new Error("Event Account not found");
+      }
+
+      if (!platformAccount) {
+        throw new Error("Platform Account not found");
       }
 
       const invoice = await this.invoiceRepo.findByEntity(
@@ -176,7 +184,7 @@ export class EventOrderService {
         throw new Error("INVOICE_EXPIRED");
       }
 
-      const balance = await this.ledgerRepository.getBalance(order.userId);
+      const balance = await this.ledgerRepository.getBalance(userAccount.id);
       const platformFee = Number(invoice.amount) * 0.1;
       const eventAmount = Number(invoice.amount) - platformFee;
 

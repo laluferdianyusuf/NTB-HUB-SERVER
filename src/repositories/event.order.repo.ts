@@ -25,8 +25,6 @@ export class EventOrderRepository {
       where: { id },
       include: {
         event: true,
-        items: true,
-        invoice: true,
         tickets: true,
       },
     });
@@ -65,7 +63,6 @@ export class EventOrderRepository {
       },
       select: {
         createdAt: true,
-        invoice: true,
         tickets: true,
         event: {
           select: {

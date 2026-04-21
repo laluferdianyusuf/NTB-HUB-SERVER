@@ -1,4 +1,4 @@
-import { PrismaClient, LocationTracking } from "@prisma/client";
+import { LocationTracking, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -29,6 +29,15 @@ export class LocationRepository {
     return await prisma.locationTracking.findFirst({
       where: { userId },
       orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async getLatestUsersLocations() {
+    return prisma.locationTracking.findMany({
+      distinct: ["userId"],
+      orderBy: {
+        createdAt: "desc",
+      },
     });
   }
 }

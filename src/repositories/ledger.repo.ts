@@ -81,6 +81,59 @@ export class LedgerRepository {
     });
   }
 
+  async getTransactions(venueId: string, skip = 0, take = 20, type?: string) {
+    const where: Prisma.LedgerEntryWhereInput = {
+      account: {
+        venueId,
+      },
+    };
+
+    if (type) {
+      where.type = type as any;
+    }
+
+    const [data, total] = await prisma.$transaction([
+      prisma.ledgerEntry.findMany({
+        where,
+        skip,
+        take,
+        include: {
+          account: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+
+      prisma.ledgerEntry.count({ where }),
+    ]);
+
+    return {
+      data,
+      total,
+      totalPages: Math.ceil(total / take),
+    };
+  }
+
+  async getTransactionsByDate(venueId: string, fromDate: Date) {
+    return prisma.ledgerEntry.findMany({
+      where: {
+        account: {
+          venueId,
+        },
+        createdAt: {
+          gte: fromDate,
+        },
+      },
+      include: {
+        account: true,
+      },
+      orderBy: {
+        createdAt: "asc",
+      },
+    });
+  }
+
   async getBalance(accountId: string, tx?: Prisma.TransactionClient) {
     const client = this.getClient(tx);
 

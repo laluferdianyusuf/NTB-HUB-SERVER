@@ -39,4 +39,8 @@ router.delete("/menu/:id", auth.authenticate, (req, res) =>
   menuController.deleteMenu(req, res),
 );
 
+router.put("/available/:id", auth.authenticate, (req, res) =>
+  menuController.toggleMenuStatus(req, res),
+);
+
 export default router;

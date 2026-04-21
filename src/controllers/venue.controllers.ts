@@ -11,7 +11,7 @@ export class VenueControllers {
   async createVenue(req: Request, res: Response) {
     try {
       const files = req.files as {
-        image?: Express.Multer.File;
+        image?: Express.Multer.File[];
         gallery?: Express.Multer.File[];
       };
 
@@ -86,6 +86,29 @@ export class VenueControllers {
       const result = await this.venueServices.getActiveVenues();
 
       sendSuccess(res, result, "Venues retrieved successfully");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal Server Error");
+    }
+  }
+
+  async getCustomers(req: Request, res: Response) {
+    try {
+      const venueId = req.params.venueId;
+      const search = req.query.search as string | undefined;
+      const segment = req.query.segment as
+        | "all"
+        | "vip"
+        | "returning"
+        | "new"
+        | "blocked"
+        | undefined;
+
+      const result = await this.venueServices.getCustomers(
+        venueId,
+        search,
+        segment,
+      );
+      sendSuccess(res, result, "Customers retrieved successfully");
     } catch (error: any) {
       sendError(res, error.message || "Internal Server Error");
     }

@@ -29,8 +29,16 @@ router.get(
   (req, res) => bookingController.getBookingByVenueId(req, res),
 );
 
+router.get("/booking/venue/dashboard/:venueId", auth.authenticate, (req, res) =>
+  bookingController.getVenueDashboard(req, res),
+);
+
 router.get("/booking/status-paid/:userId", auth.authenticate, (req, res) =>
   bookingController.getBookingPaidByUserId(req, res),
+);
+
+router.get("/booking/status-complete/:userId", auth.authenticate, (req, res) =>
+  bookingController.getBookingCompleteByUserId(req, res),
 );
 
 router.get("/booking/status-pending/:userId", auth.authenticate, (req, res) =>

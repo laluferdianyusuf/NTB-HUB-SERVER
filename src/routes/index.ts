@@ -33,6 +33,7 @@ import venueBalanceRouter from "./v1/venueBalance.routes";
 import withdrawRouter from "./v1/withdraw.routes";
 
 // V2
+import accountRouter from "./v1/account.routes";
 import commentRouter from "./v1/comment.routes";
 import communityEventAttendanceRouter from "./v1/community-event-attendance.routes";
 import communityEventRouter from "./v1/community-event.routes";
@@ -41,7 +42,9 @@ import communityMemberRouter from "./v1/community.member.routes";
 import communityPostRouter from "./v1/community.post.routes";
 import communityReactionRouter from "./v1/community.reaction.routes";
 import communityRouter from "./v1/community.routes";
+import courierRouter from "./v1/courier.routes";
 import eventAttendanceRouter from "./v1/event-attendance.routes";
+import financeRouter from "./v1/finance.routes";
 import ledgerRouter from "./v1/ledger.routes";
 import mapsRouter from "./v1/maps.routes";
 import profileRouter from "./v1/profile.routes";
@@ -106,6 +109,9 @@ v1.use("/tasks", taskRouter);
 v1.use("/profiles", profileRouter);
 v1.use("/search", searchRouter);
 v1.use("/promotion", promotionRouter);
+v1.use("/courier", courierRouter);
+v1.use("/account", accountRouter);
+v1.use("/finance", financeRouter);
 
 // mount v1 API
 router.use("/api/v1", v1);

@@ -3,7 +3,13 @@ import { prisma } from "config/prisma";
 import { publisher } from "config/redis.config";
 import { toLocalDBTime } from "helpers/formatIsoDate";
 import { cancelBookingReminders } from "queue/bookingReminderQueue";
-import { cancelInvoiceExpiry, enqueueInvoiceExpiry } from "queue/invoiceQueue";
+import {
+  cancelBookingLifecycle,
+  cancelInvoiceExpiry,
+  enqueueBookingComplete,
+  enqueueBookingStart,
+  enqueueInvoiceExpiry,
+} from "queue/invoiceQueue";
 import { AccountRepository } from "repositories/account.repo";
 import {
   BookingRepository,
@@ -260,6 +266,10 @@ export class BookingServices {
     const pendingBookings = await bookingRepository.findBookingPendingByUserId(
       result.booking.userId,
     );
+    await publishEvent("venue-events", "venue:sync", {
+      venueId: result.booking.venueId,
+      bookings: await this.getVenueDashboard(result.booking.venueId),
+    });
 
     await publishEvent("booking-events", "booking:pending", {
       userId: result.booking.userId,
@@ -349,7 +359,7 @@ export class BookingServices {
         tx,
       );
 
-      await userBalanceRepository.incrementBalance(
+      await userBalanceRepository.decrementBalance(
         userId,
         Number(invoice.amount),
       );
@@ -363,8 +373,6 @@ export class BookingServices {
 
       await bookingRepository.updateBookingStatus(booking.id, "PAID", tx);
     });
-
-    await cancelInvoiceExpiry(invoice.id);
 
     await notificationRepository.createNewNotification({
       userId: booking.userId,
@@ -390,6 +398,9 @@ export class BookingServices {
       isGlobal: false,
     } as Notification);
 
+    await enqueueBookingStart(booking.id, new Date(booking.startTime));
+    await enqueueBookingComplete(booking.id, new Date(booking.endTime));
+
     await publishEvent("booking-events", "booking:sync", {
       userId,
       bookings: await this.getBookingByUserId({
@@ -397,6 +408,13 @@ export class BookingServices {
         status: "all_book",
       }),
     });
+
+    await publishEvent("venue-events", "venue:sync", {
+      venueId: booking.venueId,
+      bookings: await this.getVenueDashboard(booking.venueId),
+    });
+
+    await cancelInvoiceExpiry(invoice.id);
 
     return { message: "Booking paid successfully" };
   }
@@ -466,8 +484,6 @@ export class BookingServices {
       search,
     });
 
-    const now = Date.now();
-
     const result = await Promise.all(
       bookings.map(async (booking) => {
         const invoice = await invoiceRepository.findActiveByEntity(
@@ -478,23 +494,20 @@ export class BookingServices {
         const start = new Date(booking.startTime).getTime();
         const end = new Date(booking.endTime).getTime();
 
-        const expiredAt = invoice?.expiredAt
-          ? new Date(invoice.expiredAt).getTime()
-          : null;
-
         let statusKey = "completed_book";
 
-        if (booking.status === "PENDING") {
-          if (expiredAt && now > expiredAt) {
-            statusKey = "expired_book";
-          } else {
-            statusKey = "paying_book";
-          }
-        } else if (booking.status === "CANCELLED") statusKey = "cancelled_book";
-        else if (booking.status === "PAID") {
-          if (now < start) statusKey = "upcoming_book";
-          else if (now >= start && now <= end) statusKey = "ongoing_book";
-          else statusKey = "completed_book";
+        if (booking.status === "EXPIRED") {
+          statusKey = "expired_book";
+        } else if (booking.status === "PENDING") {
+          statusKey = "paying_book";
+        } else if (booking.status === "CANCELLED") {
+          statusKey = "cancelled_book";
+        } else if (booking.status === "PAID") {
+          statusKey = "upcoming_book";
+        } else if (booking.status === "ONGOING") {
+          statusKey = "ongoing_book";
+        } else if (booking.status === "COMPLETED") {
+          statusKey = "completed_book";
         }
 
         if (status && status !== "all_book" && status !== statusKey) {
@@ -533,14 +546,136 @@ export class BookingServices {
     return result.filter(Boolean);
   }
 
-  async getBookingByVenueId(venueId: string) {
-    const booking = await bookingRepository.findBookingByVenueId(venueId);
+  async getBookingByVenueId(
+    venueId: string,
+    tab: string = "all_book",
+    search: string = "",
+    page: number = 1,
+    limit: number = 10,
+  ) {
+    const result = await bookingRepository.findBookingByVenueId({
+      venueId,
+      tab,
+      search,
+      page,
+      limit,
+    });
 
-    if (!booking) {
-      throw new Error("booking not found");
-    }
+    const summaryBase = await bookingRepository.findBookingByVenueId({
+      venueId,
+      tab: "all_book",
+      page: 1,
+      limit: 1,
+    });
 
-    return booking;
+    const now = new Date();
+
+    const startToday = new Date();
+    startToday.setHours(0, 0, 0, 0);
+
+    const endToday = new Date();
+    endToday.setHours(23, 59, 59, 999);
+
+    const allRows = await prisma.booking.findMany({
+      where: { venueId },
+      select: {
+        status: true,
+        startTime: true,
+        endTime: true,
+      },
+    });
+
+    const summary = {
+      today: allRows.filter(
+        (b) => b.startTime >= startToday && b.startTime <= endToday,
+      ).length,
+
+      pending: allRows.filter((b) => b.status === "PENDING").length,
+
+      confirmed: allRows.filter(
+        (b) => b.status === "PAID" && new Date(b.startTime) > now,
+      ).length,
+
+      live: allRows.filter(
+        (b) =>
+          b.status === "PAID" &&
+          new Date(b.startTime) <= now &&
+          new Date(b.endTime) >= now,
+      ).length,
+
+      completed: allRows.filter(
+        (b) =>
+          b.status === "COMPLETED" ||
+          (b.status === "PAID" && new Date(b.endTime) < now),
+      ).length,
+
+      issues: allRows.filter(
+        (b) => b.status === "CANCELLED" || b.status === "EXPIRED",
+      ).length,
+    };
+
+    const bookingIds = result.data.map((item) => item.id);
+
+    const invoices = await invoiceRepository.findActiveByIds(bookingIds);
+
+    const invoiceMap = new Map(invoices.map((inv) => [inv.entityId, inv]));
+
+    const data = result.data.map((booking) => ({
+      ...booking,
+      invoice: invoiceMap.get(booking.id) ?? null,
+    }));
+
+    return {
+      message: "Bookings fetched successfully",
+
+      filters: {
+        tab,
+        search,
+        page,
+        limit,
+      },
+
+      summary,
+
+      meta: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
+        hasNextPage: result.page < result.totalPages,
+        hasPrevPage: result.page > 1,
+        totalAllBookings: summaryBase.total,
+      },
+
+      data: data,
+    };
+  }
+
+  async getVenueDashboard(venueId: string) {
+    const dashboard = await bookingRepository.getVenueDashboard(venueId);
+
+    return {
+      message: "Venue dashboard fetched successfully",
+
+      summary: {
+        totalPending: dashboard.summary.pending,
+        totalPaid: dashboard.summary.paid,
+        totalOngoing: dashboard.summary.ongoing,
+        totalCompleted: dashboard.summary.completed,
+        totalCancelled: dashboard.summary.cancelled,
+        totalExpired: dashboard.summary.expired,
+      },
+
+      finance: {
+        revenueToday: dashboard.revenueToday,
+      },
+
+      bookings: {
+        pending: dashboard.pending,
+        ongoing: dashboard.ongoing,
+        latestCompleted: dashboard.latestCompleted,
+      },
+    };
   }
 
   async getBookingPaidByUserId(userId: string) {
@@ -551,6 +686,54 @@ export class BookingServices {
     }
 
     return booking;
+  }
+
+  async getBookingCompleteByUserId(userId: string) {
+    const bookings =
+      await bookingRepository.findBookingCompleteByUserId(userId);
+
+    if (!bookings) {
+      throw new Error("Booking not found");
+    }
+
+    const result = await Promise.all(
+      bookings.map(async (booking) => {
+        const invoice = await invoiceRepository.findActiveByEntity(
+          "BOOKING",
+          booking.id,
+        );
+
+        const start = new Date(booking.startTime).getTime();
+        const end = new Date(booking.endTime).getTime();
+
+        const totalOrder =
+          booking.orders.reduce((orderAcc, order) => {
+            const itemsTotal =
+              order.items.reduce((itemAcc, item) => {
+                return itemAcc + Number(item.subtotal ?? 0);
+              }, 0) ?? 0;
+
+            return orderAcc + itemsTotal;
+          }, 0) ?? 0;
+
+        const durationHours = (end - start) / (1000 * 60 * 60);
+        const unitPrice = booking.unit?.price ?? 0;
+        const totalField = Number(unitPrice) * durationHours;
+
+        return {
+          ...booking,
+          invoice: invoice ?? null,
+          totals: {
+            fields: totalField,
+            order: totalOrder,
+            grand: totalField + totalOrder,
+            durationHours,
+          },
+        };
+      }),
+    );
+
+    return result.filter(Boolean);
   }
 
   async getBookingPendingByUserId(userId: string) {
@@ -589,6 +772,10 @@ export class BookingServices {
 
         if (!invoice) throw new Error("Invoice invalid");
 
+        if (invoice) {
+          await cancelInvoiceExpiry(invoice.id);
+        }
+
         await ledgerRepository.createMany([
           {
             accountId: userAccount?.id as string,
@@ -617,11 +804,22 @@ export class BookingServices {
           tx,
         );
 
-        await bookingRepository.cancelBooking(id, tx);
+        await bookingRepository.updateBookingStatus(
+          booking.id,
+          "CANCELLED",
+          tx,
+        );
       });
     } else {
-      await bookingRepository.cancelBooking(id);
+      await bookingRepository.updateBookingStatus(booking.id, "CANCELLED");
     }
+
+    await publishEvent("venue-events", "venue:sync", {
+      venueId: booking.venueId,
+      bookings: await this.getVenueDashboard(booking.venueId),
+    });
+
+    await cancelBookingLifecycle(booking.id);
 
     await publishEvent("booking-events", "booking:sync", {
       userId: booking.userId,

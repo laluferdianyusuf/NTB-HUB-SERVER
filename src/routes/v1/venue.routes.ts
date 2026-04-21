@@ -19,6 +19,9 @@ router.post(
 router.get("/venue/venues", auth.authenticate, (req, res) =>
   venueController.getVenues(req, res),
 );
+router.get("/customers/:venueId", auth.authenticate, (req, res) =>
+  venueController.getCustomers(req, res),
+);
 router.get("/venue/liked-byUser/:userId", auth.authenticate, (req, res) =>
   venueController.getVenueLikedByUser(req, res),
 );

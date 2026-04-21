@@ -7,13 +7,12 @@ const searchService = new SearchService(new SearchRepository());
 export class SearchController {
   async globalSearch(req: Request, res: Response): Promise<Response> {
     try {
-      const { q, page, limit } = req.query;
-      console.log("query", q);
-
       const result = await searchService.globalSearch({
-        search: String(q ?? ""),
-        page: page ? Number(page) : 1,
-        limit: limit ? Number(limit) : 20,
+        search: req.query.search as string,
+        page: Number(req.query.page),
+        limit: Number(req.query.limit),
+        type: req.query.type as any,
+        sort: req.query.sort as any,
       });
 
       return res.status(200).json({

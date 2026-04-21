@@ -56,6 +56,32 @@ export class MenuRepository {
     });
   }
 
+  async toggleMenuStatus(
+    id: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Menu> {
+    const client = this.transaction(tx);
+
+    const menu = await client.menu.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        isAvailable: true,
+      },
+    });
+
+    if (!menu) {
+      throw new Error("Menu not found");
+    }
+
+    return client.menu.update({
+      where: { id },
+      data: {
+        isAvailable: !menu.isAvailable,
+      },
+    });
+  }
+
   async createManyMenus(
     venueId: string,
     items: Array<{
