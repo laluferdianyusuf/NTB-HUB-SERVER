@@ -1,6 +1,15 @@
-import { BookingType, PrismaClient, UnitType } from "@prisma/client";
+import { BookingType, Prisma, PrismaClient, UnitType } from "@prisma/client";
 
 const prisma = new PrismaClient();
+
+type FindAllParams = {
+  search?: string;
+  isActive?: boolean;
+  bookingType?: BookingType;
+  unitType?: UnitType;
+  skip?: number;
+  take?: number;
+};
 
 export class VenueServiceRepository {
   create(data: {
@@ -9,7 +18,7 @@ export class VenueServiceRepository {
     bookingType?: BookingType;
     unitType?: UnitType;
     config: Record<string, any>;
-    image?: string;
+    image?: string | null;
   }) {
     return prisma.venueService.create({
       data,
@@ -45,20 +54,108 @@ export class VenueServiceRepository {
       },
       include: {
         subCategory: true,
-        units: true,
+        units: {
+          where: { isActive: true },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
       },
     });
   }
 
-  findAllService(venueId: string) {
+  findAllService(venueId: string, params?: FindAllParams) {
+    const where: Prisma.VenueServiceWhereInput = {
+      venueId,
+    };
+
+    if (params?.search) {
+      where.OR = [
+        {
+          subCategory: {
+            name: {
+              contains: params.search,
+              mode: "insensitive",
+            },
+          },
+        },
+        {
+          subCategory: {
+            code: {
+              contains: params.search,
+              mode: "insensitive",
+            },
+          },
+        },
+      ];
+    }
+
+    if (params?.isActive !== undefined) {
+      where.isActive = params.isActive;
+    }
+
+    if (params?.bookingType) {
+      where.bookingType = params.bookingType;
+    }
+
+    if (params?.unitType) {
+      where.unitType = params.unitType;
+    }
+
     return prisma.venueService.findMany({
-      where: {
-        venueId,
-      },
+      where,
+      skip: params?.skip,
+      take: params?.take,
       include: {
         subCategory: true,
         units: true,
       },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+
+  countAllService(venueId: string, params?: FindAllParams) {
+    const where: Prisma.VenueServiceWhereInput = {
+      venueId,
+    };
+
+    if (params?.search) {
+      where.OR = [
+        {
+          subCategory: {
+            name: {
+              contains: params.search,
+              mode: "insensitive",
+            },
+          },
+        },
+        {
+          subCategory: {
+            code: {
+              contains: params.search,
+              mode: "insensitive",
+            },
+          },
+        },
+      ];
+    }
+
+    if (params?.isActive !== undefined) {
+      where.isActive = params.isActive;
+    }
+
+    if (params?.bookingType) {
+      where.bookingType = params.bookingType;
+    }
+
+    if (params?.unitType) {
+      where.unitType = params.unitType;
+    }
+
+    return prisma.venueService.count({
+      where,
     });
   }
 
@@ -71,6 +168,9 @@ export class VenueServiceRepository {
       include: {
         venue: true,
       },
+      orderBy: {
+        createdAt: "desc",
+      },
     });
   }
 
@@ -81,7 +181,7 @@ export class VenueServiceRepository {
       unitType?: UnitType;
       config?: Record<string, any>;
       isActive?: boolean;
-      image?: string;
+      image?: string | null;
     },
   ) {
     return prisma.venueService.update({
@@ -93,7 +193,15 @@ export class VenueServiceRepository {
   deactivate(id: string) {
     return prisma.venueService.update({
       where: { id },
-      data: { isActive: false },
+      data: {
+        isActive: false,
+      },
+    });
+  }
+
+  delete(id: string) {
+    return prisma.venueService.delete({
+      where: { id },
     });
   }
 
@@ -104,5 +212,73 @@ export class VenueServiceRepository {
         subCategoryId,
       },
     });
+  }
+
+  async getSummary(venueId: string) {
+    const [
+      total,
+      active,
+      inactive,
+      timeType,
+      sessionType,
+      fieldType,
+      roomType,
+    ] = await Promise.all([
+      prisma.venueService.count({
+        where: { venueId },
+      }),
+
+      prisma.venueService.count({
+        where: {
+          venueId,
+          isActive: true,
+        },
+      }),
+
+      prisma.venueService.count({
+        where: {
+          venueId,
+          isActive: false,
+        },
+      }),
+
+      prisma.venueService.count({
+        where: {
+          venueId,
+          bookingType: "TIME",
+        },
+      }),
+
+      prisma.venueService.count({
+        where: {
+          venueId,
+          bookingType: "SESSION",
+        },
+      }),
+
+      prisma.venueService.count({
+        where: {
+          venueId,
+          unitType: "FIELD",
+        },
+      }),
+
+      prisma.venueService.count({
+        where: {
+          venueId,
+          unitType: "ROOM",
+        },
+      }),
+    ]);
+
+    return {
+      total,
+      active,
+      inactive,
+      timeType,
+      sessionType,
+      fieldType,
+      roomType,
+    };
   }
 }

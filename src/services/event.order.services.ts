@@ -39,6 +39,7 @@ export class EventOrderService {
     );
 
     const ticketsPayload: {
+      id: string;
       userId: string;
       eventId: string;
       orderId: string;
@@ -61,6 +62,7 @@ export class EventOrderService {
         const ticketId = crypto.randomUUID();
 
         ticketsPayload.push({
+          id: ticketId,
           userId: order.userId,
           eventId: order.eventId,
           orderId: order.id,
@@ -258,8 +260,18 @@ export class EventOrderService {
     });
   }
 
-  async getEventOrders(userId: string) {
+  async getUserEvents(userId: string) {
     const orders = await this.eventOrderRepo.getUserEvents(userId);
+
+    if (!orders) {
+      throw new Error("Ticket not found");
+    }
+
+    return orders;
+  }
+
+  async getEventsOrder(eventId: string) {
+    const orders = await this.eventOrderRepo.getEventsOrder(eventId);
 
     if (!orders) {
       throw new Error("Ticket not found");

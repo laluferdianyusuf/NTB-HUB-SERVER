@@ -2,30 +2,38 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+type CreateHourInput = {
+  dayOfWeek: number;
+  opensAt: number;
+  closesAt: number;
+};
+
+type UpdateHourInput = Partial<CreateHourInput>;
+
 export class OperationalRepository {
-  async getOperationalHours(venueId: string) {
-    return await prisma.operationalHour.findMany({
+  async findAllByVenue(venueId: string) {
+    return prisma.operationalHour.findMany({
       where: { venueId },
+      orderBy: { dayOfWeek: "asc" },
     });
   }
 
-  getOperationalHourOfWeek(venueId: string, dayOfWeek: number) {
-    if (dayOfWeek === undefined || dayOfWeek === null) {
-      throw new Error("dayOfWeek is required");
-    }
+  async findByVenueAndDay(venueId: string, dayOfWeek: number) {
     return prisma.operationalHour.findFirst({
-      where: { venueId, dayOfWeek: { equals: dayOfWeek } },
+      where: {
+        venueId,
+        dayOfWeek,
+      },
     });
   }
 
-  async create(
-    venueId: string,
-    data: {
-      dayOfWeek: number;
-      opensAt: number;
-      closesAt: number;
-    },
-  ) {
+  async findById(id: string) {
+    return prisma.operationalHour.findUnique({
+      where: { id },
+    });
+  }
+
+  async create(venueId: string, data: CreateHourInput) {
     return prisma.operationalHour.create({
       data: {
         venueId,
@@ -36,41 +44,21 @@ export class OperationalRepository {
     });
   }
 
-  async createMany(
-    venueId: string,
-    hours: {
-      dayOfWeek: number;
-      opensAt: number;
-      closesAt: number;
-    }[],
-  ) {
+  async createMany(venueId: string, hours: CreateHourInput[]) {
     return prisma.operationalHour.createMany({
-      data: hours.map((h) => ({
+      data: hours.map((item) => ({
         venueId,
-        dayOfWeek: h.dayOfWeek,
-        opensAt: h.opensAt,
-        closesAt: h.closesAt,
+        dayOfWeek: item.dayOfWeek,
+        opensAt: item.opensAt,
+        closesAt: item.closesAt,
       })),
     });
   }
 
-  async update(
-    id: string,
-    data: Partial<{
-      dayOfWeek: number;
-      opensAt: number;
-      closesAt: number;
-    }>,
-  ) {
+  async update(id: string, data: UpdateHourInput) {
     return prisma.operationalHour.update({
       where: { id },
       data,
-    });
-  }
-
-  async findOperationalByVenueId(venueId: string) {
-    return await prisma.operationalHour.findMany({
-      where: { venueId },
     });
   }
 
@@ -83,7 +71,10 @@ export class OperationalRepository {
     },
   ) {
     return prisma.operationalHour.updateMany({
-      where: { venueId, dayOfWeek },
+      where: {
+        venueId,
+        dayOfWeek,
+      },
       data,
     });
   }
@@ -91,6 +82,34 @@ export class OperationalRepository {
   async delete(id: string) {
     return prisma.operationalHour.delete({
       where: { id },
+    });
+  }
+
+  async deleteByVenue(venueId: string) {
+    return prisma.operationalHour.deleteMany({
+      where: { venueId },
+    });
+  }
+
+  async upsertByDay(
+    venueId: string,
+    dayOfWeek: number,
+    opensAt: number,
+    closesAt: number,
+  ) {
+    const found = await this.findByVenueAndDay(venueId, dayOfWeek);
+
+    if (found) {
+      return this.update(found.id, {
+        opensAt,
+        closesAt,
+      });
+    }
+
+    return this.create(venueId, {
+      dayOfWeek,
+      opensAt,
+      closesAt,
     });
   }
 }

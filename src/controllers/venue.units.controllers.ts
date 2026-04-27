@@ -6,32 +6,56 @@ export class VenueUnitControllers {
 
   async createVenueUnit(req: Request, res: Response) {
     try {
-      const { venueId, serviceId, floorId, name, price, type } = req.body;
+      const { venueId, serviceId, floorId, name, price, type, isActive } =
+        req.body;
 
-      if (!venueId || !serviceId || !type) {
+      if (!venueId || !serviceId || !name || !price || !type) {
         return res.status(400).json({
           status: false,
-          message: "venueId,serviceId, name, price and type are required",
+          message: "venueId, serviceId, name, price, type are required",
         });
       }
 
-      const venueUnits = await this.venueUnitServices.create({
+      const result = await this.venueUnitServices.create({
         venueId,
         serviceId,
-        floorId: floorId ?? null,
+        floorId,
         name,
-        price,
+        price: Number(price),
         type,
+        isActive,
       });
 
       return res.status(201).json({
         status: true,
-        message: "Venue units created successfully",
-        data: venueUnits,
+        message: "Venue unit created successfully",
+        data: result,
       });
     } catch (err: any) {
-      console.log(err);
+      return res.status(400).json({
+        status: false,
+        message: err.message,
+      });
+    }
+  }
 
+  async bulkCreateVenueUnit(req: Request, res: Response) {
+    try {
+      const { venueId, serviceId, type, units } = req.body;
+
+      const result = await this.venueUnitServices.bulkCreate({
+        venueId,
+        serviceId,
+        type,
+        units,
+      });
+
+      return res.status(201).json({
+        status: true,
+        message: "Bulk units created successfully",
+        data: result,
+      });
+    } catch (err: any) {
       return res.status(400).json({
         status: false,
         message: err.message,
@@ -43,36 +67,11 @@ export class VenueUnitControllers {
     try {
       const { serviceId } = req.params;
 
-      const venueUnits = await this.venueUnitServices.getByService(serviceId);
+      const result = await this.venueUnitServices.getByService(serviceId);
 
       return res.status(200).json({
         status: true,
-        message: "Units by service retrieved successful",
-        data: venueUnits,
-      });
-    } catch (err: any) {
-      return res.status(400).json({
-        status: false,
-        message: err.message,
-      });
-    }
-  }
-
-  async getAvailabilityUnits(req: Request, res: Response) {
-    try {
-      const { venueId } = req.params;
-      const { serviceId, date } = req.query;
-      console.log(date);
-
-      const result = await this.venueUnitServices.getAvailabilityUnits(
-        venueId,
-        serviceId as string,
-        date as string,
-      );
-
-      return res.status(200).json({
-        status: true,
-        message: "Units availability retrieved successful",
+        message: "Units retrieved successfully",
         data: result,
       });
     } catch (err: any) {
@@ -87,12 +86,40 @@ export class VenueUnitControllers {
     try {
       const { venueId } = req.params;
 
-      const venueUnits = await this.venueUnitServices.getByVenue(venueId);
+      const result = await this.venueUnitServices.getByVenue(venueId);
 
       return res.status(200).json({
         status: true,
-        message: "Units by venue retrieved successful",
-        data: venueUnits,
+        message: "Venue units retrieved successfully",
+        data: result,
+      });
+    } catch (err: any) {
+      return res.status(400).json({
+        status: false,
+        message: err.message,
+      });
+    }
+  }
+
+  async getAllUnits(req: Request, res: Response) {
+    try {
+      const { venueId } = req.params;
+
+      const { search, serviceId, floorId, isActive, page, limit } = req.query;
+
+      const result = await this.venueUnitServices.getAll(venueId, {
+        search: search as string,
+        serviceId: serviceId as string,
+        floorId: floorId as string,
+        isActive: isActive !== undefined ? isActive === "true" : undefined,
+        page: Number(page || 1),
+        limit: Number(limit || 20),
+      });
+
+      return res.status(200).json({
+        status: true,
+        message: "Units list retrieved successfully",
+        ...result,
       });
     } catch (err: any) {
       return res.status(400).json({
@@ -106,12 +133,55 @@ export class VenueUnitControllers {
     try {
       const { id } = req.params;
 
-      const venueUnits = await this.venueUnitServices.getDetail(id);
+      const result = await this.venueUnitServices.getDetail(id);
 
       return res.status(200).json({
         status: true,
-        message: "Units by venue retrieved successful",
-        data: venueUnits,
+        message: "Unit detail retrieved successfully",
+        data: result,
+      });
+    } catch (err: any) {
+      return res.status(404).json({
+        status: false,
+        message: err.message,
+      });
+    }
+  }
+
+  async getSummary(req: Request, res: Response) {
+    try {
+      const { venueId } = req.params;
+
+      const result = await this.venueUnitServices.getSummary(venueId);
+
+      return res.status(200).json({
+        status: true,
+        message: "Summary retrieved successfully",
+        data: result,
+      });
+    } catch (err: any) {
+      return res.status(400).json({
+        status: false,
+        message: err.message,
+      });
+    }
+  }
+
+  async getAvailabilityUnits(req: Request, res: Response) {
+    try {
+      const { venueId } = req.params;
+      const { serviceId, date } = req.query;
+
+      const result = await this.venueUnitServices.getAvailabilityUnits(
+        venueId,
+        serviceId as string,
+        date as string,
+      );
+
+      return res.status(200).json({
+        status: true,
+        message: "Availability retrieved successfully",
+        data: result,
       });
     } catch (err: any) {
       return res.status(400).json({
@@ -124,18 +194,39 @@ export class VenueUnitControllers {
   async updateVenueUnit(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const { name, price, type } = req.body;
+      const { name, price, type, floorId, isActive } = req.body;
 
-      const venueUnits = await this.venueUnitServices.update(id, {
+      const result = await this.venueUnitServices.update(id, {
         name,
-        price,
+        price: price ? Number(price) : undefined,
         type,
+        floorId,
+        isActive,
       });
 
-      return res.status(201).json({
+      return res.status(200).json({
         status: true,
-        message: "Venue units updated successfully",
-        data: venueUnits,
+        message: "Venue unit updated successfully",
+        data: result,
+      });
+    } catch (err: any) {
+      return res.status(400).json({
+        status: false,
+        message: err.message,
+      });
+    }
+  }
+
+  async toggleStatus(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      const result = await this.venueUnitServices.toggleStatus(id);
+
+      return res.status(200).json({
+        status: true,
+        message: "Unit status updated successfully",
+        data: result,
       });
     } catch (err: any) {
       return res.status(400).json({
@@ -153,7 +244,7 @@ export class VenueUnitControllers {
 
       return res.status(200).json({
         status: true,
-        message: "Venue unit deactivated successfully",
+        message: "Venue unit deleted successfully",
       });
     } catch (err: any) {
       return res.status(400).json({

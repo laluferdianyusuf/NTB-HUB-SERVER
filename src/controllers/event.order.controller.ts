@@ -43,11 +43,23 @@ export class EventOrderController {
     }
   }
 
-  async getEventOrders(req: Request, res: Response) {
+  async getUsersOrder(req: Request, res: Response) {
     try {
       const userId = req.user?.id as string;
 
-      const order = await this.service.getEventOrders(userId);
+      const order = await this.service.getUserEvents(userId);
+
+      sendSuccess(res, order, "Event orders retrieved");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
+    }
+  }
+
+  async getEventsOrder(req: Request, res: Response) {
+    try {
+      const { eventId } = req.params;
+
+      const order = await this.service.getEventsOrder(eventId);
 
       sendSuccess(res, order, "Event orders retrieved");
     } catch (error: any) {

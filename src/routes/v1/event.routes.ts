@@ -120,7 +120,11 @@ router.get(
   "/orders",
   auth.authenticate,
   auth.authorizeGlobalRole(["CUSTOMER"]),
-  (req, res) => eventOrderController.getEventOrders(req, res),
+  (req, res) => eventOrderController.getUsersOrder(req, res),
+);
+
+router.get("/orders/by-events/:eventId", auth.authenticate, (req, res) =>
+  eventOrderController.getEventsOrder(req, res),
 );
 
 export default router;

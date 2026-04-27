@@ -121,6 +121,52 @@ export class PromotionService {
     return updated;
   }
 
+  async getSummary(venueId: string) {
+    const [total, pending, approved, rejected, active] = await Promise.all([
+      this.promotionRepo.count({
+        venueId,
+      }),
+
+      this.promotionRepo.count({
+        venueId,
+        status: "PENDING",
+      }),
+
+      this.promotionRepo.count({
+        venueId,
+        status: "APPROVED",
+      }),
+
+      this.promotionRepo.count({
+        venueId,
+        status: "REJECTED",
+      }),
+
+      this.promotionRepo.count({
+        venueId,
+        isActive: true,
+      }),
+    ]);
+
+    return {
+      total,
+      pending,
+      approved,
+      rejected,
+      active,
+    };
+  }
+
+  async getByVenue(params: {
+    venueId: string;
+    search?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    return this.promotionRepo.findByVenue(params);
+  }
+
   async applyPromotions(
     input: ApplyPromotionInput,
   ): Promise<PromotionCalculationResult[]> {

@@ -77,4 +77,35 @@ export class EventOrderRepository {
       orderBy: { createdAt: "desc" },
     });
   }
+
+  getEventsOrder(eventId: string) {
+    return prisma.eventOrder.findMany({
+      where: {
+        eventId,
+        status: "PAID",
+      },
+      select: {
+        createdAt: true,
+        tickets: true,
+        event: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+            startAt: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            photo: true,
+            username: true,
+          },
+        },
+      },
+      take: 5,
+      orderBy: { createdAt: "desc" },
+    });
+  }
 }

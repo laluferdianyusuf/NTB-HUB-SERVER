@@ -28,6 +28,15 @@ type ServiceConfig = {
   }>;
 };
 
+type QueryParams = {
+  search?: string;
+  isActive?: boolean;
+  bookingType?: BookingType;
+  unitType?: UnitType;
+  page?: number;
+  limit?: number;
+};
+
 export function validateVenueServiceConfig(
   bookingType?: BookingType | null,
   unitType?: UnitType | null,
@@ -95,15 +104,23 @@ export class VenueServiceService {
     let imageUrl: string | null = null;
 
     if (file) {
-      const image = await uploadImage({ file, folder: "venue-services" });
+      const image = await uploadImage({
+        file,
+        folder: "venue-services",
+      });
+
       imageUrl = image.url;
     }
 
     const venue = await this.venueRepository.findVenueById(venueId);
-    if (!venue) throw new Error("Venue not found");
+
+    if (!venue) {
+      throw new Error("Venue not found");
+    }
 
     const subCategory =
       await this.venueSubCategoryRepository.findById(subCategoryId);
+
     if (!subCategory || !subCategory.isActive) {
       throw new Error("Venue sub category not active or not found");
     }
@@ -112,6 +129,7 @@ export class VenueServiceService {
       venueId,
       subCategoryId,
     );
+
     if (duplicate) {
       throw new Error("Service already exists for this venue");
     }
@@ -125,18 +143,15 @@ export class VenueServiceService {
       ...(input.config || {}),
     };
 
-    const bookingType = input.bookingType;
-    const unitType = input.unitType;
-
-    validateVenueServiceConfig(bookingType, unitType, mergedConfig);
+    validateVenueServiceConfig(input.bookingType, input.unitType, mergedConfig);
 
     return this.venueServiceRepository.create({
       venueId,
       subCategoryId,
-      bookingType,
-      unitType,
+      bookingType: input.bookingType,
+      unitType: input.unitType,
       config: mergedConfig,
-      image: String(imageUrl),
+      image: imageUrl as string,
     });
   }
 
@@ -153,12 +168,19 @@ export class VenueServiceService {
     let imageUrl: string | null = null;
 
     if (file) {
-      const image = await uploadImage({ file, folder: "venue-services" });
+      const image = await uploadImage({
+        file,
+        folder: "venue-services",
+      });
+
       imageUrl = image.url;
     }
 
     const service = await this.venueServiceRepository.findById(id);
-    if (!service) throw new Error("Venue service not found");
+
+    if (!service) {
+      throw new Error("Venue service not found");
+    }
 
     if (
       input.unitType &&
@@ -171,7 +193,10 @@ export class VenueServiceService {
     const currentConfig = jsonToObject(service.config) as ServiceConfig;
 
     const mergedConfig: ServiceConfig = input.config
-      ? { ...currentConfig, ...input.config }
+      ? {
+          ...currentConfig,
+          ...input.config,
+        }
       : currentConfig;
 
     const finalBookingType = input.bookingType ?? service.bookingType;
@@ -182,35 +207,104 @@ export class VenueServiceService {
     return this.venueServiceRepository.update(id, {
       ...input,
       config: mergedConfig,
-      image: String(imageUrl),
+      image: imageUrl ?? (service.image as string),
     });
   }
 
   async getByVenue(venueId: string) {
+    const venue = await this.venueRepository.findVenueById(venueId);
+
+    if (!venue) {
+      throw new Error("Venue not found");
+    }
+
     return this.venueServiceRepository.findByVenue(venueId);
   }
 
-  async getAllServiceByVenue(venueId: string) {
-    return this.venueServiceRepository.findAllService(venueId);
+  async getAllServiceByVenue(venueId: string, query?: QueryParams) {
+    const venue = await this.venueRepository.findVenueById(venueId);
+
+    if (!venue) {
+      throw new Error("Venue not found");
+    }
+
+    const page = Number(query?.page || 1);
+    const limit = Number(query?.limit || 20);
+    const skip = (page - 1) * limit;
+
+    return this.venueServiceRepository.findAllService(venueId, {
+      search: query?.search?.trim(),
+      isActive: query?.isActive,
+      bookingType: query?.bookingType,
+      unitType: query?.unitType,
+      skip,
+      take: limit,
+    });
   }
 
   async getDetail(id: string) {
     const service = await this.venueServiceRepository.findById(id);
+
     if (!service) {
       throw new Error("Venue service not found");
     }
+
     return service;
+  }
+
+  async toggleStatus(id: string) {
+    const service = await this.venueServiceRepository.findById(id);
+
+    if (!service) {
+      throw new Error("Venue service not found");
+    }
+
+    return this.venueServiceRepository.update(id, {
+      isActive: !service.isActive,
+    });
   }
 
   async deactivate(id: string) {
     const service = await this.venueServiceRepository.findById(id);
+
     if (!service) {
       throw new Error("Venue service not found");
     }
 
-    // Optional: prevent deactivate if active bookings exist
-    // if (service.bookings.some(b => b.status === "PAID")) {}
-
     return this.venueServiceRepository.deactivate(id);
+  }
+
+  async delete(id: string) {
+    const service = await this.venueServiceRepository.findById(id);
+
+    if (!service) {
+      throw new Error("Venue service not found");
+    }
+
+    if (service.units.length > 0) {
+      throw new Error("Cannot delete service because units already exist");
+    }
+
+    return this.venueServiceRepository.delete(id);
+  }
+
+  async getSummary(venueId: string) {
+    const venue = await this.venueRepository.findVenueById(venueId);
+
+    if (!venue) {
+      throw new Error("Venue not found");
+    }
+
+    const data = await this.venueServiceRepository.findAllService(venueId);
+
+    return {
+      total: data.length,
+      active: data.filter((x) => x.isActive).length,
+      inactive: data.filter((x) => !x.isActive).length,
+      totalUnits: data.reduce((acc, item) => acc + item.units.length, 0),
+      timeType: data.filter((x) => x.bookingType === BookingType.TIME).length,
+      sessionType: data.filter((x) => x.bookingType === BookingType.SESSION)
+        .length,
+    };
   }
 }

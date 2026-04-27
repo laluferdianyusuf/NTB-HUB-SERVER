@@ -20,4 +20,12 @@ router.patch("/reject-promotion/:promotionId", auth.authenticate, (req, res) =>
   controller.rejectPromotion(req, res),
 );
 
+router.get("/summary/:venueId", auth.authenticate, (req, res) =>
+  controller.getPromotionSummary(req, res),
+);
+
+router.get("/by-venue/:venueId", auth.authenticate, (req, res) =>
+  controller.getPromotionByVenue(req, res),
+);
+
 export default router;
