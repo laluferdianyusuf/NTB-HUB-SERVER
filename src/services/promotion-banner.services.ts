@@ -1,6 +1,6 @@
 import { PromotionRedis } from "cache/promotion-banner.cache";
 import { promotionQueue } from "queue/promotion.queue";
-import { PromotionRepository } from "repositories";
+import { PromotionBannerRepository, PromotionRepository } from "repositories";
 
 enum PromotionJobType {
   VIEW = "VIEW",
@@ -8,7 +8,7 @@ enum PromotionJobType {
 }
 
 export class PromotionBannerService {
-  private repo = new PromotionRepository();
+  private repo = new PromotionBannerRepository();
   private redis = new PromotionRedis();
 
   async getActiveBanners() {

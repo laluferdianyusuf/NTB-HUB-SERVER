@@ -1,9 +1,14 @@
-import { Prisma, PromotionEntityType, PromotionType } from "@prisma/client";
+import {
+  Prisma,
+  PromotionBannerType,
+  PromotionEntityType,
+  PromotionType,
+} from "@prisma/client";
 import { prisma } from "config/prisma";
 
 export interface PromotionFilter {
   isActive?: boolean;
-  type?: PromotionType;
+  type?: PromotionBannerType;
   entityType?: PromotionEntityType;
   entityId?: string;
   now?: Date;
@@ -20,16 +25,16 @@ export class PromotionBannerRepository {
   }
 
   async create(
-    data: Prisma.PromotionCreateInput,
+    data: Prisma.PromotionBannerCreateInput,
     tx?: Prisma.TransactionClient,
   ) {
     const client = this.getClient(tx);
-    return client.promotion.create({ data });
+    return client.promotionBanner.create({ data });
   }
 
   async update(
     id: string,
-    data: Prisma.PromotionUpdateInput,
+    data: Prisma.PromotionBannerUpdateInput,
     tx?: Prisma.TransactionClient,
   ) {
     const client = this.getClient(tx);
@@ -108,7 +113,7 @@ export class PromotionBannerRepository {
     const limit = pagination.limit ?? 10;
     const skip = (page - 1) * limit;
 
-    const where: Prisma.PromotionWhereInput = {
+    const where: Prisma.PromotionBannerWhereInput = {
       ...(filter.isActive !== undefined && { isActive: filter.isActive }),
       ...(filter.type && { type: filter.type }),
       ...(filter.entityType && { entityType: filter.entityType }),

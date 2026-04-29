@@ -90,7 +90,7 @@ export class BookingServices {
 
     const dayOfWeek = startTime.getDay();
 
-    const operational = await operationalRepository.getOperationalHourOfWeek(
+    const operational = await operationalRepository.findByVenueAndDay(
       data.venueId,
       dayOfWeek,
     );

@@ -26,21 +26,6 @@ export class InvoiceRepository {
     });
   }
 
-  async getInvoicesPaidByVenue(venueId: string) {
-    return prisma.invoice.findMany({
-      where: {
-        venueId,
-        status: "PAID",
-      },
-      select: {
-        id: true,
-        userId: true,
-        amount: true,
-        createdAt: true,
-      },
-    });
-  }
-
   async getInvoicesByBookingIds(bookingIds: string[]) {
     return prisma.invoice.findMany({
       where: {
