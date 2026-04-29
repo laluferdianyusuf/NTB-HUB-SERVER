@@ -1,48 +1,73 @@
+/* =========================================================
+   controllers/venue-staff.controller.ts
+========================================================= */
+
 import { Request, Response } from "express";
+import { sendError, sendSuccess } from "helpers/response";
 import { VenueStaffService } from "services";
 
-const staffService = new VenueStaffService();
+const service = new VenueStaffService();
 
 export class VenueStaffController {
-  async addStaff(req: Request, res: Response) {
+  async create(req: Request, res: Response) {
     try {
-      const venueId = req.params.venueId;
-      const staff = await staffService.addStaff(venueId, req.body);
-      res
-        .status(201)
-        .json({ status: true, message: "Staff created", data: staff });
-    } catch (err: any) {
-      res.status(400).json({ status: false, message: err.message });
+      const { venueId } = req.params;
+
+      const result = await service.createStaff(venueId, req.body);
+
+      sendSuccess(res, result, "Staff created", 201);
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
     }
   }
 
-  async updateStaff(req: Request, res: Response) {
+  async update(req: Request, res: Response) {
     try {
       const { staffId } = req.params;
-      const staff = await staffService.updateStaff(staffId, req.body);
-      res.json({ status: true, message: "Staff updated", data: staff });
-    } catch (err: any) {
-      res.status(400).json({ status: false, message: err.message });
+
+      const result = await service.updateStaff(staffId, req.body);
+      sendSuccess(res, result, "Staff updated");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
     }
   }
 
-  async deleteStaff(req: Request, res: Response) {
+  async delete(req: Request, res: Response) {
     try {
       const { staffId } = req.params;
-      const staff = await staffService.deleteStaff(staffId);
-      res.json({ status: true, message: "Staff deleted", data: staff });
-    } catch (err: any) {
-      res.status(400).json({ status: false, message: err.message });
+
+      await service.deleteStaff(staffId);
+      sendSuccess(res, "Staff updated");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
     }
   }
 
-  async listStaff(req: Request, res: Response) {
+  async detail(req: Request, res: Response) {
     try {
-      const venueId = req.params.venueId;
-      const staffs = await staffService.listStaff(venueId);
-      res.json({ status: true, message: "Staffs retrieved", data: staffs });
-    } catch (err: any) {
-      res.status(400).json({ status: false, message: err.message });
+      const { staffId } = req.params;
+
+      const result = await service.detailStaff(staffId);
+      sendSuccess(res, result);
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
+    }
+  }
+
+  async list(req: Request, res: Response) {
+    try {
+      const venueId = req.query.venueId?.toString() || "";
+
+      const page = Number(req.query.page || 1);
+
+      const limit = Number(req.query.limit || 10);
+
+      const search = req.query.search?.toString();
+
+      const result = await service.listStaff(venueId, page, limit, search);
+      sendSuccess(res, result);
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
     }
   }
 }

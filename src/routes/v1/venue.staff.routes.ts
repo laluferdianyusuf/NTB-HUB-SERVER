@@ -3,21 +3,26 @@ import express from "express";
 import { AuthMiddlewares } from "middlewares/auth.middleware";
 
 const router = express.Router();
-const staffController = new VenueStaffController();
+
+const controller = new VenueStaffController();
 const auth = new AuthMiddlewares();
 
-// Venue Staff routes
-router.post("/create-staff/:venueId", auth.authenticate, (req, res) =>
-  staffController.addStaff(req, res),
+router.post("/create/:venueId", auth.authenticate, (req, res) =>
+  controller.create(req, res),
 );
-router.get("/list-staffs", auth.authenticate, (req, res) =>
-  staffController.listStaff(req, res),
+
+router.get("/list", auth.authenticate, (req, res) => controller.list(req, res));
+
+router.get("/detail/:staffId", auth.authenticate, (req, res) =>
+  controller.detail(req, res),
 );
-router.put("/update-staff/:staffId", auth.authenticate, (req, res) =>
-  staffController.updateStaff(req, res),
+
+router.put("/update/:staffId", auth.authenticate, (req, res) =>
+  controller.update(req, res),
 );
-router.delete("/delete-staff/:staffId", auth.authenticate, (req, res) =>
-  staffController.deleteStaff(req, res),
+
+router.delete("/delete/:staffId", auth.authenticate, (req, res) =>
+  controller.delete(req, res),
 );
 
 export default router;
