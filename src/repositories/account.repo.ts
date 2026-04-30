@@ -25,8 +25,10 @@ export class AccountRepository {
     });
   }
 
-  async upsertByUser(userId: string, tx?: any) {
-    return (tx || prisma).account.upsert({
+  async upsertByUser(userId: string, tx?: Prisma.TransactionClient) {
+    const client = tx ?? prisma;
+
+    return client.account.upsert({
       where: { userId },
       update: {},
       create: {
@@ -38,8 +40,9 @@ export class AccountRepository {
     });
   }
 
-  async upsertByVenue(venueId: string, tx?: any) {
-    return (tx || prisma).account.upsert({
+  async upsertByVenue(venueId: string, tx?: Prisma.TransactionClient) {
+    const client = tx ?? prisma;
+    return client.account.upsert({
       where: { venueId },
       update: {},
       create: {
@@ -51,8 +54,10 @@ export class AccountRepository {
     });
   }
 
-  async upsertByEvent(eventId: string, tx?: any) {
-    return (tx || prisma).account.upsert({
+  async upsertByEvent(eventId: string, tx?: Prisma.TransactionClient) {
+    const client = tx ?? prisma;
+
+    return client.account.upsert({
       where: { eventId },
       update: {},
       create: {
@@ -64,8 +69,10 @@ export class AccountRepository {
     });
   }
 
-  async upsertByCommunity(communityId: string, tx?: any) {
-    return (tx || prisma).account.upsert({
+  async upsertByCommunity(communityId: string, tx?: Prisma.TransactionClient) {
+    const client = tx ?? prisma;
+
+    return client.account.upsert({
       where: { communityId },
       update: {},
       create: {
@@ -77,8 +84,9 @@ export class AccountRepository {
     });
   }
 
-  async upsertByCourier(courierId: string, tx?: any) {
-    return (tx || prisma).account.upsert({
+  async upsertByCourier(courierId: string, tx?: Prisma.TransactionClient) {
+    const client = tx ?? prisma;
+    return client.account.upsert({
       where: { courierId },
       update: {},
       create: {
@@ -100,8 +108,9 @@ export class AccountRepository {
     });
   }
 
-  async findVenueAccount(venueId: string) {
-    return prisma.account.findFirst({
+  async findVenueAccount(venueId: string, tx?: Prisma.TransactionClient) {
+    const client = tx ?? prisma;
+    return client.account.findFirst({
       where: {
         venueId,
         type: "VENUE",

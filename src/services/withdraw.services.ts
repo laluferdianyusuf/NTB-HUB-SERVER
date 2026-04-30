@@ -1,6 +1,5 @@
 import { Notification, Role, WithdrawStatus } from "@prisma/client";
 import { prisma } from "config/prisma";
-import crypto from "crypto";
 
 import {
   AccountRepository,
@@ -14,6 +13,15 @@ import { NotificationService } from "./notification.services";
 
 const PLATFORM_WITHDRAW_FEE = 2500;
 
+const VALID_TRANSITIONS: Record<WithdrawStatus, WithdrawStatus[]> = {
+  PENDING: ["APPROVED", "REJECTED"],
+  APPROVED: ["PROCESSING"],
+  PROCESSING: ["PAID", "FAILED"],
+  PAID: [],
+  REJECTED: [],
+  FAILED: [],
+};
+
 export class WithdrawService {
   private withdrawRepo = new WithdrawRepository();
   private notificationRepo = new NotificationRepository();
@@ -21,6 +29,14 @@ export class WithdrawService {
   private notificationService = new NotificationService();
   private accountRepository = new AccountRepository();
   private ledgerRepository = new LedgerRepository();
+
+  private validateTransition(current: WithdrawStatus, next: WithdrawStatus) {
+    const allowed = VALID_TRANSITIONS[current] || [];
+
+    if (!allowed.includes(next)) {
+      throw new Error(`Invalid status transition from ${current} → ${next}`);
+    }
+  }
 
   async requestWithdraw(
     currentUserId: string,
@@ -50,28 +66,25 @@ export class WithdrawService {
       }));
 
     if (!hasPermission) {
-      throw new Error("You are not authorized to request withdraw");
+      throw new Error("Unauthorized");
     }
 
     const venue = await prisma.venue.findUnique({
       where: { id: venueId },
     });
 
-    if (!venue) {
-      throw new Error("Venue not found");
-    }
+    if (!venue) throw new Error("Venue not found");
 
-    const withdrawNumber = `WD-${crypto
-      .randomUUID()
-      .slice(0, 8)
-      .toUpperCase()}`;
+    const withdrawNumber = `WD-${Date.now()}-${Math.floor(
+      Math.random() * 1000,
+    )}`;
 
     const netAmount = payload.amount - PLATFORM_WITHDRAW_FEE;
 
     return prisma.$transaction(async (tx) => {
       const withdraw = await this.withdrawRepo.create(
         {
-          venueId,
+          venue: { connect: { id: venueId } },
           withdrawNumber,
           amount: payload.amount,
           fee: PLATFORM_WITHDRAW_FEE,
@@ -111,77 +124,85 @@ export class WithdrawService {
     });
   }
 
-  async approveWithdraw(id: string) {
-    const withdraw = await this.withdrawRepo.findById(id);
-
-    if (!withdraw || withdraw.status !== WithdrawStatus.PENDING) {
-      throw new Error("Withdraw not valid for approval");
-    }
-
+  async approveWithdraw(id: string, adminId: string) {
     return prisma.$transaction(async (tx) => {
-      const result = await this.withdrawRepo.updateStatus(
+      const rows: any = await this.withdrawRepo.findByIdForUpdate(id, tx);
+
+      if (!rows?.length) throw new Error("Withdraw not found");
+
+      const withdraw = rows[0];
+
+      this.validateTransition(withdraw.status, WithdrawStatus.APPROVED);
+
+      const result = await this.withdrawRepo.update(
         id,
-        WithdrawStatus.APPROVED,
-        "approvedAt",
-        tx,
-      );
-
-      await this.notificationRepo.createNewNotification(
         {
-          venueId: withdraw.venueId,
-          title: "Withdraw Approved",
-          message: `Your withdraw IDR ${withdraw.amount} has been approved`,
-          type: "Withdraw",
-          adminOnly: false,
-          isGlobal: false,
-        } as Notification,
+          status: WithdrawStatus.APPROVED,
+          approvedAt: new Date(),
+          approvedBy: adminId,
+        },
         tx,
-      );
-
-      await this.notificationService.sendToVenueOwner(
-        withdraw.venueId,
-        "Withdraw Approved",
-        `Your withdraw IDR ${withdraw.amount} has been approved`,
       );
 
       return result;
     });
   }
 
-  async markAsPaid(id: string) {
-    const withdraw = await this.withdrawRepo.findById(id);
-
-    if (!withdraw) {
-      throw new Error("Withdraw not found");
-    }
-
-    if (withdraw.status === WithdrawStatus.PAID) {
-      throw new Error("Withdraw already paid");
-    }
-
-    if (withdraw.status !== WithdrawStatus.APPROVED) {
-      throw new Error("Withdraw not approved");
-    }
-
-    const venueAccount = await this.accountRepository.findVenueAccount(
-      withdraw.venueId,
-    );
-
-    const platformAccount = await this.accountRepository.findPlatformAccount();
-
-    if (!venueAccount || !platformAccount) {
-      throw new Error("Account not found");
-    }
-
-    const balance = await this.ledgerRepository.getBalanceByOwner({
-      venueId: venueAccount.id,
-    });
-
-    if (Number(balance.totalBalance) < Number(withdraw.amount)) {
-      throw new Error("Insufficient balance");
-    }
-
+  async markProcessing(id: string, adminId: string) {
     return prisma.$transaction(async (tx) => {
+      const rows: any = await this.withdrawRepo.findByIdForUpdate(id, tx);
+
+      if (!rows?.length) throw new Error("Withdraw not found");
+
+      const withdraw = rows[0];
+
+      this.validateTransition(withdraw.status, WithdrawStatus.PROCESSING);
+
+      return this.withdrawRepo.update(
+        id,
+        {
+          status: WithdrawStatus.PROCESSING,
+        },
+        tx,
+      );
+    });
+  }
+
+  async markAsPaid(id: string, adminId: string, proofUrl: string) {
+    return prisma.$transaction(async (tx) => {
+      const rows: any = await this.withdrawRepo.findByIdForUpdate(id, tx);
+
+      if (!rows?.length) throw new Error("Withdraw not found");
+
+      const withdraw = rows[0];
+
+      this.validateTransition(withdraw.status, WithdrawStatus.PAID);
+
+      if (!proofUrl) {
+        throw new Error("Proof is required");
+      }
+
+      const venueAccount = await this.accountRepository.findVenueAccount(
+        withdraw.venueId,
+        tx,
+      );
+
+      const platformAccount =
+        await this.accountRepository.findPlatformAccount(tx);
+
+      if (!venueAccount || !platformAccount) {
+        throw new Error("Account not found");
+      }
+
+      const balance = await this.ledgerRepository.getBalanceByOwner(
+        { venueId: venueAccount.id },
+        tx,
+      );
+
+      if (Number(balance.totalBalance) < Number(withdraw.amount)) {
+        throw new Error("Insufficient balance");
+      }
+
       await this.ledgerRepository.createMany(
         [
           {
@@ -202,49 +223,39 @@ export class WithdrawService {
         tx,
       );
 
-      return this.withdrawRepo.updateStatus(
+      return this.withdrawRepo.update(
         id,
-        WithdrawStatus.PAID,
-        "paidAt",
+        {
+          status: WithdrawStatus.PAID,
+          paidAt: new Date(),
+          paidBy: adminId,
+          proofUrl,
+        },
         tx,
       );
     });
   }
 
-  async rejectWithdraw(id: string) {
-    const withdraw = await this.withdrawRepo.findById(id);
-
-    if (!withdraw || withdraw.status !== WithdrawStatus.PENDING) {
-      throw new Error("Withdraw not valid for rejection");
-    }
-
+  async rejectWithdraw(id: string, adminId: string, reason: string) {
     return prisma.$transaction(async (tx) => {
-      const result = await this.withdrawRepo.updateStatus(
+      const rows: any = await this.withdrawRepo.findByIdForUpdate(id, tx);
+
+      if (!rows?.length) throw new Error("Withdraw not found");
+
+      const withdraw = rows[0];
+
+      this.validateTransition(withdraw.status, WithdrawStatus.REJECTED);
+
+      return this.withdrawRepo.update(
         id,
-        WithdrawStatus.REJECTED,
-        null,
-        tx,
-      );
-
-      await this.notificationRepo.createNewNotification(
         {
-          venueId: withdraw.venueId,
-          title: "Withdraw Rejected",
-          message: `Your withdraw IDR ${withdraw.amount} has been rejected`,
-          type: "Withdraw",
-          adminOnly: false,
-          isGlobal: false,
-        } as Notification,
+          status: WithdrawStatus.REJECTED,
+          rejectedAt: new Date(),
+          rejectedBy: adminId,
+          failureReason: reason,
+        },
         tx,
       );
-
-      await this.notificationService.sendToVenueOwner(
-        withdraw.venueId,
-        "Withdraw Rejected",
-        `Your withdraw IDR ${withdraw.amount} has been rejected`,
-      );
-
-      return result;
     });
   }
 
@@ -258,12 +269,15 @@ export class WithdrawService {
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([
-      this.withdrawRepo.findAll({
-        status: params?.status,
+      prisma.withdrawRequest.findMany({
+        where: { status: params?.status },
         skip,
         take: limit,
+        orderBy: { createdAt: "desc" },
       }),
-      this.withdrawRepo.count(params?.status),
+      prisma.withdrawRequest.count({
+        where: { status: params?.status },
+      }),
     ]);
 
     return {
@@ -278,12 +292,6 @@ export class WithdrawService {
   }
 
   async getWithdrawsByVenue(venueId: string) {
-    const result = await this.withdrawRepo.findByVenue(venueId);
-
-    if (!result || result.length === 0) {
-      throw new Error("No withdraws found");
-    }
-
-    return result;
+    return this.withdrawRepo.listByVenue(venueId);
   }
 }

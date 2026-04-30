@@ -1,71 +1,109 @@
 import { Request, Response } from "express";
-import { sendError, sendSuccess } from "helpers/response";
+import { WithdrawStatus } from "@prisma/client";
 import { WithdrawService } from "services";
+import { sendError, sendSuccess } from "helpers/response";
 
-const withdrawService = new WithdrawService();
+const service = new WithdrawService();
 
 export class WithdrawController {
   async request(req: Request, res: Response) {
     try {
       const { venueId } = req.params;
-      const result = await withdrawService.requestWithdraw(
-        req.user?.id as string,
+      const currentUserId = req.user?.id as string;
+
+      const result = await service.requestWithdraw(
+        currentUserId,
         venueId,
         req.body,
       );
 
-      sendSuccess(res, result, "Withdraw send to admin", 201);
-    } catch (error: any) {
-      sendError(res, error.message || "Internal Server Error");
+      sendSuccess(res, result, "Withdraw created", 201);
+    } catch (err: any) {
+      sendError(res, err || "Internal server error");
     }
   }
 
   async approve(req: Request, res: Response) {
     try {
-      const result = await withdrawService.approveWithdraw(req.params.id);
-      sendSuccess(res, result, "Withdraw approved", 201);
-    } catch (error: any) {
-      sendError(res, error.message || "Internal Server Error");
+      const { id } = req.params;
+      const adminId = req.user?.id as string;
+
+      const result = await service.approveWithdraw(id, adminId);
+
+      sendSuccess(res, result, "Withdraw approved");
+    } catch (err: any) {
+      sendError(res, err || "Internal server error");
+    }
+  }
+
+  async processing(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const adminId = req.user?.id as string;
+
+      const result = await service.markProcessing(id, adminId);
+      sendSuccess(res, result, "Withdraw marked as processing");
+    } catch (err: any) {
+      sendError(res, err || "Internal server error");
+    }
+  }
+
+  async paid(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const adminId = req.user?.id as string;
+      const { proofUrl } = req.body;
+
+      const result = await service.markAsPaid(id, adminId, proofUrl);
+
+      sendSuccess(res, result, "Withdraw marked as paid");
+    } catch (err: any) {
+      sendError(res, err || "Internal server error");
     }
   }
 
   async reject(req: Request, res: Response) {
     try {
-      const result = await withdrawService.rejectWithdraw(req.params.id);
+      const { id } = req.params;
+      const adminId = req.user?.id as string;
+      const { reason } = req.body;
 
-      sendSuccess(res, result, "Withdraw rejected", 201);
-    } catch (error: any) {
-      sendError(res, error.message || "Internal Server Error");
+      if (!reason) {
+        sendError(res, "reject reason is required");
+      }
+
+      const result = await service.rejectWithdraw(id, adminId, reason);
+
+      sendSuccess(res, result, "Withdraw rejected");
+    } catch (err: any) {
+      sendError(res, err || "Internal server error");
     }
   }
 
-  async markAsPaid(req: Request, res: Response) {
+  async list(req: Request, res: Response) {
     try {
-      const result = await withdrawService.markAsPaid(req.params.id);
+      const { status, page, limit } = req.query;
 
-      sendSuccess(res, result, "Withdraw paid successfully");
-    } catch (error: any) {
-      sendError(res, error.message || "Internal Server Error");
+      const result = await service.getAllWithdraws({
+        status: status as WithdrawStatus,
+        page: page ? Number(page) : 1,
+        limit: limit ? Number(limit) : 20,
+      });
+      sendSuccess(res, result, "Withdrawal retrieved");
+    } catch (err: any) {
+      sendError(res, err || "Internal server error");
     }
   }
 
-  async venueWithdraws(req: Request, res: Response) {
+  async byVenue(req: Request, res: Response) {
     try {
       const { venueId } = req.params;
-      const result = await withdrawService.getWithdrawsByVenue(venueId);
 
-      sendSuccess(res, result, "Withdraw retrieved successfully");
-    } catch (error: any) {
-      sendError(res, error.message || "Internal Server Error");
-    }
-  }
+      const result = await service.getWithdrawsByVenue(venueId);
 
-  async allWithdraws(req: Request, res: Response) {
-    try {
-      const result = await withdrawService.getAllWithdraws();
-      sendSuccess(res, result, "Withdraw retrieved successfully");
-    } catch (error: any) {
-      sendError(res, error.message || "Internal Server Error");
+      sendSuccess(res, result, "Withdrawal retrieved");
+    } catch (err: any) {
+      sendError(res, err || "Internal server error");
     }
   }
 }

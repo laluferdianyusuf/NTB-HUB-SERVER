@@ -1,40 +1,27 @@
-import { Prisma, WithdrawStatus } from "@prisma/client";
-import { prisma } from "config/prisma";
+import { Prisma, PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 export class WithdrawRepository {
-  private db(tx?: Prisma.TransactionClient) {
-    return tx ?? prisma;
-  }
-
-  create(
-    data: {
-      venueId: string;
-      withdrawNumber: string;
-      amount: number;
-      fee: number;
-      netAmount: number;
-      bankCode: string;
-      bankAccount: string;
-      accountName: string;
-      note?: string;
-    },
+  async create(
+    data: Prisma.WithdrawRequestCreateInput,
     tx?: Prisma.TransactionClient,
   ) {
-    const client = this.db(tx);
-    return client.withdrawRequest.create({ data });
+    const db = tx ?? prisma;
+    return db.withdrawRequest.create({ data });
   }
 
-  findById(id: string) {
-    return prisma.withdrawRequest.findUnique({ where: { id } });
-  }
-
-  async getWithdrawals(venueId: string) {
-    return prisma.withdrawRequest.findMany({
-      where: { venueId },
-      orderBy: {
-        createdAt: "desc",
-      },
+  async findById(id: string) {
+    return prisma.withdrawRequest.findUnique({
+      where: { id },
     });
+  }
+
+  async findByIdForUpdate(id: string, tx: Prisma.TransactionClient) {
+    return tx.$queryRawUnsafe(
+      `SELECT * FROM "WithdrawRequest" WHERE id = $1 FOR UPDATE`,
+      id,
+    );
   }
 
   async getWithdrawalsByDate(venueId: string, fromDate: Date) {
@@ -51,93 +38,57 @@ export class WithdrawRepository {
     });
   }
 
-  async getWithdrawalsPaginated(venueId: string, skip = 0, take = 20) {
-    const where = { venueId };
-
-    const [data, total] = await prisma.$transaction([
+  async getWithdrawalsPaginated(venueId: string, skip: number, take: number) {
+    const [data, total] = await Promise.all([
       prisma.withdrawRequest.findMany({
-        where,
+        where: { venueId },
+        orderBy: { createdAt: "desc" },
         skip,
         take,
-        orderBy: {
-          createdAt: "desc",
-        },
       }),
-
       prisma.withdrawRequest.count({
-        where,
+        where: { venueId },
       }),
     ]);
 
     return {
       data,
       total,
-      totalPages: Math.ceil(total / take),
     };
   }
 
-  async findByVenue(venueId: string, tx?: Prisma.TransactionClient) {
-    const db = this.db(tx);
-
-    return db.withdrawRequest.findMany({
-      where: { venueId },
-      orderBy: { createdAt: "desc" },
-    });
-  }
-
-  async findAll(
-    params?: {
-      status?: WithdrawStatus;
-      skip?: number;
-      take?: number;
-    },
-    tx?: Prisma.TransactionClient,
-  ) {
-    const db = this.db(tx);
-
-    return db.withdrawRequest.findMany({
+  async sumWithdrawalsByStatus(venueId: string, fromDate: Date) {
+    return prisma.withdrawRequest.groupBy({
+      by: ["status"],
       where: {
-        ...(params?.status && { status: params.status }),
-      },
-      include: {
-        venue: {
-          select: {
-            id: true,
-            name: true,
-          },
+        venueId,
+        createdAt: {
+          gte: fromDate,
         },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
-      skip: params?.skip ?? 0,
-      take: params?.take ?? 20,
-    });
-  }
-
-  async count(status?: WithdrawStatus, tx?: Prisma.TransactionClient) {
-    const db = this.db(tx);
-
-    return db.withdrawRequest.count({
-      where: {
-        ...(status && { status }),
+      _sum: {
+        amount: true,
       },
     });
   }
 
-  updateStatus(
+  async update(
     id: string,
-    status: WithdrawStatus,
-    dateField?: "approvedAt" | "paidAt" | null,
+    data: Prisma.WithdrawRequestUpdateInput,
     tx?: Prisma.TransactionClient,
   ) {
-    const client = this.db(tx);
-    return client.withdrawRequest.update({
+    const db = tx ?? prisma;
+
+    return db.withdrawRequest.update({
       where: { id },
-      data: {
-        status,
-        ...(dateField ? { [dateField]: new Date() } : {}),
-      },
+      data,
+    });
+  }
+
+  async listByVenue(venueId: string) {
+    return prisma.withdrawRequest.findMany({
+      where: { venueId },
+      orderBy: { createdAt: "desc" },
     });
   }
 }

@@ -63,10 +63,13 @@ export class VenueStaffController {
       const limit = Number(req.query.limit || 10);
 
       const search = req.query.search?.toString();
+      console.log(venueId);
 
       const result = await service.listStaff(venueId, page, limit, search);
       sendSuccess(res, result);
     } catch (error: any) {
+      console.log(error);
+
       sendError(res, error.message || "Internal server error");
     }
   }

@@ -1,39 +1,37 @@
 import { WithdrawController } from "controllers";
-import { Router } from "express";
+import express from "express";
 import { AuthMiddlewares } from "middlewares/auth.middleware";
 
-const router = Router();
-const auth = new AuthMiddlewares();
+const router = express.Router();
 const controller = new WithdrawController();
+const auth = new AuthMiddlewares();
 
-/* VENUE */
-router.post("/request/:id", auth.authenticate, controller.request);
-router.get("/my/:venueId", auth.authenticate, controller.venueWithdraws);
+// user
+router.post("/request/:venueId", auth.authenticate, (req, res) =>
+  controller.request(req, res),
+);
 
-/* ADMIN */
-router.get(
-  "/admin",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["ADMIN"]),
-  controller.allWithdraws,
+router.get("/venue/:venueId", auth.authenticate, (req, res) =>
+  controller.byVenue(req, res),
 );
-router.patch(
-  "/admin/:id/approve",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["ADMIN"]),
-  controller.approve,
+
+// admin
+router.get("/", auth.authenticate, (req, res) => controller.list(req, res));
+
+router.post("/:id/approve", auth.authenticate, (req, res) =>
+  controller.approve(req, res),
 );
-router.patch(
-  "/admin/:id/reject",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["ADMIN"]),
-  controller.reject,
+
+router.post("/:id/processing", auth.authenticate, (req, res) =>
+  controller.processing(req, res),
 );
-router.patch(
-  "/admin/:id/paid",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["ADMIN"]),
-  controller.markAsPaid,
+
+router.post("/:id/paid", auth.authenticate, (req, res) =>
+  controller.paid(req, res),
+);
+
+router.post("/:id/reject", auth.authenticate, (req, res) =>
+  controller.reject(req, res),
 );
 
 export default router;

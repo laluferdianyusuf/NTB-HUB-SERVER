@@ -32,8 +32,16 @@ export class FinanceService {
     }
   }
 
+  private sumAmount(data: any[]) {
+    return data.reduce((sum, item) => sum + Number(item.amount), 0);
+  }
+
   async getDashboard(venueId: string, range: RangeType = "30d") {
     const fromDate = this.getDateRange(range);
+
+    const previousFromDate = dayjs(fromDate)
+      .subtract(dayjs().diff(fromDate, "day"), "day")
+      .toDate();
 
     const [
       balance,
@@ -53,41 +61,32 @@ export class FinanceService {
 
       bookingRepo.findCompletedBookingsByVenue(venueId, fromDate),
 
-      invoiceRepo.getInvoicesByVenue(
-        venueId,
-        dayjs(fromDate).subtract(dayjs().diff(fromDate, "day"), "day").toDate(),
-      ),
+      invoiceRepo.getInvoicesByVenue(venueId, previousFromDate),
     ]);
 
     const paidInvoices = invoices.filter((x) => x.status === "PAID");
     const pendingInvoices = invoices.filter((x) => x.status === "PENDING");
     const expiredInvoices = invoices.filter((x) => x.status === "EXPIRED");
 
-    const grossRevenue = paidInvoices.reduce(
-      (sum, item) => sum + Number(item.amount),
-      0,
-    );
+    const grossRevenue = this.sumAmount(paidInvoices);
 
     const platformFees = grossRevenue * 0.1;
 
-    const refundAmount = ledgers
-      .filter((x) => x.referenceType === "REFUND")
-      .reduce((sum, item) => sum + Number(item.amount), 0);
+    const refundAmount = this.sumAmount(
+      ledgers.filter((x) => x.referenceType === "REFUND"),
+    );
 
     const netRevenue = grossRevenue - platformFees - refundAmount;
 
-    const pendingSettlement = pendingInvoices.reduce(
-      (sum, item) => sum + Number(item.amount),
-      0,
+    const pendingSettlement = this.sumAmount(pendingInvoices);
+
+    const totalWithdrawn = this.sumAmount(
+      withdrawals.filter((x) => x.status === "PAID"),
     );
 
-    const totalWithdrawn = withdrawals
-      .filter((x) => x.status === "APPROVED")
-      .reduce((sum, item) => sum + Number(item.amount), 0);
-
-    const processingWithdraw = withdrawals
-      .filter((x) => x.status === "PENDING")
-      .reduce((sum, item) => sum + Number(item.amount), 0);
+    const processingWithdraw = this.sumAmount(
+      withdrawals.filter((x) => ["PENDING", "APPROVED"].includes(x.status)),
+    );
 
     const avgBookingValue =
       bookings.length > 0 ? grossRevenue / bookings.length : 0;
@@ -99,10 +98,7 @@ export class FinanceService {
       (x) => x.status === "PAID" && dayjs(x.createdAt).isBefore(fromDate),
     );
 
-    const previousRevenue = prevPaid.reduce(
-      (sum, item) => sum + Number(item.amount),
-      0,
-    );
+    const previousRevenue = this.sumAmount(prevPaid);
 
     const growth =
       previousRevenue > 0
@@ -110,7 +106,6 @@ export class FinanceService {
         : 0;
 
     const cashflow = this.buildCashflow(paidInvoices);
-    console.log(balance);
 
     return {
       summary: {
@@ -179,7 +174,6 @@ export class FinanceService {
 
   async getSummary(venueId: string) {
     const data = await this.getDashboard(venueId, "30d");
-
     return data.summary;
   }
 

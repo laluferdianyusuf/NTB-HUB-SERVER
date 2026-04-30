@@ -59,8 +59,10 @@ enum InvoiceStatus {
 enum WithdrawStatus {
   PENDING
   APPROVED
-  REJECTED
+  PROCESSING
   PAID
+  REJECTED
+  FAILED
 }
 
 enum EventStatus {
@@ -989,25 +991,37 @@ model Invoice {
 }
 
 model WithdrawRequest {
-  id             String         @id @default(uuid())
+  id             String   @id @default(uuid())
   venueId        String
-  amount         Decimal        @db.Decimal(18, 2)
-  fee            Decimal        @default(0) @db.Decimal(18, 2)
-  netAmount      Decimal        @db.Decimal(18, 2)
+
+  withdrawNumber String   @unique
+
+  amount         Decimal  @db.Decimal(18, 2)
+  fee            Decimal  @default(0) @db.Decimal(18, 2)
+  netAmount      Decimal  @db.Decimal(18, 2)
+
   status         WithdrawStatus @default(PENDING)
-  withdrawNumber String         @unique
+  failureReason  String?
 
-  bankCode    String
-  bankAccount String
-  accountName String
-  note        String?
+  bankCode       String
+  bankAccount    String
+  accountName    String
 
-  requestedAt DateTime  @default(now())
+  requestedAt DateTime @default(now())
   approvedAt  DateTime?
+  rejectedAt  DateTime?
   paidAt      DateTime?
 
+  approvedBy  String?
+  rejectedBy  String?
+  paidBy      String?
+
+  proofUrl     String?   
+
+  note         String?
+
   createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  updatedAt DateTime @updatedAt
 
   venue Venue @relation(fields: [venueId], references: [id])
 
