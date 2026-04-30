@@ -39,8 +39,8 @@ export class EventTicketController {
   async verify(req: Request, res: Response) {
     try {
       const eventId = req.body.eventId as string;
-      const userId = req.body.eventId as string;
-      const ticketId = req.body.eventId as string;
+      const userId = req.body.userId as string;
+      const ticketId = req.body.ticketId as string;
 
       if (!ticketId) {
         return res.status(400).json({
