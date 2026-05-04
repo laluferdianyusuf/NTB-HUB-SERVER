@@ -222,18 +222,23 @@ export class VenueServices {
         search,
         category,
         subCategory,
-        skip,
-        take: limit,
+        skip: 0,
+        take: 1000,
         includeServices,
       }),
       venueRepository.countVenues({ search, category }),
     ]);
 
-    const shapedData = data.map((venue) => {
-      let distance: number | null = null;
+    const enriched = data.map((venue) => {
+      let distanceMeters: number | null = null;
 
-      if (latitude && longitude && venue.latitude && venue.longitude) {
-        distance = calcDistanceMeters(
+      if (
+        latitude != null &&
+        longitude != null &&
+        venue.latitude != null &&
+        venue.longitude != null
+      ) {
+        distanceMeters = calcDistanceMeters(
           latitude,
           longitude,
           venue.latitude,
@@ -241,28 +246,49 @@ export class VenueServices {
         );
       }
 
+      const distanceKm = distanceMeters != null ? distanceMeters / 1000 : 999;
+
+      const score =
+        Math.log1p(venue.totalLikes ?? 0) * 3 +
+        Math.log1p(venue.totalViews ?? 0) * 1 +
+        Math.log1p(venue.totalReviews ?? 0) * 2 +
+        Math.exp(-distanceKm) * 10;
+
       return {
         id: venue.id,
         name: venue.name,
         address: venue.address,
         image: venue.image,
         gallery: venue.gallery,
+
         totalLikes: venue.totalLikes,
         totalReviews: venue.totalReviews,
         totalViews: venue.totalViews,
+
         latitude: venue.latitude,
         longitude: venue.longitude,
+
         category: venue.services?.[0]?.subCategory?.category || null,
         services: includeServices ? venue.services : undefined,
-        updatedAll: venue.updatedAt,
 
-        distance,
-        distanceLabel: formatDistance(distance),
+        updatedAll: venue.updatedAt,
+        isActive: venue.isActive,
+
+        distance: distanceMeters,
+        distanceKm,
+
+        distanceLabel: formatDistance(distanceMeters),
+
+        score,
       };
     });
 
+    const ranked = enriched.sort((a, b) => b.score - a.score);
+
+    const paginated = ranked.slice(skip, skip + limit);
+
     return {
-      data: shapedData,
+      data: paginated,
       meta: {
         page,
         limit,
@@ -291,18 +317,23 @@ export class VenueServices {
         search,
         category,
         subCategory,
-        skip,
-        take: limit,
+        skip: 0,
+        take: 1000,
         includeServices,
       }),
       venueRepository.countVenues({ search, category }),
     ]);
 
-    const shapedData = data.map((venue) => {
-      let distance: number | null = null;
+    const enriched = data.map((venue) => {
+      let distanceMeters: number | null = null;
 
-      if (latitude && longitude && venue.latitude && venue.longitude) {
-        distance = calcDistanceMeters(
+      if (
+        latitude != null &&
+        longitude != null &&
+        venue.latitude != null &&
+        venue.longitude != null
+      ) {
+        distanceMeters = calcDistanceMeters(
           latitude,
           longitude,
           venue.latitude,
@@ -310,27 +341,49 @@ export class VenueServices {
         );
       }
 
+      const distanceKm = distanceMeters != null ? distanceMeters / 1000 : 999;
+
+      const score =
+        Math.log1p(venue.totalLikes ?? 0) * 3 +
+        Math.log1p(venue.totalViews ?? 0) * 1 +
+        Math.log1p(venue.totalReviews ?? 0) * 2 +
+        Math.exp(-distanceKm) * 10;
+
       return {
         id: venue.id,
         name: venue.name,
         address: venue.address,
         image: venue.image,
         gallery: venue.gallery,
+
         totalLikes: venue.totalLikes,
         totalReviews: venue.totalReviews,
         totalViews: venue.totalViews,
+
         latitude: venue.latitude,
         longitude: venue.longitude,
+
         category: venue.services?.[0]?.subCategory?.category || null,
         services: includeServices ? venue.services : undefined,
+
         updatedAll: venue.updatedAt,
-        distance,
-        distanceLabel: formatDistance(distance),
+        isActive: venue.isActive,
+
+        distance: distanceMeters,
+        distanceKm,
+
+        distanceLabel: formatDistance(distanceMeters),
+
+        score,
       };
     });
 
+    const ranked = enriched.sort((a, b) => b.score - a.score);
+
+    const paginated = ranked.slice(skip, skip + limit);
+
     return {
-      data: shapedData,
+      data: paginated,
       meta: {
         page,
         limit,
@@ -372,39 +425,44 @@ export class VenueServices {
     files?: { image?: Express.Multer.File[]; gallery?: Express.Multer.File[] },
   ) {
     const existing = await venueRepository.findVenueById(id);
+
     if (!existing) {
       throw new Error("Venue not found");
     }
 
-    let imageUrl: string | null = null;
-    let galleryUrls: string[] | null = null;
+    const updatePayload: Partial<Venue> = {};
+
+    if (data.name !== undefined) updatePayload.name = data.name;
+    if (data.address !== undefined) updatePayload.address = data.address;
+    if (data.latitude !== undefined)
+      updatePayload.latitude = toNum(data.latitude);
+
+    if (data.longitude !== undefined)
+      updatePayload.longitude = toNum(data.longitude);
 
     if (files?.image?.length) {
       const image = await uploadImage({
         file: files.image[0],
         folder: "venues",
       });
-      imageUrl = image.url;
+
+      updatePayload.image = image.url;
     }
 
     if (files?.gallery?.length) {
       const gallery = await Promise.all(
         files.gallery.map((file) =>
-          uploadImage({ file: file, folder: "venues" }),
+          uploadImage({
+            file,
+            folder: "venues",
+          }),
         ),
       );
 
-      galleryUrls = gallery.map((img) => img.url);
+      updatePayload.gallery = gallery.map((img) => img.url);
     }
 
-    const updatedVenue = await venueRepository.updateVenue(id, {
-      name: data.name,
-      address: data.address,
-      latitude: toNum(data.latitude),
-      longitude: toNum(data.longitude),
-      ...(imageUrl && { image: imageUrl }),
-      ...(galleryUrls && { gallery: galleryUrls }),
-    });
+    const updatedVenue = await venueRepository.updateVenue(id, updatePayload);
 
     await venueBalanceRepository.ensureInitialBalance(id);
 

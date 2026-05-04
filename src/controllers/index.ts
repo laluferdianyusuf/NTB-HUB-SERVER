@@ -14,6 +14,8 @@ export * from "./courier.controllers";
 export * from "./device.controllers";
 export * from "./event-attendance.controllers";
 export * from "./event.controllers";
+export * from "./deepLink.controllers";
+export * from "./wellKnown.controllers";
 export * from "./event.order.controller";
 export * from "./event.ticket.controllers";
 export * from "./event.ticket.type.controllers";

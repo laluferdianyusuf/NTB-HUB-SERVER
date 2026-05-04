@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { EventOrder, Prisma, PrismaClient } from "@prisma/client";
 import crypto from "crypto";
 import { generateTicketQR } from "helpers/qrCodeHelper";
 import { AccountRepository } from "repositories/account.repo";
@@ -29,9 +29,9 @@ export class EventOrderService {
   private platformBalanceRepository = new PlatformBalanceRepository();
 
   private async generateTickets(
-    order: any,
+    order: EventOrder,
     items: { ticketTypeId: string; qty: number }[],
-    tx: any,
+    tx: Prisma.TransactionClient,
   ) {
     const ticketTypes = await this.eventTicketTypeRepo.findByEvent(
       order.eventId,

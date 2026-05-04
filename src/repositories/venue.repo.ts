@@ -136,9 +136,20 @@ export class VenueRepository {
       where,
       skip,
       take,
-      orderBy: {
-        updatedAt: "desc",
-      },
+      orderBy: [
+        {
+          isActive: "desc",
+        },
+        {
+          totalLikes: "desc",
+        },
+        {
+          totalViews: "desc",
+        },
+        {
+          updatedAt: "desc",
+        },
+      ],
       include: {
         services: {
           where: {

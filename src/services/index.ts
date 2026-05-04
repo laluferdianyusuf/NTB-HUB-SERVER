@@ -28,6 +28,7 @@ export * from "./log.services";
 export * from "./maps.services";
 export * from "./menu.services";
 export * from "./news.services";
+export * from "./tracking.services";
 export * from "./notification.services";
 export * from "./operational.services";
 export * from "./order.services";

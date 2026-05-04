@@ -52,6 +52,8 @@ import promotionRouter from "./v1/promotion.routes";
 import searchRouter from "./v1/search.routes";
 import taskRouter from "./v1/task.routes";
 import urlPreviewRouter from "./v1/url-preview.routes";
+import deepLinkRouter from "./v1/deepLink.routes";
+import wellKnownRouter from "./v1/wellKnown.routes";
 
 import { deprecatedRouters } from "./deprecated";
 
@@ -112,6 +114,8 @@ v1.use("/promotion", promotionRouter);
 v1.use("/courier", courierRouter);
 v1.use("/account", accountRouter);
 v1.use("/finance", financeRouter);
+v1.use("/deep-link", deepLinkRouter);
+v1.use("/well-known", wellKnownRouter);
 
 // mount v1 API
 router.use("/api/v1", v1);
