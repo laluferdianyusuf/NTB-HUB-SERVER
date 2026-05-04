@@ -43,16 +43,17 @@ import communityPostRouter from "./v1/community.post.routes";
 import communityReactionRouter from "./v1/community.reaction.routes";
 import communityRouter from "./v1/community.routes";
 import courierRouter from "./v1/courier.routes";
+import deepLinkRouter from "./v1/deepLink.routes";
 import eventAttendanceRouter from "./v1/event-attendance.routes";
 import financeRouter from "./v1/finance.routes";
 import ledgerRouter from "./v1/ledger.routes";
 import mapsRouter from "./v1/maps.routes";
 import profileRouter from "./v1/profile.routes";
+import promotionBannerRouter from "./v1/promotion-banner.routes";
 import promotionRouter from "./v1/promotion.routes";
 import searchRouter from "./v1/search.routes";
 import taskRouter from "./v1/task.routes";
 import urlPreviewRouter from "./v1/url-preview.routes";
-import deepLinkRouter from "./v1/deepLink.routes";
 import wellKnownRouter from "./v1/wellKnown.routes";
 
 import { deprecatedRouters } from "./deprecated";
@@ -116,6 +117,7 @@ v1.use("/account", accountRouter);
 v1.use("/finance", financeRouter);
 v1.use("/deep-link", deepLinkRouter);
 v1.use("/well-known", wellKnownRouter);
+v1.use("/banners", promotionBannerRouter);
 
 // mount v1 API
 router.use("/api/v1", v1);

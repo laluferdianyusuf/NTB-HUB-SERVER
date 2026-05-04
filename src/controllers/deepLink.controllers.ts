@@ -1,14 +1,4 @@
 import { Request, Response } from "express";
-import { isMobile } from "../utils/device";
-import {
-  CommunityService,
-  EventService,
-  PublicPlaceService,
-  TrackingService,
-  UserService,
-  VenueServices,
-} from "services";
-import { DeepLinkDataService } from "services/deepLink.services";
 import {
   CommunityRepository,
   EventRepository,
@@ -16,6 +6,9 @@ import {
   UserRepository,
   VenueRepository,
 } from "repositories";
+import { TrackingService } from "services";
+import { DeepLinkDataService } from "services/deepLink.services";
+import { isMobile } from "../utils/device";
 
 const ALLOWED_TYPES = ["user", "venue", "event"];
 
@@ -68,7 +61,7 @@ export class DeepLinkController {
           <meta property="og:title" content="${safe.title}" />
           <meta property="og:description" content="${safe.description}" />
           <meta property="og:image" content="${safe.image}" />
-          <meta property="og:url" content="https://x7x423td-3100.asse.devtunnels.ms/${type}/${id}" />
+          <meta property="og:url" content="${process.env.APP_DOMAIN}/${type}/${id}" />
           <meta property="og:type" content="website" />
 
           <!-- Redirect -->

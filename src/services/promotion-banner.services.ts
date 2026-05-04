@@ -1,11 +1,48 @@
+import {
+  Prisma,
+  PromotionBannerType,
+  PromotionEntityType,
+} from "@prisma/client";
 import { PromotionRedis } from "cache/promotion-banner.cache";
 import { promotionQueue } from "queue/promotion.queue";
-import { PromotionBannerRepository, PromotionRepository } from "repositories";
+import { PromotionBannerRepository } from "repositories";
 
 enum PromotionJobType {
   VIEW = "VIEW",
   CLICK = "CLICK",
 }
+
+type CreatePromotionDto = {
+  title: string;
+  description?: string;
+  image: string;
+  mobileImage?: string;
+  type?: PromotionBannerType;
+  entityType?: PromotionEntityType;
+  entityId?: string;
+  redirectUrl?: string;
+  isActive?: boolean;
+  isGlobal?: boolean;
+  priority?: number;
+  startAt?: string | Date;
+  endAt?: string | Date;
+};
+
+type UpdatePromotionDto = {
+  title?: string;
+  description?: string | null;
+  image?: string;
+  mobileImage?: string | null;
+  type?: PromotionBannerType;
+  entityType?: PromotionEntityType;
+  entityId?: string | null;
+  redirectUrl?: string | null;
+  isActive?: boolean;
+  isGlobal?: boolean;
+  priority?: number;
+  startAt?: string | Date | null;
+  endAt?: string | Date | null;
+};
 
 export class PromotionBannerService {
   private repo = new PromotionBannerRepository();
@@ -45,23 +82,75 @@ export class PromotionBannerService {
     });
   }
 
-  async createPromotion(data: any, adminId: string) {
-    const promotion = await this.repo.create({
-      ...data,
-      createdBy: { connect: { id: adminId } },
-    });
+  async createPromotion(data: CreatePromotionDto, adminId: string) {
+    const payload: Prisma.PromotionBannerCreateInput = {
+      title: data.title,
+      description: data.description,
+      image: data.image,
+      mobileImage: data.mobileImage,
 
-    await this.redis.invalidateBannerCache();
+      type: data.type,
+      entityType: data.entityType,
+      entityId: data.entityId,
 
-    return promotion;
+      redirectUrl: data.redirectUrl,
+
+      isActive: data.isActive ?? true,
+      isGlobal: data.isGlobal ?? false,
+      priority: data.priority ?? 0,
+
+      startAt: data.startAt ? new Date(data.startAt) : null,
+      endAt: data.endAt ? new Date(data.endAt) : null,
+
+      createdBy: {
+        connect: { id: adminId },
+      },
+
+      totalViews: 0,
+      totalClicks: 0,
+    };
+
+    return this.repo.create(payload);
   }
 
-  async updatePromotion(id: string, data: any) {
-    const promotion = await this.repo.update(id, data);
+  async updatePromotion(id: string, data: UpdatePromotionDto) {
+    const payload: Prisma.PromotionBannerUpdateInput = {
+      ...(data.title !== undefined && { title: data.title }),
+      ...(data.description !== undefined && {
+        description: data.description ?? null,
+      }),
 
+      ...(data.image !== undefined && { image: data.image }),
+      ...(data.mobileImage !== undefined && {
+        mobileImage: data.mobileImage ?? null,
+      }),
+
+      ...(data.type !== undefined && { type: data.type }),
+      ...(data.entityType !== undefined && { entityType: data.entityType }),
+
+      ...(data.entityId !== undefined && {
+        entityId: data.entityId ?? null,
+      }),
+
+      ...(data.redirectUrl !== undefined && {
+        redirectUrl: data.redirectUrl ?? null,
+      }),
+
+      ...(data.isActive !== undefined && { isActive: data.isActive }),
+      ...(data.isGlobal !== undefined && { isGlobal: data.isGlobal }),
+      ...(data.priority !== undefined && { priority: data.priority }),
+
+      ...(data.startAt !== undefined && {
+        startAt: data.startAt ? new Date(data.startAt) : null,
+      }),
+
+      ...(data.endAt !== undefined && {
+        endAt: data.endAt ? new Date(data.endAt) : null,
+      }),
+    };
     await this.redis.invalidateBannerCache();
 
-    return promotion;
+    return this.repo.update(id, payload);
   }
 
   async deactivatePromotion(id: string) {
