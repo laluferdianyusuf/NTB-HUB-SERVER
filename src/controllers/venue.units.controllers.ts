@@ -150,9 +150,9 @@ export class VenueUnitControllers {
 
   async getSummary(req: Request, res: Response) {
     try {
-      const { venueId } = req.params;
+      const { serviceId } = req.params;
 
-      const result = await this.venueUnitServices.getSummary(venueId);
+      const result = await this.venueUnitServices.getSummary(serviceId);
 
       return res.status(200).json({
         status: true,
@@ -229,6 +229,8 @@ export class VenueUnitControllers {
         data: result,
       });
     } catch (err: any) {
+      console.log(err);
+
       return res.status(400).json({
         status: false,
         message: err.message,

@@ -36,9 +36,6 @@ export class VenueRepository {
       where.isActive = true;
     }
 
-    // ======================================================
-    // SEARCH
-    // ======================================================
     if (search?.trim()) {
       const words = search.trim().split(/\s+/);
 
@@ -100,9 +97,6 @@ export class VenueRepository {
       });
     }
 
-    // ======================================================
-    // CATEGORY + SUBCATEGORY
-    // ======================================================
     if (category !== "all" || subCategory !== "all") {
       const subCategoryFilter: any = {};
 

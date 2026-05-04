@@ -96,6 +96,18 @@ export class InvitationKeyRepository {
     });
   }
 
+  async findActiveByEmail(email: string, tx?: Prisma.TransactionClient) {
+    const db = tx ?? prisma;
+
+    return db.invitationKey.findMany({
+      where: {
+        email,
+        usedAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
+    });
+  }
+
   async markUsed(id: string, tx?: Prisma.TransactionClient) {
     const db = this.db(tx);
 

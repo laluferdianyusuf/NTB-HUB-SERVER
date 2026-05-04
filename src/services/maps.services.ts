@@ -74,6 +74,8 @@ export class MapsService {
         latitude: r.geometry.location.lat,
         longitude: r.geometry.location.lng,
         types: r.types || [],
+        city: r.city || "",
+        province: r.province || "",
       };
 
       await redisCache.setex(cacheKey, CACHE_TTL, JSON.stringify(slim));

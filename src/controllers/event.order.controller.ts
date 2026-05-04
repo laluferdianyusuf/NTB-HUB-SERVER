@@ -24,8 +24,21 @@ export class EventOrderController {
     }
   }
 
+  async checkoutMultiple(req: Request, res: Response) {
+    try {
+      const { eventId, payload } = req.body;
+
+      const result = await this.service.checkoutMultipleUsers(eventId, payload);
+
+      sendSuccess(res, result, "Ticket checked out");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
+    }
+  }
+
   async paymentWebhook(req: Request, res: Response) {
     try {
+      const userId = req.user?.id as string;
       const { eventOrderId, items } = req.body;
 
       if (!eventOrderId) {
@@ -35,7 +48,7 @@ export class EventOrderController {
         });
       }
 
-      const result = await this.service.markPaid(eventOrderId, items);
+      const result = await this.service.markPaid(userId, eventOrderId, items);
 
       sendSuccess(res, result, "Payment successful", 201);
     } catch (error: any) {

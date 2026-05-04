@@ -400,23 +400,29 @@ model UserRole {
   userId String
   role   Role
 
-  venueId String?
-  eventId String?
+  venueId     String?
+  eventId     String?
+  communityId String?
+  courierId   String?
 
   isActive   Boolean  @default(true)
   assignedAt DateTime @default(now())
 
-  user  User   @relation(fields: [userId], references: [id])
-  venue Venue? @relation(fields: [venueId], references: [id])
-  event Event? @relation(fields: [eventId], references: [id])
+  user      User       @relation(fields: [userId], references: [id])
+  venue     Venue?     @relation(fields: [venueId], references: [id])
+  event     Event?     @relation(fields: [eventId], references: [id])
+  community Community? @relation(fields: [communityId], references: [id])
+  courier   Courier?   @relation(fields: [courierId], references: [id])
 
-  @@unique([userId, role], map: "unique_global_role")
   @@unique([userId, role, venueId], map: "unique_venue_role")
   @@unique([userId, role, eventId], map: "unique_event_role")
+  @@unique([userId, role, communityId], map: "unique_community_role")
   @@index([userId])
   @@index([role])
   @@index([venueId])
   @@index([eventId])
+  @@index([courierId])
+  @@index([communityId])
 }
 
 model UserBalance {
@@ -739,6 +745,7 @@ model Menu {
   category    String
   image       String?
   isAvailable Boolean  @default(true)
+  isDeleted   Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now()) @updatedAt
 
@@ -991,34 +998,34 @@ model Invoice {
 }
 
 model WithdrawRequest {
-  id             String   @id @default(uuid())
-  venueId        String
+  id      String @id @default(uuid())
+  venueId String
 
-  withdrawNumber String   @unique
+  withdrawNumber String @unique
 
-  amount         Decimal  @db.Decimal(18, 2)
-  fee            Decimal  @default(0) @db.Decimal(18, 2)
-  netAmount      Decimal  @db.Decimal(18, 2)
+  amount    Decimal @db.Decimal(18, 2)
+  fee       Decimal @default(0) @db.Decimal(18, 2)
+  netAmount Decimal @db.Decimal(18, 2)
 
-  status         WithdrawStatus @default(PENDING)
-  failureReason  String?
+  status        WithdrawStatus @default(PENDING)
+  failureReason String?
 
-  bankCode       String
-  bankAccount    String
-  accountName    String
+  bankCode    String
+  bankAccount String
+  accountName String
 
-  requestedAt DateTime @default(now())
+  requestedAt DateTime  @default(now())
   approvedAt  DateTime?
   rejectedAt  DateTime?
   paidAt      DateTime?
 
-  approvedBy  String?
-  rejectedBy  String?
-  paidBy      String?
+  approvedBy String?
+  rejectedBy String?
+  paidBy     String?
 
-  proofUrl     String?   
+  proofUrl String?
 
-  note         String?
+  note String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1404,6 +1411,7 @@ model Courier {
   courierAvailabilityLogs CourierAvailabilityLog[]
   courierEarnings         CourierEarnings[]
   accounts                Account[]
+  userRoles               UserRole[]
 
   @@index([status])
   @@index([vehicleType])
@@ -1544,6 +1552,7 @@ model Community {
   task                         Task[]
   accounts                     Account[]
   communityBalance             CommunityBalance?
+  userRoles                    UserRole[]
 
   @@index([ownerId])
   @@index([createdAt])

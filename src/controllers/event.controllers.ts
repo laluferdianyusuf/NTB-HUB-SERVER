@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import { EventService } from "../services";
 import { sendError, sendSuccess } from "helpers/response";
+import { EventService } from "../services";
 
 export class EventController {
   private service = new EventService();
@@ -56,6 +56,25 @@ export class EventController {
       sendSuccess(res, result, "Event merged retrieved successfully");
     } catch (error: any) {
       console.error(error);
+      sendError(res, error.message || "Internal Server Error");
+    }
+  }
+
+  async getAllEventsWithDetails(req: Request, res: Response) {
+    try {
+      const { page, limit, status, search } = req.query;
+
+      const result = await this.service.getAllEventsWithDetails({
+        page: page ? Number(page) : 1,
+        limit: limit ? Number(limit) : 10,
+        status: status as string,
+        search: search as string,
+      });
+
+      sendSuccess(res, result, "Event retrieved successfully");
+    } catch (error: any) {
+      console.error("GET EVENTS ERROR:", error);
+
       sendError(res, error.message || "Internal Server Error");
     }
   }

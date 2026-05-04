@@ -1,7 +1,3 @@
-/* =========================================================
-   controllers/venue-staff.controller.ts
-========================================================= */
-
 import { Request, Response } from "express";
 import { sendError, sendSuccess } from "helpers/response";
 import { VenueStaffService } from "services";
@@ -13,7 +9,11 @@ export class VenueStaffController {
     try {
       const { venueId } = req.params;
 
-      const result = await service.createStaff(venueId, req.body);
+      const result = await service.createStaff(
+        venueId,
+        req.body,
+        req.file as Express.Multer.File,
+      );
 
       sendSuccess(res, result, "Staff created", 201);
     } catch (error: any) {
@@ -25,7 +25,11 @@ export class VenueStaffController {
     try {
       const { staffId } = req.params;
 
-      const result = await service.updateStaff(staffId, req.body);
+      const result = await service.updateStaff(
+        staffId,
+        req.body,
+        req.file as Express.Multer.File,
+      );
       sendSuccess(res, result, "Staff updated");
     } catch (error: any) {
       sendError(res, error.message || "Internal server error");

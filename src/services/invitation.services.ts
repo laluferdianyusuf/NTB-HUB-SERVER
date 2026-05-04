@@ -35,21 +35,6 @@ export class InvitationServices {
         <p>Halo,</p>
         <p>Anda diundang untuk mendaftarkan venue.</p>
 
-        <a
-          href="com.laluferdian.ntbhubapps://venue?key=${key}"
-          style="
-            display:inline-block;
-            padding:12px 20px;
-            background:#2563eb;
-            color:#fff;
-            border-radius:6px;
-            text-decoration:none;
-            font-weight:600;
-          "
-        >
-          Buka Aplikasi
-        </a>
-
         <p>Kode undangan: <b>${key}</b></p>
       `,
     );
@@ -100,21 +85,6 @@ export class InvitationServices {
         <p>Halo,</p>
         <p>Anda diundang untuk menjadi pemilik komunitas.</p>
 
-        <a
-          href="com.laluferdian.ntbhubapps://community?key=${key}"
-          style="
-            display:inline-block;
-            padding:12px 20px;
-            background:#2563eb;
-            color:#fff;
-            border-radius:6px;
-            text-decoration:none;
-            font-weight:600;
-          "
-        >
-          Buka Aplikasi
-        </a>
-
         <p>Kode undangan: <b>${key}</b></p>
       `,
     );
@@ -125,6 +95,8 @@ export class InvitationServices {
   async claimInvitation(key: string, userId: string) {
     return prisma.$transaction(async (tx) => {
       const invitation = await invitationKeyRepository.findByKey(key, tx);
+      console.log("INVITAION", invitation);
+      console.log("User", userId);
 
       if (!invitation) throw new Error("INVALID_INVITATION");
       if (invitation.usedAt) throw new Error("INVITATION_USED");

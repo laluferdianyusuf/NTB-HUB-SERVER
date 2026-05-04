@@ -83,15 +83,8 @@ export class UserRoleRepository {
   ) {
     const db = this.db(tx);
 
-    return db.userRole.upsert({
-      where: {
-        userId_role: {
-          userId: params.userId,
-          role: params.role,
-        },
-      },
-      update: { isActive: true },
-      create: {
+    return db.userRole.create({
+      data: {
         userId: params.userId,
         role: params.role,
       },
@@ -175,6 +168,29 @@ export class UserRoleRepository {
         userId,
         isActive: true,
       },
+      include: {
+        community: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+          },
+        },
+        venue: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+          },
+        },
+        event: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+          },
+        },
+      },
       orderBy: {
         assignedAt: "asc",
       },
@@ -254,6 +270,21 @@ export class UserRoleRepository {
       include: {
         user: {
           include: { devices: true },
+        },
+      },
+    });
+  }
+
+  async findUsersByCommunity(communityId: string) {
+    return prisma.userRole.findMany({
+      where: {
+        communityId,
+      },
+      include: {
+        user: {
+          include: {
+            devices: true,
+          },
         },
       },
     });

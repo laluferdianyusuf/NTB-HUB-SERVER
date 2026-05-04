@@ -23,6 +23,7 @@ export class DeviceService {
     try {
       if (data.userId) {
         const user = await this.userRepo.findById(data.userId);
+
         if (!user) {
           return error.error404("User not found");
         }

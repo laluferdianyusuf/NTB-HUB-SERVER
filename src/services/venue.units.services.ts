@@ -141,8 +141,8 @@ export class VenueUnitService {
     return unit;
   }
 
-  async getSummary(venueId: string) {
-    const data = await this.venueUnitRepository.findByVenue(venueId);
+  async getSummary(serviceId: string) {
+    const data = await this.venueUnitRepository.findByService(serviceId);
 
     return {
       total: data.length,
@@ -164,9 +164,7 @@ export class VenueUnitService {
       throw new Error("Venue unit not found");
     }
 
-    return this.venueUnitRepository.update(id, {
-      isActive: !unit.isActive,
-    });
+    return this.venueUnitRepository.toggleStatus(id, !unit.isActive);
   }
 
   async getAvailabilityUnits(venueId: string, serviceId: string, date: string) {

@@ -9,6 +9,7 @@ import { sendEmail } from "utils/mail";
 import { uploadImage } from "utils/uploadS3";
 import {
   BookingRepository,
+  InvitationKeyRepository,
   PointsRepository,
   UserBalanceRepository,
   UserRepository,
@@ -27,6 +28,7 @@ const pointRepository = new PointsRepository();
 const bookingRepository = new BookingRepository();
 const userBalanceRepository = new UserBalanceRepository();
 const userRoleRepository = new UserRoleRepository();
+const invitationKeyRepository = new InvitationKeyRepository();
 const venueRepository = new VenueRepository();
 const accountService = new AccountService();
 const rateLimiter = new RateLimiterService();
@@ -550,6 +552,9 @@ export class UserService {
     }
 
     const roles = await userRoleRepository.findByUserId(userId);
+    const invitations = await invitationKeyRepository.findActiveByEmail(
+      user.email,
+    );
 
     const globalRoles = roles
       .filter((r) => !r.venueId && !r.eventId && r.isActive)
@@ -559,6 +564,8 @@ export class UserService {
       .filter((r) => r.venueId && r.isActive)
       .map((r) => ({
         venueId: r.venueId!,
+        name: r.venue?.name!,
+        image: r.venue?.image!,
         role: r.role,
       }));
 
@@ -566,7 +573,25 @@ export class UserService {
       .filter((r) => r.eventId && r.isActive)
       .map((r) => ({
         eventId: r.eventId!,
+        name: r.event?.name!,
+        image: r.event?.image!,
         role: r.role,
+      }));
+
+    const pendingVenueInvitations = invitations
+      .filter((inv) => inv.venueId)
+      .map((inv) => ({
+        venueId: inv.venueId!,
+        key: inv.key,
+        expiresAt: inv.expiresAt,
+      }));
+
+    const pendingEventInvitations = invitations
+      .filter((inv) => inv.eventId)
+      .map((inv) => ({
+        eventId: inv.eventId!,
+        key: inv.key,
+        expiresAt: inv.expiresAt,
       }));
 
     await redis.set(
@@ -593,6 +618,11 @@ export class UserService {
         global: globalRoles,
         venues: venueRoles,
         events: eventRoles,
+      },
+
+      invitations: {
+        venues: pendingVenueInvitations,
+        events: pendingEventInvitations,
       },
     };
   }

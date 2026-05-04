@@ -136,7 +136,74 @@ export class EventOrderService {
     });
   }
 
+  async checkoutMultipleUsers(
+    eventId: string,
+    payload: {
+      userId: string;
+      items: { ticketTypeId: string; qty: number }[];
+    }[],
+  ) {
+    return prisma.$transaction(async (tx) => {
+      if (!payload.length) throw new Error("NO_USERS");
+
+      const results: any[] = [];
+
+      for (const buyer of payload) {
+        const { userId, items } = buyer;
+
+        if (!items.length) throw new Error("ITEMS_REQUIRED");
+
+        let total = 0;
+
+        for (const item of items) {
+          const type = await this.eventTicketTypeRepo.findById(
+            tx,
+            item.ticketTypeId,
+          );
+
+          if (!type || !type.isActive) {
+            throw new Error("TICKET_NOT_AVAILABLE");
+          }
+
+          if (type.quota - type.sold < item.qty) {
+            throw new Error("TICKET_SOLD_OUT");
+          }
+
+          total += Number(type.price) * item.qty;
+        }
+
+        const order = await this.eventOrderRepo.createOrder(tx, {
+          userId,
+          eventId,
+          total,
+          status: "PENDING",
+        });
+
+        const invoiceNumber = `EVT-${crypto
+          .randomUUID()
+          .slice(0, 8)
+          .toUpperCase()}`;
+
+        await this.invoiceRepo.create(
+          {
+            entityType: "EVENT_ORDER",
+            entityId: order.id,
+            invoiceNumber,
+            amount: total,
+            expiredAt: new Date(Date.now() + 15 * 60 * 1000),
+          },
+          tx,
+        );
+
+        results.push(order);
+      }
+
+      return results;
+    });
+  }
+
   async markPaid(
+    userId: string,
     eventOrderId: string,
     items: { ticketTypeId: string; qty: number }[],
   ) {
@@ -150,9 +217,7 @@ export class EventOrderService {
         throw new Error("INVALID_ORDER_STATUS");
       }
 
-      const userAccount = await this.accountRepository.findUserAccount(
-        order.userId,
-      );
+      const userAccount = await this.accountRepository.findUserAccount(userId);
       const eventAccount = await this.accountRepository.findEventAccount(
         order.eventId,
       );

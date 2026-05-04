@@ -13,8 +13,8 @@ export class FloorServices {
   }
 
   async getFloorsByVenueId(venueId: string) {
-    const venues = await floorRepository.findFloorByVenueId(venueId);
-    return { venues };
+    const floors = await floorRepository.findFloorByVenueId(venueId);
+    return floors;
   }
 
   async getFloorById(id: string) {

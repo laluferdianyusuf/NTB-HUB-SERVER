@@ -34,6 +34,10 @@ router.post(
   (req, res) => eventController.create(req, res),
 );
 
+router.get("/events-with-details", auth.authenticate, (req, res) =>
+  eventController.getAllEventsWithDetails(req, res),
+);
+
 router.put("/update/:id/status", auth.authenticate, (req, res) =>
   eventController.updateStatusEvent(req, res),
 );
@@ -103,6 +107,13 @@ router.post(
   auth.authenticate,
   auth.authorizeGlobalRole(["CUSTOMER"]),
   (req, res) => eventOrderController.checkout(req, res),
+);
+
+router.post(
+  "/order/checkout-multiple",
+  auth.authenticate,
+  auth.authorizeGlobalRole(["CUSTOMER"]),
+  (req, res) => eventOrderController.checkoutMultiple(req, res),
 );
 
 router.post("/order/ticket-payment/webhook", (req, res) =>

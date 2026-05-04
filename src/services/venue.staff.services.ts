@@ -1,12 +1,24 @@
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { VenueStaffRepository } from "repositories";
+import { uploadImage } from "utils/uploadS3";
 
 const prisma = new PrismaClient();
 const repo = new VenueStaffRepository();
 
 export class VenueStaffService {
-  async createStaff(venueId: string, payload: any) {
+  async createStaff(
+    venueId: string,
+    payload: Prisma.VenueStaffCreateInput,
+    file: Express.Multer.File,
+  ) {
     return prisma.$transaction(async (tx) => {
+      let imageUrl: string | null = null;
+
+      if (file) {
+        const image = await uploadImage({ file, folder: "staff" });
+        imageUrl = image.url;
+      }
+
       if (payload.phone) {
         const exists = await repo.findByPhone(venueId, payload.phone, tx);
 
@@ -18,6 +30,7 @@ export class VenueStaffService {
       return repo.create(
         {
           ...payload,
+          photo: imageUrl,
           venue: {
             connect: {
               id: venueId,
@@ -29,8 +42,21 @@ export class VenueStaffService {
     });
   }
 
-  async updateStaff(staffId: string, payload: any) {
+  async updateStaff(
+    staffId: string,
+    payload: Prisma.VenueStaffUpdateInput,
+    file: Express.Multer.File,
+  ) {
+    console.log(file, payload);
+
     return prisma.$transaction(async (tx) => {
+      let imageUrl: string | null = null;
+
+      if (file) {
+        const image = await uploadImage({ file, folder: "staff" });
+        imageUrl = image.url;
+      }
+
       const staff = await repo.findById(staffId, tx);
 
       if (!staff) {
@@ -38,14 +64,18 @@ export class VenueStaffService {
       }
 
       if (payload.phone && payload.phone !== staff.phone) {
-        const used = await repo.findByPhone(staff.venueId, payload.phone, tx);
+        const used = await repo.findByPhone(
+          staff.venueId,
+          payload.phone as string,
+          tx,
+        );
 
         if (used && used.id !== staffId) {
           throw new Error("Phone already used");
         }
       }
 
-      return repo.update(staffId, payload, tx);
+      return repo.update(staffId, { ...payload, photo: imageUrl }, tx);
     });
   }
 

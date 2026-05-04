@@ -55,13 +55,16 @@ export class MenuServices {
         tx,
       );
 
-      const notification = await notificationRepository.createNewNotification({
-        title: "New Menu Release!",
-        message: `${menu.name} has been added to ${venue?.name ?? "venue"}`,
-        type: "Information",
-        image: imageUrl || "",
-        isGlobal: true,
-      } as Notification);
+      const notification = await notificationRepository.createNewNotification(
+        {
+          title: "New Menu Release!",
+          message: `${menu.name} has been added to ${venue?.name ?? "venue"}`,
+          type: "Information",
+          image: imageUrl || "",
+          isGlobal: true,
+        } as Notification,
+        tx,
+      );
 
       const users = await userRepository.findManyUsers(tx);
 

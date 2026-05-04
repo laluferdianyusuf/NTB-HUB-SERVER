@@ -369,7 +369,7 @@ export class VenueServices {
   async updateVenue(
     id: string,
     data: Partial<Venue>,
-    files?: { image?: Express.Multer.File; gallery?: Express.Multer.File[] },
+    files?: { image?: Express.Multer.File[]; gallery?: Express.Multer.File[] },
   ) {
     const existing = await venueRepository.findVenueById(id);
     if (!existing) {
@@ -379,8 +379,11 @@ export class VenueServices {
     let imageUrl: string | null = null;
     let galleryUrls: string[] | null = null;
 
-    if (files?.image) {
-      const image = await uploadImage({ file: files.image, folder: "venues" });
+    if (files?.image?.length) {
+      const image = await uploadImage({
+        file: files.image[0],
+        folder: "venues",
+      });
       imageUrl = image.url;
     }
 

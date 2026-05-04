@@ -155,13 +155,15 @@ export class VenueControllers {
       const id = req.params.id;
       const data = req.body;
       const files = req.files as {
-        image?: Express.Multer.File;
+        image?: Express.Multer.File[];
         gallery?: Express.Multer.File[];
       };
       const result = await this.venueServices.updateVenue(id, data, files);
 
       sendSuccess(res, result, "Venues updated successfully");
     } catch (error: any) {
+      console.log(error);
+
       sendError(res, error.message || "Internal Server Error");
     }
   }

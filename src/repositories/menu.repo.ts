@@ -9,6 +9,9 @@ export class MenuRepository {
   // find all menus
   async findAllMenus(): Promise<Menu[]> {
     return prisma.menu.findMany({
+      where: {
+        isDeleted: false,
+      },
       include: {
         venue: true,
       },
@@ -17,7 +20,12 @@ export class MenuRepository {
 
   // find all menus at venue
   async findMenuByVenueId(venueId: string): Promise<Menu[]> {
-    return prisma.menu.findMany({ where: { venueId } });
+    return prisma.menu.findMany({
+      where: {
+        venueId,
+        isDeleted: false,
+      },
+    });
   }
 
   // find detail menu
@@ -27,7 +35,12 @@ export class MenuRepository {
   ): Promise<Menu | null> {
     const client = this.transaction(tx);
 
-    return client.menu.findUnique({ where: { id } });
+    return client.menu.findFirst({
+      where: {
+        id,
+        isDeleted: false,
+      },
+    });
   }
 
   async findMenuByIds(
@@ -112,7 +125,12 @@ export class MenuRepository {
 
   // delete menu
   async deleteMenu(id: string): Promise<Menu> {
-    return prisma.menu.delete({ where: { id: id } });
+    return prisma.menu.update({
+      where: { id },
+      data: {
+        isDeleted: true,
+      },
+    });
   }
 
   async getMostPopularMenus(limit = 10, tx?: Prisma.TransactionClient) {

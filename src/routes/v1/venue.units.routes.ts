@@ -26,7 +26,7 @@ router.get("/all/:venueId", auth.authenticate, (req, res) =>
   venueUnitController.getAllUnits(req, res),
 );
 
-router.get("/summary/:venueId", auth.authenticate, (req, res) =>
+router.get("/summary/:serviceId", auth.authenticate, (req, res) =>
   venueUnitController.getSummary(req, res),
 );
 
@@ -42,7 +42,7 @@ router.put("/update/:id", auth.authenticate, (req, res) =>
   venueUnitController.updateVenueUnit(req, res),
 );
 
-router.patch("/toggle/:id", auth.authenticate, (req, res) =>
+router.patch("/toggle-status/:id", auth.authenticate, (req, res) =>
   venueUnitController.toggleStatus(req, res),
 );
 

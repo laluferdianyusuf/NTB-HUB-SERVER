@@ -15,6 +15,13 @@ export type UnifiedEvent = {
   createdBy?: User;
 };
 
+type GetEventsParams = {
+  status?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+};
+
 export class EventService {
   private repo = new EventRepository();
   private communityEventRepo = new CommunityEventRepository();
@@ -87,7 +94,8 @@ export class EventService {
       startAt: event.startAt,
       endAt: event.endAt,
       capacity: event.capacity,
-      updatedAt: event.updatedAt, // ✅ FIX
+      updatedAt: event.updatedAt,
+      tickets: event.ticketTypes,
     }));
 
     return {
@@ -155,6 +163,54 @@ export class EventService {
       meta: {
         page,
         limit,
+      },
+    };
+  }
+
+  async getAllEventsWithDetails(params: GetEventsParams) {
+    const { page = 1, limit = 10, ...filters } = params;
+
+    const skip = (page - 1) * limit;
+    const take = limit;
+
+    const [events, total] = await Promise.all([
+      await this.repo.findAllEventsWithDetails({
+        ...filters,
+        skip,
+        take,
+      }),
+      await this.repo.countEvents(filters),
+    ]);
+
+    const formatted = events.map((event) => ({
+      id: event.id,
+      name: event.name,
+      description: event.description,
+      image: event.image,
+      location: event.location,
+      startAt: event.startAt,
+      endAt: event.endAt,
+      status: event.status,
+
+      finance: {
+        balance: Number(event.eventBalance?.balance ?? 0),
+      },
+
+      summary: {
+        totalOrders: event.summary.totalOrders,
+        totalRevenue: event.summary.totalRevenue,
+        totalTicketsSold: event.summary.totalTicketsSold,
+        totalAttendees: event.summary.totalAttendees,
+      },
+    }));
+
+    return {
+      data: formatted,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
     };
   }

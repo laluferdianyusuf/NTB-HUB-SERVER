@@ -1,7 +1,7 @@
-import { Request, Response } from "express";
 import { WithdrawStatus } from "@prisma/client";
-import { WithdrawService } from "services";
+import { Request, Response } from "express";
 import { sendError, sendSuccess } from "helpers/response";
+import { WithdrawService } from "services";
 
 const service = new WithdrawService();
 
@@ -19,6 +19,8 @@ export class WithdrawController {
 
       sendSuccess(res, result, "Withdraw created", 201);
     } catch (err: any) {
+      console.log(err);
+
       sendError(res, err || "Internal server error");
     }
   }

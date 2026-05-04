@@ -132,6 +132,8 @@ export class MenuControllers {
 
       sendSuccess(res, result.data, result.message);
     } catch (error: any) {
+      console.log(error);
+
       sendError(res, error.message || "Internal server error");
     }
   };

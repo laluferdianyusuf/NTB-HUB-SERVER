@@ -106,7 +106,6 @@ export class VenueUnitRepository {
     return prisma.venueUnit.findMany({
       where: {
         serviceId,
-        isActive: true,
       },
       include: {
         floor: true,

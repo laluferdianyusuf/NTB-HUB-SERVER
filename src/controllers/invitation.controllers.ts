@@ -1,5 +1,5 @@
-import { InvitationServices } from "services";
 import { Request, Response } from "express";
+import { InvitationServices } from "services";
 
 export class InvitationController {
   private invitationServices: InvitationServices;
@@ -73,10 +73,14 @@ export class InvitationController {
 
   async claimInvitation(req: Request, res: Response) {
     try {
+      console.log(req.body);
+
       const result = await this.invitationServices.claimInvitation(
         req.body.key,
         String(req.user?.id),
       );
+
+      console.log(result);
 
       return res.status(200).json({
         status: true,
@@ -84,6 +88,8 @@ export class InvitationController {
         data: result,
       });
     } catch (err: any) {
+      console.log(err);
+
       return res.status(400).json({
         status: false,
         message: err.message,
