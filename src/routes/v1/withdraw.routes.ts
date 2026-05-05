@@ -7,8 +7,12 @@ const controller = new WithdrawController();
 const auth = new AuthMiddlewares();
 
 // user
-router.post("/request/:venueId", auth.authenticate, (req, res) =>
+router.post("/request/:accountId", auth.authenticate, (req, res) =>
   controller.request(req, res),
+);
+
+router.get("/by-account/:accountId", auth.authenticate, (req, res) =>
+  controller.listByAccount(req, res),
 );
 
 router.get("/venue/:venueId", auth.authenticate, (req, res) =>

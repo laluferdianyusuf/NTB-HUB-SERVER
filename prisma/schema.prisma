@@ -306,6 +306,22 @@ enum ActorType {
   SYSTEM
 }
 
+enum NotificationType {
+  WITHDRAW
+  ORDER
+  BOOKING
+  SYSTEM
+}
+
+enum NotificationRecipientType {
+  USER
+  VENUE
+  EVENT
+  COMMUNITY
+  COURIER
+  ADMIN
+}
+
 // #regionUSER & AUTH
 model User {
   id                  String     @id @default(uuid())
@@ -982,6 +998,11 @@ model Account {
   createdAt        DateTime          @default(now())
   withdrawRequests WithdrawRequest[]
 
+  @@unique([userId], map: "unique_user_account")
+  @@unique([venueId], map: "unique_venue_account")
+  @@unique([eventId], map: "unique_event_account")
+  @@unique([communityId], map: "unique_community_account")
+  @@unique([courierId], map: "unique_courier_account")
   @@index([type])
 }
 
@@ -1352,20 +1373,30 @@ model PublicPlace {
 
 // #region NOTIFICATIONS
 model Notification {
-  id        String   @id @default(uuid())
-  userId    String?
-  venueId   String?
-  adminOnly Boolean? @default(false)
-  title     String
-  message   String
-  type      String?
-  image     String?
-  isRead    Boolean  @default(false)
-  isGlobal  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  id String @id @default(uuid())
 
-  user User? @relation(fields: [userId], references: [id])
+  recipientType NotificationRecipientType
+  recipientId   String
+
+  title   String
+  message String
+
+  type     NotificationType
+  entityId String?
+
+  image String?
+
+  isRead    Boolean @default(false)
+  isGlobal  Boolean @default(false)
+  adminOnly Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+
+  @@index([recipientType, recipientId])
+  @@index([type])
 }
 
 // #region NEWS

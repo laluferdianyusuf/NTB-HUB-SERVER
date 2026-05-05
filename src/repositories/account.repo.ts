@@ -1,4 +1,4 @@
-import { AccountType, Prisma } from "@prisma/client";
+import { Account, AccountType, Prisma } from "@prisma/client";
 import { prisma } from "config/prisma";
 
 interface CreateAccountPayload {
@@ -96,6 +96,59 @@ export class AccountRepository {
         type: "COURIER",
       },
     });
+  }
+
+  async findById(id: string, tx?: Prisma.TransactionClient) {
+    const client = tx ?? prisma;
+    return client.account.findUnique({
+      where: {
+        id,
+      },
+    });
+  }
+
+  async resolveAccountOwner(account: Account) {
+    if (account.venueId) {
+      const venue = await prisma.venue.findUnique({
+        where: { id: account.venueId },
+        select: { name: true },
+      });
+
+      return { name: venue?.name, type: "VENUE" };
+    }
+
+    if (account.eventId) {
+      const event = await prisma.event.findUnique({
+        where: { id: account.eventId },
+        select: { name: true },
+      });
+
+      return { name: event?.name, type: "EVENT" };
+    }
+
+    if (account.communityId) {
+      const community = await prisma.community.findUnique({
+        where: { id: account.communityId },
+        select: { name: true },
+      });
+
+      return { name: community?.name, type: "COMMUNITY" };
+    }
+
+    if (account.courierId) {
+      return { name: "Courier", type: "COURIER" };
+    }
+
+    if (account.userId) {
+      const user = await prisma.user.findUnique({
+        where: { id: account.userId },
+        select: { name: true },
+      });
+
+      return { name: user?.name, type: "USER" };
+    }
+
+    return { name: "Unknown", type: "UNKNOWN" };
   }
 
   async findUserAccount(userId: string, tx?: Prisma.TransactionClient) {

@@ -8,12 +8,12 @@ const service = new WithdrawService();
 export class WithdrawController {
   async request(req: Request, res: Response) {
     try {
-      const { venueId } = req.params;
+      const { accountId } = req.params;
       const currentUserId = req.user?.id as string;
 
       const result = await service.requestWithdraw(
         currentUserId,
-        venueId,
+        accountId,
         req.body,
       );
 
@@ -91,6 +91,27 @@ export class WithdrawController {
         page: page ? Number(page) : 1,
         limit: limit ? Number(limit) : 20,
       });
+      sendSuccess(res, result, "Withdrawal retrieved");
+    } catch (err: any) {
+      sendError(res, err || "Internal server error");
+    }
+  }
+
+  async listByAccount(req: Request, res: Response) {
+    try {
+      const { accountId } = req.params;
+      const currentUserId = req.user?.id as string;
+      const { status, page, limit } = req.query;
+
+      const result = await service.getWithdrawsByAccount(
+        accountId,
+        currentUserId,
+        {
+          status: status as WithdrawStatus,
+          page: page ? Number(page) : 1,
+          limit: limit ? Number(limit) : 20,
+        },
+      );
       sendSuccess(res, result, "Withdrawal retrieved");
     } catch (err: any) {
       sendError(res, err || "Internal server error");

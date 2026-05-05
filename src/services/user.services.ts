@@ -618,6 +618,7 @@ export class UserService {
       biometricEnabled: user.biometricEnabled,
       profileLikeCount: user.profileLikeCount,
       profileViewCount: user.profileViewCount,
+      accounts: user.accounts,
       roles: {
         global: globalRoles,
         venues: venueRoles,

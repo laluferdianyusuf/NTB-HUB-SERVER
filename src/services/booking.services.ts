@@ -1,4 +1,4 @@
-import { Notification, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "config/prisma";
 import { publisher } from "config/redis.config";
 import { toLocalDBTime } from "helpers/formatIsoDate";
@@ -24,6 +24,7 @@ import {
   PlatformBalanceRepository,
   UserBalanceRepository,
   UserRepository,
+  UserRoleRepository,
   VenueBalanceRepository,
   VenueServiceRepository,
   VenueUnitRepository,
@@ -50,6 +51,7 @@ const menuRepository = new MenuRepository();
 const orderItemRepository = new OrderItemRepository();
 const userService = new UserService();
 const userRepository = new UserRepository();
+const userRoleRepository = new UserRoleRepository();
 
 interface CreateBookingProps {
   userId: string;
@@ -388,31 +390,50 @@ export class BookingServices {
 
       await bookingRepository.updateBookingStatus(booking.id, "PAID", tx);
       await orderRepository.updateStatus(order.id, "SUCCESS", tx);
+
+      const admins = await userRoleRepository.findAdmins();
+
+      await notificationService.sendCustomNotifications(
+        [
+          {
+            recipientType: "USER",
+            recipientId: booking.userId,
+            title: "Payment Successful",
+            message: `Pembayaran ${invoice.invoiceNumber} berhasil`,
+            type: "BOOKING",
+            entityId: booking.id,
+          },
+          {
+            recipientType: "VENUE",
+            recipientId: booking.venueId,
+            title: "Booking Paid",
+            message: `Booking ${invoice.invoiceNumber} telah dibayar`,
+            type: "BOOKING",
+            entityId: booking.id,
+          },
+          {
+            recipientType: "ADMIN",
+            recipientId: "GLOBAL",
+            title: "Platform Fee Collected",
+            message: `Fee ${platformFee} dari booking ${invoice.invoiceNumber}`,
+            type: "SYSTEM",
+            entityId: booking.id,
+          },
+          ...admins.map(
+            (admin) =>
+              ({
+                recipientType: "ADMIN",
+                recipientId: admin.user.id,
+                title: "Platform Fee Collected",
+                message: `Fee ${platformFee} dari booking ${invoice.invoiceNumber}`,
+                type: "SYSTEM",
+                entityId: booking.id,
+              }) as any,
+          ),
+        ],
+        tx,
+      );
     });
-
-    await notificationRepository.createNewNotification({
-      userId: booking.userId,
-      title: "Payment Successful",
-      message: `Your payment of ${invoice.amount} for booking ${invoice.invoiceNumber} has been successfully received. Thank you!`,
-      type: "Booking",
-      isGlobal: false,
-    } as Notification);
-
-    await notificationRepository.createNewNotification({
-      venueId: booking.venueId,
-      title: "Booking Paid",
-      message: `Booking ${invoice.invoiceNumber} has been paid. Total received: ${venueAmount}`,
-      type: "Booking",
-      isGlobal: false,
-    } as Notification);
-
-    await notificationRepository.createNewNotification({
-      venueId: booking.venueId,
-      title: "Platform Fee Collected",
-      message: `A platform fee of ${platformFee} has been collected from booking ${invoice.invoiceNumber}.`,
-      type: "Payment",
-      isGlobal: false,
-    } as Notification);
 
     await enqueueBookingStart(booking.id, new Date(booking.startTime));
     await enqueueBookingComplete(booking.id, new Date(booking.endTime));

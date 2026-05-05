@@ -203,6 +203,7 @@ export class UserRoleRepository {
       role: Role;
       venueId?: string;
       eventId?: string;
+      communityId?: string;
     },
     tx?: Prisma.TransactionClient,
   ) {
@@ -214,6 +215,7 @@ export class UserRoleRepository {
         role: params.role,
         ...(params.venueId && { venueId: params.venueId }),
         ...(params.eventId && { eventId: params.eventId }),
+        ...(params.communityId && { communityId: params.communityId }),
         isActive: true,
       },
     });

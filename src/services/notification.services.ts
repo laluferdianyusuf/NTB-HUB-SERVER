@@ -1,4 +1,11 @@
-import { Device, Notification, Role } from "@prisma/client";
+import {
+  Device,
+  Notification,
+  NotificationRecipientType,
+  NotificationType,
+  Prisma,
+  Role,
+} from "@prisma/client";
 import { error, success } from "helpers/return";
 import { notificationQueue } from "queue/notificationQueue";
 import { DeviceRepository, UserRoleRepository } from "repositories";
@@ -129,6 +136,185 @@ export class NotificationService {
     };
   }
 
+  private async resolveTokens(
+    recipientType: NotificationRecipientType,
+    recipientId: string,
+  ): Promise<string[]> {
+    switch (recipientType) {
+      case "USER": {
+        const devices = await this.deviceRepo.findByUserId(recipientId);
+        return this.extractValidTokens(devices);
+      }
+
+      case "VENUE": {
+        const roles = await this.userRoleRepo.findUsersByRoleAndVenue(
+          Role.VENUE_OWNER,
+          recipientId,
+        );
+        return this.getTokensFromRolesSafe(roles);
+      }
+
+      case "EVENT": {
+        const roles = await this.userRoleRepo.findUsersByRoleAndEvent(
+          Role.EVENT_OWNER,
+          recipientId,
+        );
+        return this.getTokensFromRolesSafe(roles);
+      }
+
+      case "COMMUNITY": {
+        const members =
+          await this.userRoleRepo.findUsersByCommunity(recipientId);
+        return this.getTokensFromRolesSafe(members);
+      }
+
+      case "ADMIN": {
+        const roles = await this.userRoleRepo.findUsersByRole(Role.ADMIN);
+        return this.getTokensFromRolesSafe(roles);
+      }
+
+      default:
+        return [];
+    }
+  }
+
+  async sendNotificationToRecipient(params: {
+    recipientType: NotificationRecipientType;
+    recipientId: string;
+    title: string;
+    message: string;
+    image?: string;
+    data?: Record<string, string>;
+  }) {
+    const { recipientType, recipientId, title, message, image, data } = params;
+
+    await notificationRepository.create({
+      recipientType,
+      recipientId,
+      title,
+      message,
+      type: "SYSTEM",
+      image,
+      isGlobal: false,
+      adminOnly: false,
+    });
+
+    const tokens = await this.resolveTokens(recipientType, recipientId);
+
+    return this.sendFCM(tokens, {
+      notification: {
+        title,
+        body: message,
+        imageUrl: image || undefined,
+      },
+      data: data || {},
+    });
+  }
+
+  async sendCustomNotifications(
+    notifications: {
+      recipientType: NotificationRecipientType;
+      recipientId: string;
+      title: string;
+      message: string;
+      type: NotificationType;
+      entityId?: string;
+    }[],
+    tx?: Prisma.TransactionClient,
+  ) {
+    await notificationRepository.createMany(
+      notifications.map((n) => ({
+        ...n,
+        isGlobal: false,
+        adminOnly: n.recipientType === "ADMIN",
+        image: null,
+        userId: n.recipientType === "USER" ? n.recipientId : null,
+      })),
+      tx,
+    );
+
+    await Promise.all(
+      notifications.map(async (n) => {
+        const tokens = await this.resolveTokens(n.recipientType, n.recipientId);
+
+        if (!tokens.length) return;
+
+        return this.sendFCM(tokens, {
+          notification: {
+            title: n.title,
+            body: n.message,
+          },
+          data: {
+            type: n.type,
+            entityId: n.entityId || "",
+          },
+        });
+      }),
+    );
+  }
+
+  async sendToMultipleRecipients(params: {
+    targets: {
+      recipientType: NotificationRecipientType;
+      recipientId: string;
+    }[];
+    title: string;
+    message: string;
+    type: NotificationType;
+    entityId?: string;
+    image?: string;
+    data?: Record<string, string>;
+  }) {
+    const { targets, title, message, type, entityId, image, data } = params;
+
+    if (!targets.length) return;
+
+    const uniqueTargets = Array.from(
+      new Map(
+        targets.map((t) => [`${t.recipientType}-${t.recipientId}`, t]),
+      ).values(),
+    );
+
+    await notificationRepository.createMany(
+      uniqueTargets.map((t) => ({
+        recipientType: t.recipientType,
+        recipientId: t.recipientId,
+        title,
+        message,
+        type,
+        entityId: entityId ?? null,
+        image: image ?? null,
+        isGlobal: false,
+        adminOnly: t.recipientType === "ADMIN",
+        userId: t.recipientType === "USER" ? t.recipientId : null,
+      })),
+    );
+
+    let allTokens: string[] = [];
+
+    for (const target of uniqueTargets) {
+      const tokens = await this.resolveTokens(
+        target.recipientType,
+        target.recipientId,
+      );
+
+      allTokens.push(...tokens);
+    }
+
+    allTokens = [...new Set(allTokens)];
+
+    if (!allTokens.length) return;
+
+    return this.sendFCM(allTokens, {
+      notification: {
+        title,
+        body: message,
+        imageUrl: image || undefined,
+      },
+      data: data || {},
+    });
+  }
+
   async sendToVenueOwner(
     venueId: string,
     title: string,
@@ -256,11 +442,13 @@ export class NotificationService {
 
     if (mentionedUserId === actorId) return;
 
-    const notification = await notificationRepository.createNewNotification({
+    const notification = await notificationRepository.create({
+      recipientId: mentionedUserId,
+      recipientType: "USER",
       userId: mentionedUserId,
       title: "Kamu di-mention",
       message: `${actorName} menyebut kamu di postingan komunitas`,
-      type: "MENTION",
+      type: "SYSTEM",
     } as Notification);
 
     await this.sendToUser(
@@ -281,7 +469,7 @@ export class NotificationService {
         imageUrl = await uploadToCloudinary(file.path, "notifications");
       }
 
-      const created = await notificationRepository.createNewNotification({
+      const created = await notificationRepository.create({
         ...data,
         image: imageUrl,
       });
@@ -297,65 +485,39 @@ export class NotificationService {
     }
   }
 
-  async markAllAsRead(userId: string) {
-    try {
-      const items = await notificationRepository.markAllAsRead(userId);
-      return ok("All notifications marked as read", { items });
-    } catch {
-      return fail("Failed to mark notifications as read");
-    }
+  async markAllAsRead(
+    recipientType: NotificationRecipientType,
+    recipientId: string,
+  ) {
+    const items = await notificationRepository.markAllAsRead(
+      recipientType,
+      recipientId,
+    );
+
+    return items;
   }
 
-  async markAllAsUnread(userId: string) {
-    try {
-      const items = await notificationRepository.markAllAsUnread(userId);
-      return ok("All notifications marked as unread", { items });
-    } catch {
-      return fail("Failed to mark notifications as unread");
-    }
+  async markAllAsUnread(
+    recipientType: NotificationRecipientType,
+    recipientId: string,
+  ) {
+    const items = await notificationRepository.markAllAsUnread(
+      recipientType,
+      recipientId,
+    );
+
+    return items;
   }
 
   async getUserNotifications(userId: string, page?: number, limit?: number) {
-    try {
-      const result = await notificationRepository.findNotificationsForUser(
-        userId,
-        page,
-        limit,
-      );
+    const result = await notificationRepository.findByEntity(userId);
 
-      return ok("Notifications fetched", {
-        items: result.items,
-        pagination: {
-          page: result.page,
-          limit: result.limit,
-          total: result.total,
-        },
-      });
-    } catch {
-      return fail("Failed to get notifications");
-    }
+    return result;
   }
 
-  async getGroupedNotifications(userId: string) {
+  async getNotificationByVenue(entityId: string) {
     try {
-      const [global, personal] = await Promise.all([
-        notificationRepository.findGlobal(),
-        notificationRepository.findPersonal(userId),
-      ]);
-
-      return ok("Notifications fetched", {
-        forYou: global,
-        personal,
-      });
-    } catch {
-      return fail("Failed to get notifications");
-    }
-  }
-
-  async getNotificationByVenue(venueId: string) {
-    try {
-      const notification =
-        await notificationRepository.findPersonalVenue(venueId);
+      const notification = await notificationRepository.findByEntity(entityId);
 
       if (!notification) {
         return error.error404("Notification not found");

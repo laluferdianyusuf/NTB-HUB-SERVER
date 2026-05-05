@@ -13,9 +13,7 @@ router.post("/notification/user", (req, res) =>
 router.get("/notification", auth.authenticate, (req, res) =>
   notificationController.getNotification(req, res),
 );
-router.get("/notification/grouped", auth.authenticate, (req, res) =>
-  notificationController.getGroupedNotifications(req, res),
-);
+
 router.get("/notification/venue/:venueId", auth.authenticate, (req, res) =>
   notificationController.getNotificationByVenue(req, res),
 );

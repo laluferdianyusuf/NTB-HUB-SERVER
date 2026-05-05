@@ -42,8 +42,12 @@ export class NotificationController {
   async markAllAsRead(req: Request, res: Response) {
     try {
       const userId = req.user?.id as string;
+      const { recipientType } = req.body;
 
-      const result = await this.notificationService.markAllAsRead(userId);
+      const result = await this.notificationService.markAllAsRead(
+        recipientType,
+        userId,
+      );
 
       return res.status(200).json(result);
     } catch (error) {
@@ -58,8 +62,12 @@ export class NotificationController {
   async markAllAsUnread(req: Request, res: Response) {
     try {
       const userId = req.user?.id as string;
+      const { recipientType } = req.body;
 
-      const result = await this.notificationService.markAllAsUnread(userId);
+      const result = await this.notificationService.markAllAsUnread(
+        recipientType,
+        userId,
+      );
 
       return res.status(200).json(result);
     } catch (error) {
@@ -67,24 +75,6 @@ export class NotificationController {
       return res.status(500).json({
         status: false,
         message: "Internal server error",
-      });
-    }
-  }
-
-  async getGroupedNotifications(req: Request, res: Response) {
-    try {
-      const userId = req.user?.id as string;
-
-      const result =
-        await this.notificationService.getGroupedNotifications(userId);
-
-      res.status(200).json(result);
-    } catch (error) {
-      console.log(error);
-      res.status(500).json({
-        status: false,
-        message: "Internal server error",
-        data: null,
       });
     }
   }

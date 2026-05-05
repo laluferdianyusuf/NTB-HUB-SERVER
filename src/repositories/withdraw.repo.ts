@@ -1,4 +1,4 @@
-import { Prisma, PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient, WithdrawStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -90,5 +90,56 @@ export class WithdrawRepository {
       where: { venueId },
       orderBy: { createdAt: "desc" },
     });
+  }
+
+  async listByAccount(params?: {
+    accountId?: string;
+    status?: WithdrawStatus;
+    page?: number;
+    limit?: number;
+  }) {
+    const page = params?.page ?? 1;
+    const limit = params?.limit ?? 20;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    if (params?.accountId) {
+      where.accountId = params.accountId;
+    }
+
+    if (params?.status) {
+      where.status = params.status;
+    }
+
+    const [data, total] = await Promise.all([
+      prisma.withdrawRequest.findMany({
+        where,
+        include: {
+          account: {
+            include: {
+              venue: true,
+              event: true,
+              community: true,
+              user: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.withdrawRequest.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 }

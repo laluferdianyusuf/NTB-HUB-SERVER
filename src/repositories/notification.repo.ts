@@ -1,4 +1,10 @@
-import { Notification, Prisma, PrismaClient } from "@prisma/client";
+import {
+  Notification,
+  NotificationRecipientType,
+  NotificationType,
+  Prisma,
+  PrismaClient,
+} from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -7,106 +13,183 @@ export class NotificationRepository {
     return tx ?? prisma;
   }
 
-  // find all notification
-  async findNotificationByUserId(userId: string): Promise<Notification[]> {
-    return prisma.notification.findMany({ where: { userId } });
-  }
-
-  //   create new notification
-  async createNewNotification(
-    data: Notification,
+  async create(
+    data: Prisma.NotificationCreateInput,
     tx?: Prisma.TransactionClient,
   ): Promise<Notification> {
-    const client = this.getClient(tx);
-    return client.notification.create({
+    const db = this.getClient(tx);
+
+    return db.notification.create({
       data,
     });
   }
 
-  // update notification as read
-  async markAllAsRead(userId: string) {
+  async createMany(
+    data: Prisma.NotificationCreateInput[],
+    tx?: Prisma.TransactionClient,
+  ) {
+    const db = this.getClient(tx);
+
+    return db.notification.createMany({
+      data,
+    });
+  }
+
+  async findById(id: string): Promise<Notification | null> {
+    return prisma.notification.findUnique({
+      where: { id },
+    });
+  }
+
+  async findByRecipient(
+    recipientType: NotificationRecipientType,
+    recipientId: string,
+  ): Promise<Notification[]> {
+    return prisma.notification.findMany({
+      where: {
+        OR: [
+          { isGlobal: true },
+          {
+            recipientType,
+            recipientId,
+          },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async findWithPagination(params: {
+    recipientType: NotificationRecipientType;
+    recipientId: string;
+    page?: number;
+    limit?: number;
+    type?: NotificationType;
+    isRead?: boolean;
+  }) {
+    const page = params.page ?? 1;
+    const limit = params.limit ?? 20;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.NotificationWhereInput = {
+      OR: [
+        { isGlobal: true },
+        {
+          recipientType: params.recipientType,
+          recipientId: params.recipientId,
+        },
+      ],
+    };
+
+    if (params.type) {
+      where.type = params.type;
+    }
+
+    if (params.isRead !== undefined) {
+      where.isRead = params.isRead;
+    }
+
+    const [data, total] = await prisma.$transaction([
+      prisma.notification.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.notification.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findByEntity(entityId: string) {
+    return prisma.notification.findMany({
+      where: { entityId },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async markAsRead(id: string) {
+    return prisma.notification.update({
+      where: { id },
+      data: { isRead: true },
+    });
+  }
+
+  async markAsUnread(id: string) {
+    return prisma.notification.update({
+      where: { id },
+      data: { isRead: false },
+    });
+  }
+
+  async markAllAsRead(
+    recipientType: NotificationRecipientType,
+    recipientId: string,
+  ) {
     return prisma.notification.updateMany({
       where: {
-        OR: [{ isGlobal: true }, { userId }],
+        OR: [
+          { isGlobal: true },
+          {
+            recipientType,
+            recipientId,
+          },
+        ],
         isRead: false,
       },
       data: { isRead: true },
     });
   }
 
-  async markAllAsUnread(userId: string) {
+  async markAllAsUnread(
+    recipientType: NotificationRecipientType,
+    recipientId: string,
+  ) {
     return prisma.notification.updateMany({
       where: {
-        OR: [{ isGlobal: true }, { userId }],
+        OR: [
+          { isGlobal: true },
+          {
+            recipientType,
+            recipientId,
+          },
+        ],
         isRead: true,
       },
       data: { isRead: false },
     });
   }
 
-  // delete notification
-  async deleteNotification(id: string): Promise<Notification> {
-    return prisma.notification.delete({ where: { id: id } });
+  async delete(id: string) {
+    return prisma.notification.delete({
+      where: { id },
+    });
   }
 
-  async createManyNotification(
-    data: Omit<Notification, "id" | "createdAt" | "updatedAt" | "isRead">[],
-    tx?: Prisma.TransactionClient,
+  async deleteByEntity(entityId: string) {
+    return prisma.notification.deleteMany({
+      where: { entityId },
+    });
+  }
+
+  async deleteByRecipient(
+    recipientType: NotificationRecipientType,
+    recipientId: string,
   ) {
-    const db = tx ?? prisma;
-    return await db.notification.createMany({ data });
-  }
-
-  async findManyByUserId(userId: string): Promise<Notification[]> {
-    return prisma.notification.findMany({
+    return prisma.notification.deleteMany({
       where: {
-        OR: [{ isGlobal: true }, { userId: userId }],
+        recipientType,
+        recipientId,
       },
-      orderBy: { createdAt: "desc" },
-    });
-  }
-
-  async findNotificationsForUser(userId: string, page = 1, limit = 20) {
-    const skip = (page - 1) * limit;
-
-    const [items, total] = await prisma.$transaction([
-      prisma.notification.findMany({
-        where: {
-          OR: [{ isGlobal: true }, { userId }],
-        },
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: limit,
-      }),
-
-      prisma.notification.count({
-        where: {
-          OR: [{ isGlobal: true }, { userId }],
-        },
-      }),
-    ]);
-
-    return { items, total, page, limit };
-  }
-
-  async findGlobal() {
-    return prisma.notification.findMany({
-      where: { isGlobal: true },
-      orderBy: { createdAt: "desc" },
-    });
-  }
-
-  async findPersonal(userId: string) {
-    return prisma.notification.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-    });
-  }
-
-  async findPersonalVenue(venueId: string) {
-    return prisma.notification.findMany({
-      where: { venueId },
-      orderBy: { createdAt: "desc" },
     });
   }
 }
