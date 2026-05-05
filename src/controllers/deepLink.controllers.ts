@@ -10,7 +10,14 @@ import { TrackingService } from "services";
 import { DeepLinkDataService } from "services/deepLink.services";
 import { isMobile } from "../utils/device";
 
-const ALLOWED_TYPES = ["user", "venue", "event"];
+const ALLOWED_TYPES = [
+  "user",
+  "venue",
+  "event",
+  "verify-email",
+  "reset-password",
+  "invite",
+];
 
 const deepLinkService = new DeepLinkDataService(
   new UserRepository(),
@@ -48,45 +55,41 @@ export class DeepLinkController {
       image: "https://via.placeholder.com/300",
     };
 
-    const deepLink = `ntbhub-apps://${type}/${id}`;
+    const query = new URLSearchParams(req.query as any).toString();
+
+    const deepLink = `ntbhub-apps://${type}?${query}`;
+
     const playStore =
       "https://play.google.com/store/apps/details?id=com.laluferdian.ntbhubapps";
 
     return res.send(`
-      <html>
-        <head>
-          <title>${safe.title}</title>
+<html>
+  <head>
+    <meta property="og:title" content="${safe.title}" />
+    <meta property="og:description" content="${safe.description}" />
+    <meta property="og:image" content="${safe.image}" />
 
-          <!-- Open Graph -->
-          <meta property="og:title" content="${safe.title}" />
-          <meta property="og:description" content="${safe.description}" />
-          <meta property="og:image" content="${safe.image}" />
-          <meta property="og:url" content="${process.env.APP_DOMAIN}/${type}/${id}" />
-          <meta property="og:type" content="website" />
+    ${
+      isMobile(userAgent)
+        ? `<meta http-equiv="refresh" content="0; url=${deepLink}" />`
+        : ""
+    }
 
-          <!-- Redirect -->
-          ${
-            isMobile(userAgent)
-              ? `<meta http-equiv="refresh" content="0; url=${deepLink}" />`
-              : ""
-          }
+    <script>
+      setTimeout(() => {
+        window.location.href = "${playStore}";
+      }, 2000);
+    </script>
+  </head>
 
-          <script>
-            setTimeout(() => {
-              window.location.href = "${playStore}";
-            }, 2000);
-          </script>
-        </head>
+  <body style="text-align:center; padding:40px;">
+    <h2>${safe.title}</h2>
+    <p>${safe.description}</p>
 
-        <body style="font-family:sans-serif; text-align:center; padding:40px;">
-          <h2>${safe.title}</h2>
-          <img src="${safe.image}" width="200" />
-          <p>${safe.description}</p>
-
-          <a href="${deepLink}">Open App</a><br/><br/>
-          <a href="${playStore}">Download App</a>
-        </body>
-      </html>
-    `);
+    <a href="${deepLink}">Open App</a><br/><br/>
+    <a href="${playStore}">Download App</a>
+  </body>
+</html>
+`);
   }
 }

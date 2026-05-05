@@ -56,6 +56,17 @@ export class CommunityEventController {
     }
   };
 
+  getCommunityEventDashboard = async (req: Request, res: Response) => {
+    try {
+      const eventId = req.params.eventId;
+      const result = await service.getCommunityEventDashboard(eventId);
+
+      sendSuccess(res, result, "Dashboard retrieved successfully");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal Server Error");
+    }
+  };
+
   addCollaboration = async (req: Request, res: Response) => {
     try {
       const { eventId } = req.params;

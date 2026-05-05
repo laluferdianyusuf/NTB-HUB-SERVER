@@ -24,6 +24,7 @@ export class CommunityRepository {
         communityId: community.id,
       },
     });
+
     return community;
   }
 

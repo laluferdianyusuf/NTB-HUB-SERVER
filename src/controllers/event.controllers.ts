@@ -18,6 +18,17 @@ export class EventController {
     }
   }
 
+  getEventDashboard = async (req: Request, res: Response) => {
+    try {
+      const eventId = req.params.eventId;
+      const result = await this.service.getEventDashboard(eventId);
+
+      sendSuccess(res, result, "Dashboard retrieved successfully");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal Server Error");
+    }
+  };
+
   async listEvent(req: Request, res: Response) {
     try {
       const { search, status, page, limit } = req.query;

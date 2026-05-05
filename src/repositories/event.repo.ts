@@ -1,4 +1,4 @@
-import { EventStatus, PrismaClient } from "@prisma/client";
+import { EventOrderStatus, EventStatus, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -22,6 +22,13 @@ export class EventRepository {
     return prisma.$transaction(async (tx) => {
       const event = await tx.event.create({ data });
 
+      await tx.account.create({
+        data: {
+          type: "EVENT",
+          eventId: event.id,
+        },
+      });
+
       await tx.eventBalance.create({
         data: {
           eventId: event.id,
@@ -29,6 +36,139 @@ export class EventRepository {
       });
       return event;
     });
+  }
+
+  async getEventDashboard(eventId: string) {
+    const now = new Date();
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const eventAccount = await prisma.account.findFirst({
+      where: {
+        eventId,
+      },
+    });
+    if (!eventAccount) throw new Error("Event account not found");
+
+    const [
+      groupedStatus,
+      todayRevenue,
+      pendingTicketOrder,
+      paidTicketOrder,
+      cancelledTicketOrder,
+      expiredTicketOrder,
+    ] = await Promise.all([
+      prisma.eventOrder.groupBy({
+        by: ["status"],
+        where: { eventId },
+        _count: {
+          status: true,
+        },
+      }),
+
+      prisma.ledgerEntry.aggregate({
+        where: {
+          accountId: eventAccount.id,
+          type: "CREDIT",
+          referenceType: "EVENT_PAYMENT",
+          createdAt: {
+            gte: startOfToday,
+          },
+        },
+        _sum: {
+          amount: true,
+        },
+      }),
+
+      prisma.eventOrder.findMany({
+        where: {
+          eventId,
+          status: EventOrderStatus.PENDING,
+        },
+        include: {
+          event: true,
+          tickets: true,
+          user: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 5,
+      }),
+
+      prisma.eventOrder.findMany({
+        where: {
+          eventId,
+          status: EventOrderStatus.PAID,
+        },
+        include: {
+          event: true,
+          tickets: true,
+          user: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 5,
+      }),
+
+      prisma.eventOrder.findMany({
+        where: {
+          eventId,
+          status: EventOrderStatus.CANCELLED,
+        },
+        include: {
+          event: true,
+          tickets: true,
+          user: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 5,
+      }),
+
+      prisma.eventOrder.findMany({
+        where: {
+          eventId,
+          status: EventOrderStatus.EXPIRED,
+        },
+        include: {
+          event: true,
+          tickets: true,
+          user: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 5,
+      }),
+    ]);
+
+    const summary = {
+      pending: 0,
+      paid: 0,
+      cancelled: 0,
+      expired: 0,
+    };
+
+    const totalRevenueToday = Number(todayRevenue._sum.amount ?? 0);
+
+    for (const row of groupedStatus) {
+      summary[row.status.toLowerCase() as keyof typeof summary] =
+        row._count.status;
+    }
+
+    return {
+      summary,
+      revenueToday: totalRevenueToday,
+
+      pending: pendingTicketOrder,
+      paid: paidTicketOrder,
+      cancelled: cancelledTicketOrder,
+      expired: expiredTicketOrder,
+    };
   }
 
   async findAllActiveEvents(params: {

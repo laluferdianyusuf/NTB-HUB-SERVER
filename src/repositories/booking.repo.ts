@@ -411,6 +411,16 @@ export class BookingRepository {
   async getVenueDashboard(venueId: string) {
     const now = new Date();
 
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const venueAccount = await prisma.account.findFirst({
+      where: {
+        venueId,
+      },
+    });
+    if (!venueAccount) throw new Error("Venue account not found");
+
     const [
       groupedStatus,
       todayRevenue,
@@ -426,18 +436,17 @@ export class BookingRepository {
         },
       }),
 
-      prisma.booking.aggregate({
+      prisma.ledgerEntry.aggregate({
         where: {
-          venueId,
-          status: {
-            in: [BookingStatus.PAID, BookingStatus.COMPLETED],
-          },
-          updatedAt: {
-            gte: new Date(new Date().setHours(0, 0, 0, 0)),
+          accountId: venueAccount.id,
+          type: "CREDIT",
+          referenceType: "BOOKING_PAYMENT",
+          createdAt: {
+            gte: startOfToday,
           },
         },
         _sum: {
-          totalPrice: true,
+          amount: true,
         },
       }),
 
@@ -489,6 +498,8 @@ export class BookingRepository {
       expired: 0,
     };
 
+    const totalRevenueToday = Number(todayRevenue._sum.amount ?? 0);
+
     for (const row of groupedStatus) {
       summary[row.status.toLowerCase() as keyof typeof summary] =
         row._count.status;
@@ -496,7 +507,7 @@ export class BookingRepository {
 
     return {
       summary,
-      revenueToday: Number(todayRevenue._sum.totalPrice ?? 0),
+      revenueToday: totalRevenueToday,
 
       pending: pendingBookings,
       ongoing: ongoingBookings,

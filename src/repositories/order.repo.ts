@@ -26,7 +26,6 @@ export interface UpdateOrderStatusData {
 export class OrderRepository {
   async create(data: CreateOrderData, tx?: Prisma.TransactionClient) {
     const client = tx ?? prisma;
-    console.log(data);
 
     return client.order.create({
       data: {
@@ -52,6 +51,14 @@ export class OrderRepository {
         },
         venue: true,
       },
+    });
+  }
+
+  async findByBookingId(bookingId: string, tx?: Prisma.TransactionClient) {
+    const client = tx ?? prisma;
+
+    return client.order.findFirst({
+      where: { bookingId },
     });
   }
 

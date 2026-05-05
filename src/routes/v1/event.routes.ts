@@ -25,6 +25,9 @@ router.get("/list-merged-events", auth.authenticate, (req, res) =>
 router.get("/detail-event/:id", auth.authenticate, (req, res) =>
   eventController.detailEvent(req, res),
 );
+router.get("/event/dashboard/:eventId", auth.authenticate, (req, res) =>
+  eventController.getEventDashboard(req, res),
+);
 
 // ADMIN
 router.post(

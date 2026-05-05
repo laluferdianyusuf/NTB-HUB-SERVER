@@ -12,7 +12,9 @@ import {
   PaymentRepository,
   PlatformBalanceRepository,
   UserBalanceRepository,
+  UserRepository,
 } from "../repositories";
+import { UserService } from "./user.services";
 
 const prisma = new PrismaClient();
 
@@ -27,6 +29,8 @@ export class EventOrderService {
   private accountRepository = new AccountRepository();
   private eventBalanceRepository = new EventBalanceRepository();
   private platformBalanceRepository = new PlatformBalanceRepository();
+  private userRepository = new UserRepository();
+  private userService = new UserService();
 
   private async generateTickets(
     order: EventOrder,
@@ -206,7 +210,16 @@ export class EventOrderService {
     userId: string,
     eventOrderId: string,
     items: { ticketTypeId: string; qty: number }[],
+    pin: string,
   ) {
+    const user = await this.userRepository.findById(userId);
+
+    if (!user) throw new Error("USER_NOT_FOUND");
+
+    if (!user.biometricEnabled) {
+      await this.userService.verifyPin(userId, pin);
+    }
+
     return prisma.$transaction(async (tx) => {
       const order = await this.eventOrderRepo.findById(eventOrderId, tx);
 

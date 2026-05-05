@@ -21,8 +21,17 @@ export class VenueRepository {
       },
     });
 
+    await client.floor.create({
+      data: {
+        name: "Floor 1",
+        level: 1,
+        venueId: venue.id,
+      },
+    });
+
     return venue;
   }
+
   private buildVenueWhere(
     params: FindVenuesParams = {},
     activeOnly = false,

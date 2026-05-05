@@ -44,8 +44,9 @@ export class OrderControllers {
     try {
       const { orderId } = req.params;
       const userId = req.user?.id as string;
+      const { pin } = req.body;
 
-      const result = await this.orderService.payOrder(orderId, userId);
+      const result = await this.orderService.payOrder(orderId, userId, pin);
 
       sendSuccess(res, result, "Order payed", 203);
     } catch (error: any) {

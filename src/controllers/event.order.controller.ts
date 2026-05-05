@@ -40,6 +40,7 @@ export class EventOrderController {
     try {
       const userId = req.user?.id as string;
       const { eventOrderId, items } = req.body;
+      const { pin } = req.body;
 
       if (!eventOrderId) {
         return res.status(400).json({
@@ -48,7 +49,12 @@ export class EventOrderController {
         });
       }
 
-      const result = await this.service.markPaid(userId, eventOrderId, items);
+      const result = await this.service.markPaid(
+        userId,
+        eventOrderId,
+        items,
+        pin,
+      );
 
       sendSuccess(res, result, "Payment successful", 201);
     } catch (error: any) {

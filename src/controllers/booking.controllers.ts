@@ -133,7 +133,8 @@ export class BookingControllers {
     try {
       const id = req.params.id;
       const userId = req.user?.id as string;
-      const result = await this.bookingService.payBooking(id, userId);
+      const { pin } = req.body;
+      const result = await this.bookingService.payBooking(id, userId, pin);
 
       sendSuccess(res, result, "booking retrieved successfully", 201);
     } catch (error: any) {

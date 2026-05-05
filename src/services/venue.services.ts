@@ -13,6 +13,7 @@ import {
   VenueLikeRepository,
   VenueRepository,
 } from "../repositories";
+import { prisma } from "config/prisma";
 
 type Segment = "VIP" | "Returning" | "New" | "Blocked";
 
@@ -160,12 +161,17 @@ export class VenueServices {
       throw new Error("Required fields are missing");
     }
 
-    return venueRepository.createVenue({
-      ...payload,
-      latitude: toNum(payload.latitude),
-      longitude: toNum(payload.longitude),
-      image: imageUrl,
-      gallery: galleryUrls,
+    return await prisma.$transaction(async (tx) => {
+      return venueRepository.createVenue(
+        {
+          ...payload,
+          latitude: toNum(payload.latitude),
+          longitude: toNum(payload.longitude),
+          image: imageUrl,
+          gallery: galleryUrls,
+        },
+        tx,
+      );
     });
   }
 

@@ -67,6 +67,30 @@ export class CommunityEventService {
     });
   }
 
+  async getCommunityEventDashboard(eventId: string) {
+    const dashboard = await this.repo.getCommunityEventDashboard(eventId);
+
+    return {
+      message: "Community event dashboard fetched successfully",
+
+      summary: {
+        totalPending: dashboard.summary.pending,
+        totalPaid: dashboard.summary.paid,
+        totalCancelled: dashboard.summary.cancelled,
+        totalExpired: dashboard.summary.expired,
+      },
+
+      finance: {
+        revenueToday: dashboard.revenueToday,
+      },
+
+      orders: {
+        pending: dashboard.pending,
+        paid: dashboard.paid,
+      },
+    };
+  }
+
   async addCollaboration(eventId: string, communityId: string) {
     return this.collabRepo.add(eventId, communityId);
   }

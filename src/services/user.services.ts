@@ -90,6 +90,8 @@ export class UserService {
       emailVerifyExpiry: verificationExpiry,
     });
 
+    const url = `${process.env.APP_DOMAIN}/deep-link?type=verify-email&token=${rawToken}`;
+
     await sendEmail(
       user.email,
       "Verify Your Email",
@@ -125,7 +127,7 @@ export class UserService {
 
             <tr>
               <td align="center" style="padding:25px 0;">
-                <a href="${process.env.API_URL}/auth/verify-email?token=${rawToken}"
+                <a href="${url}"
                   style="
                     background-color:#2563eb;
                     color:#ffffff;
@@ -150,14 +152,14 @@ export class UserService {
                   If the button above does not work, copy and paste this link into your browser:
                 </p>
                 <p style="word-break:break-all; color:#2563eb; font-size:12px;">
-                  ${process.env.API_URL}/auth/verify-email?token=${rawToken}
+                  ${url}
                 </p>
               </td>
             </tr>
 
             <tr>
               <td style="padding-top:30px; font-size:12px; color:#aaa; text-align:center;">
-                © ${new Date().getFullYear()} Your Company Name. All rights reserved.
+                © ${new Date().getFullYear()} PT. Inspira Internusa. All rights reserved.
               </td>
             </tr>
 
@@ -330,6 +332,8 @@ export class UserService {
       emailVerifyExpiry: verificationExpiry,
     });
 
+    const url = `${process.env.APP_DOMAIN}/deep-link?type=verify-email&token=${rawToken}`;
+
     await sendEmail(
       user.email,
       "Verify Your Email - Resend",
@@ -366,7 +370,7 @@ export class UserService {
 
           <tr>
             <td align="center" style="padding:25px 0;">
-              <a href="${process.env.API_URL}/auth/verify-email?token=${rawToken}"
+              <a href="${url}"
                 style="
                   background-color:#2563eb;
                   color:#ffffff;
@@ -391,7 +395,7 @@ export class UserService {
                   If the button above does not work, copy and paste this link into your browser:
                 </p>
                 <p style="word-break:break-all; color:#2563eb; font-size:12px;">
-                  ${process.env.API_URL}/auth/verify-email?token=${rawToken}
+                  ${url}
                 </p>
               </td>
             </tr>
@@ -409,7 +413,7 @@ export class UserService {
 
           <tr>
             <td style="padding-top:30px; font-size:12px; color:#aaa; text-align:center;">
-              © ${new Date().getFullYear()} Your Company Name. All rights reserved.
+              © ${new Date().getFullYear()} PT. Inspira Internusa. All rights reserved.
             </td>
           </tr>
 
@@ -800,7 +804,7 @@ export class UserService {
 
     await userRepository.setResetToken(user.id, hashedToken, expire);
 
-    const resetUrl = `${process.env.FRONTEND_URL}/resetPassword?token=${rawToken}`;
+    const url = `${process.env.APP_DOMAIN}/deep-link?type=reset-password&token=${rawToken}`;
 
     await sendEmail(
       user.email,
@@ -812,7 +816,7 @@ export class UserService {
             <p>Hello ${user.name},</p>
             <p>Click the button below to reset your password:</p>
             <a 
-              href="${resetUrl}" 
+              href="${url}" 
               style="display:inline-block;padding:10px 20px;background:black;color:white;text-decoration:none;"
             >
               Reset Password
@@ -910,6 +914,8 @@ export class UserService {
         pinLockedUntil:
           failedCount >= 5 ? new Date(Date.now() + 15 * 60 * 1000) : null,
       });
+
+      throw new Error("Invalid PIN");
     }
 
     await userRepository.update(id, {

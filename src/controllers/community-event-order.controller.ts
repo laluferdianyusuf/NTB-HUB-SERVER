@@ -42,11 +42,14 @@ export class CommunityEventOrderController {
 
   handlePaymentSuccess = async (req: Request, res: Response) => {
     try {
+      const userId = req.user?.id as string;
       const { orderId, items } = req.body;
-
+      const { pin } = req.body;
       const result = await this.orderService.handlePaymentSuccess(
+        userId,
         orderId,
         items,
+        pin,
       );
 
       sendSuccess(res, result, "Order payment successful");

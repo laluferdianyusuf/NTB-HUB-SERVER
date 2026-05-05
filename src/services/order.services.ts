@@ -16,6 +16,7 @@ import {
 } from "repositories";
 import { AccountRepository } from "repositories/account.repo";
 import { PromotionService } from "./promotion.services";
+import { UserService } from "./user.services";
 
 const orderRepository = new OrderRepository();
 const orderItemRepository = new OrderItemRepository();
@@ -29,6 +30,7 @@ const accountRepository = new AccountRepository();
 const promotionService = new PromotionService();
 const deliveryRepository = new DeliveryRepository();
 const userRepository = new UserRepository();
+const userService = new UserService();
 
 export class OrderServices {
   async createNewOrder({
@@ -180,7 +182,15 @@ export class OrderServices {
     });
   }
 
-  async payOrder(orderId: string, userId: string) {
+  async payOrder(orderId: string, userId: string, pin: string) {
+    const user = await userRepository.findById(userId);
+
+    if (!user) throw new Error("User not found");
+
+    if (!user.biometricEnabled) {
+      await userService.verifyPin(userId, pin);
+    }
+
     return prisma.$transaction(async (tx) => {
       const order = await orderRepository.findById(orderId, tx);
 
@@ -191,8 +201,8 @@ export class OrderServices {
       if (order.status !== "PENDING") {
         throw new Error("Invalid order status");
       }
+
       const venue = await venueRepository.findVenueById(order.venueId);
-      const user = await userRepository.findById(order.userId);
 
       const userAccount = await accountRepository.findUserAccount(order.userId);
       const venueAccount = await accountRepository.findVenueAccount(

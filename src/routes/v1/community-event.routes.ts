@@ -34,6 +34,10 @@ router.get("/detail/:eventId", auth.authenticate, (req, res) =>
   eventController.detail(req, res),
 );
 
+router.get("/event/dashboard/:eventId", auth.authenticate, (req, res) =>
+  eventController.getCommunityEventDashboard(req, res),
+);
+
 // event scan ticket
 router.post(
   "/scan-ticket",

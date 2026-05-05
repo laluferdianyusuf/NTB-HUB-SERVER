@@ -109,6 +109,30 @@ export class EventService {
     };
   }
 
+  async getEventDashboard(eventId: string) {
+    const dashboard = await this.repo.getEventDashboard(eventId);
+
+    return {
+      message: "Event dashboard fetched successfully",
+
+      summary: {
+        totalPending: dashboard.summary.pending,
+        totalPaid: dashboard.summary.paid,
+        totalCancelled: dashboard.summary.cancelled,
+        totalExpired: dashboard.summary.expired,
+      },
+
+      finance: {
+        revenueToday: dashboard.revenueToday,
+      },
+
+      orders: {
+        pending: dashboard.pending,
+        paid: dashboard.paid,
+      },
+    };
+  }
+
   async getMergedEvents(params: {
     search?: string;
     status?: string;

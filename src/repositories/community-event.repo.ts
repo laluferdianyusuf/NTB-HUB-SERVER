@@ -1,5 +1,5 @@
 import { prisma } from "config/prisma";
-import { Prisma } from "@prisma/client";
+import { EventOrderStatus, Prisma } from "@prisma/client";
 
 export class CommunityEventRepository {
   private transaction(tx?: Prisma.TransactionClient) {
@@ -42,6 +42,136 @@ export class CommunityEventRepository {
         },
       },
     });
+  }
+
+  async getCommunityEventDashboard(eventId: string) {
+    const now = new Date();
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const eventAccount = await prisma.account.findFirst({
+      where: {
+        eventId,
+      },
+    });
+    if (!eventAccount) throw new Error("Community event account not found");
+
+    const [
+      groupedStatus,
+      todayRevenue,
+      pendingTicketOrder,
+      paidTicketOrder,
+      cancelledTicketOrder,
+      expiredTicketOrder,
+    ] = await Promise.all([
+      prisma.communityEventOrder.groupBy({
+        by: ["status"],
+        where: { communityEventId: eventId },
+        _count: {
+          status: true,
+        },
+      }),
+
+      prisma.ledgerEntry.aggregate({
+        where: {
+          accountId: eventAccount.id,
+          type: "CREDIT",
+          referenceType: "EVENT_PAYMENT",
+          createdAt: {
+            gte: startOfToday,
+          },
+        },
+        _sum: {
+          amount: true,
+        },
+      }),
+
+      prisma.communityEventOrder.findMany({
+        where: {
+          eventId,
+          status: EventOrderStatus.PENDING,
+        },
+        include: {
+          communityEvent: true,
+          tickets: true,
+          user: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 5,
+      }),
+      prisma.communityEventOrder.findMany({
+        where: {
+          eventId,
+          status: EventOrderStatus.PAID,
+        },
+        include: {
+          communityEvent: true,
+          tickets: true,
+          user: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 5,
+      }),
+      prisma.communityEventOrder.findMany({
+        where: {
+          eventId,
+          status: EventOrderStatus.CANCELLED,
+        },
+        include: {
+          communityEvent: true,
+          tickets: true,
+          user: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 5,
+      }),
+      prisma.communityEventOrder.findMany({
+        where: {
+          eventId,
+          status: EventOrderStatus.EXPIRED,
+        },
+        include: {
+          communityEvent: true,
+          tickets: true,
+          user: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 5,
+      }),
+    ]);
+
+    const summary = {
+      pending: 0,
+      paid: 0,
+      cancelled: 0,
+      expired: 0,
+    };
+
+    const totalRevenueToday = Number(todayRevenue._sum.amount ?? 0);
+
+    for (const row of groupedStatus) {
+      summary[row.status.toLowerCase() as keyof typeof summary] =
+        row._count.status;
+    }
+
+    return {
+      summary,
+      revenueToday: totalRevenueToday,
+
+      pending: pendingTicketOrder,
+      paid: paidTicketOrder,
+      cancelled: cancelledTicketOrder,
+      expired: expiredTicketOrder,
+    };
   }
 
   findByCommunity(
@@ -94,12 +224,22 @@ export class CommunityEventRepository {
     });
   }
 
-  create(
+  async create(
     data: Prisma.CommunityEventCreateInput,
     tx?: Prisma.TransactionClient,
   ) {
     const db = this.transaction(tx);
-    return db.communityEvent.create({ data });
+
+    const event = await db.communityEvent.create({ data });
+
+    await db.account.create({
+      data: {
+        type: "COMMUNITY",
+        communityId: event.id,
+      },
+    });
+
+    return event;
   }
 
   update(

@@ -23,12 +23,14 @@ import {
   PaymentRepository,
   PlatformBalanceRepository,
   UserBalanceRepository,
+  UserRepository,
   VenueBalanceRepository,
   VenueServiceRepository,
   VenueUnitRepository,
 } from "../repositories";
 import { NotificationService } from "./notification.services";
 import { PromotionService } from "./promotion.services";
+import { UserService } from "./user.services";
 
 const bookingRepository = new BookingRepository();
 const invoiceRepository = new InvoiceRepository();
@@ -46,6 +48,8 @@ const accountRepository = new AccountRepository();
 const orderRepository = new OrderRepository();
 const menuRepository = new MenuRepository();
 const orderItemRepository = new OrderItemRepository();
+const userService = new UserService();
+const userRepository = new UserRepository();
 
 interface CreateBookingProps {
   userId: string;
@@ -287,7 +291,7 @@ export class BookingServices {
     return result;
   }
 
-  async payBooking(bookingId: string, userId: string) {
+  async payBooking(bookingId: string, userId: string, pin: string) {
     const booking = await bookingRepository.findBookingById(bookingId);
 
     if (!booking) throw new Error("Booking not found");
@@ -295,12 +299,23 @@ export class BookingServices {
     if (booking.status !== "PENDING")
       throw new Error("Booking already processed");
 
+    const user = await userRepository.findById(userId);
+
+    if (!user) throw new Error("USER_NOT_FOUND");
+
+    if (!user.biometricEnabled) {
+      await userService.verifyPin(userId, pin);
+    }
+
     const invoice = await invoiceRepository.findActiveByEntity(
       "BOOKING",
       booking.id,
     );
     if (!invoice || invoice.status !== "PENDING")
       throw new Error("Invoice invalid");
+
+    const order = await orderRepository.findByBookingId(booking.id);
+    if (!order) throw new Error("Order not found");
 
     const userBalance = await ledgerRepository.getBalanceByOwner({ userId });
 
@@ -372,6 +387,7 @@ export class BookingServices {
       await invoiceRepository.markPaid(invoice.id, tx);
 
       await bookingRepository.updateBookingStatus(booking.id, "PAID", tx);
+      await orderRepository.updateStatus(order.id, "SUCCESS", tx);
     });
 
     await notificationRepository.createNewNotification({
