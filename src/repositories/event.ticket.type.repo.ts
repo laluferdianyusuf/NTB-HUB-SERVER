@@ -45,7 +45,7 @@ export class EventTicketTypeRepository {
     const db = tx ?? prisma;
     return db.eventTicketType.update({
       where: { id: id },
-      data: { sold: { increment: qty } },
+      data: { sold: { increment: qty }, quota: { decrement: qty } },
     });
   }
 
