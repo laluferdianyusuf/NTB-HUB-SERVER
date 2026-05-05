@@ -278,6 +278,34 @@ enum PromotionStatus {
   REJECTED
 }
 
+enum ActivityEntityType {
+  WITHDRAW
+  BOOKING
+  ORDER
+  EVENT
+  COMMUNITY_EVENT
+  DELIVERY
+  PROMOTION
+}
+
+enum ActivityAction {
+  CREATE
+  UPDATE
+  DELETE
+  APPROVE
+  REJECT
+  PROCESS
+  PAID
+  CANCEL
+  EXPIRE
+}
+
+enum ActorType {
+  USER
+  ADMIN
+  SYSTEM
+}
+
 // #regionUSER & AUTH
 model User {
   id                  String     @id @default(uuid())
@@ -309,7 +337,6 @@ model User {
   bookings         Booking[]
   notifications    Notification[]
   locations        LocationTracking[]
-  activities       LogActivity[]
   balance          UserBalance?
   points           Point[]
   likedVenues      LikeVenue[]
@@ -487,15 +514,23 @@ model LocationTracking {
   @@index([userId, createdAt])
 }
 
-model LogActivity {
-  id          String   @id @default(uuid())
-  userId      String?
-  action      String
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now()) @updatedAt
+model ActivityLog {
+  id String @id @default(uuid())
 
-  user User? @relation(fields: [userId], references: [id])
+  actorId   String?
+  actorType ActorType?
+
+  entityType ActivityEntityType
+  entityId   String
+
+  action ActivityAction
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId])
 }
 
 // #region VENUE CORE
@@ -944,7 +979,8 @@ model Account {
 
   ledgerEntries LedgerEntry[]
 
-  createdAt DateTime @default(now())
+  createdAt        DateTime          @default(now())
+  withdrawRequests WithdrawRequest[]
 
   @@index([type])
 }
@@ -998,8 +1034,10 @@ model Invoice {
 }
 
 model WithdrawRequest {
-  id      String @id @default(uuid())
-  venueId String
+  id String @id @default(uuid())
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id])
 
   withdrawNumber String @unique
 
@@ -1024,16 +1062,14 @@ model WithdrawRequest {
   paidBy     String?
 
   proofUrl String?
-
-  note String?
+  note     String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  venue     Venue?   @relation(fields: [venueId], references: [id])
+  venueId   String?
 
-  venue Venue @relation(fields: [venueId], references: [id])
-
-  @@index([venueId, status])
-  @@index([status])
+  @@index([accountId, status])
 }
 
 model PlatformBalance {
