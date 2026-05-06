@@ -49,4 +49,38 @@ export class AccountService {
         throw new Error("INVALID_ACCOUNT_TYPE");
     }
   }
+
+  async getAccountByType(
+    type: AccountType,
+    id: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    if (!id) throw new Error(`${type} ID is required`);
+
+    let account;
+
+    switch (type) {
+      case "USER":
+        account = await accountRepo.findUserAccount(id, tx);
+        break;
+      case "VENUE":
+        account = await accountRepo.findVenueAccount(id, tx);
+        break;
+      case "EVENT":
+        account = await accountRepo.findEventAccount(id);
+        break;
+      case "COMMUNITY":
+        account = await accountRepo.findCommunityAccount(id);
+        break;
+      case "COURIER":
+        account = await accountRepo.findCourierAccount(id);
+        break;
+    }
+
+    if (!account) {
+      throw new Error(`${type} account not found`);
+    }
+
+    return account;
+  }
 }

@@ -1,3 +1,4 @@
+import { NotificationRecipientType } from "@prisma/client";
 import { Request, Response } from "express";
 import { sendError, sendSuccess } from "helpers/response";
 import { NotificationService } from "../services/notification.services";
@@ -16,6 +17,24 @@ export class NotificationController {
     );
 
     sendSuccess(res, result, "Notification Created", 201);
+  }
+
+  async getNotificationByRecipient(req: Request, res: Response) {
+    try {
+      const recipientId = req.user?.id as string;
+      const { recipientType } = req.query;
+
+      const result = await this.notificationService.getNotificationByRecipient(
+        recipientType as NotificationRecipientType,
+        recipientId,
+      );
+
+      sendSuccess(res, result, "Notification Retrieved");
+    } catch (error: any) {
+      console.log(error);
+
+      sendError(res, error.message || "Internal server error");
+    }
   }
 
   async getNotification(req: Request, res: Response) {
@@ -49,13 +68,11 @@ export class NotificationController {
         userId,
       );
 
-      return res.status(200).json(result);
-    } catch (error) {
+      sendSuccess(res, result, "Notification marked as read");
+    } catch (error: any) {
       console.log(error);
-      return res.status(500).json({
-        status: false,
-        message: "Internal server error",
-      });
+
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -69,13 +86,11 @@ export class NotificationController {
         userId,
       );
 
-      return res.status(200).json(result);
-    } catch (error) {
+      sendSuccess(res, result, "Notification marked as unread");
+    } catch (error: any) {
       console.log(error);
-      return res.status(500).json({
-        status: false,
-        message: "Internal server error",
-      });
+
+      sendError(res, error.message || "Internal server error");
     }
   }
 

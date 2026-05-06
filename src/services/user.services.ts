@@ -568,6 +568,7 @@ export class UserService {
       .filter((r) => r.venueId && r.isActive)
       .map((r) => ({
         venueId: r.venueId!,
+        accounts: r.venue?.accounts!,
         name: r.venue?.name!,
         image: r.venue?.image!,
         role: r.role,
@@ -577,6 +578,7 @@ export class UserService {
       .filter((r) => r.eventId && r.isActive)
       .map((r) => ({
         eventId: r.eventId!,
+        accounts: r.event?.accounts!,
         name: r.event?.name!,
         image: r.event?.image!,
         role: r.role,
@@ -619,6 +621,7 @@ export class UserService {
       profileLikeCount: user.profileLikeCount,
       profileViewCount: user.profileViewCount,
       accounts: user.accounts,
+
       roles: {
         global: globalRoles,
         venues: venueRoles,

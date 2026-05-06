@@ -157,6 +157,7 @@ export class UserRepository {
         transactionPin: true,
         pinLockedUntil: true,
         pinFailedCount: true,
+
         accounts: {
           select: {
             id: true,

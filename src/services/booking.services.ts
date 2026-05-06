@@ -12,6 +12,7 @@ import {
 } from "queue/invoiceQueue";
 import { AccountRepository } from "repositories/account.repo";
 import {
+  ActivityLogRepository,
   BookingRepository,
   InvoiceRepository,
   LedgerRepository,
@@ -71,6 +72,7 @@ const publishEvent = (channel: string, event: string, payload: any) =>
 
 export class BookingServices {
   private promotionService = new PromotionService();
+  private activityLogRepo = new ActivityLogRepository();
 
   async createBooking(data: CreateBookingProps) {
     const service = await venueServiceRepository.findById(data.serviceId);
@@ -380,10 +382,12 @@ export class BookingServices {
         userId,
         Number(invoice.amount),
       );
+
       await venueBalanceRepository.incrementVenueBalance(
         booking.venueId,
         Number(venueAmount),
       );
+
       await platformBalanceRepository.incrementBalance(Number(platformFee), tx);
 
       await invoiceRepository.markPaid(invoice.id, tx);
@@ -433,6 +437,20 @@ export class BookingServices {
         ],
         tx,
       );
+
+      await this.activityLogRepo.create(
+        {
+          actorId: userId,
+          actorType: "USER",
+          entityType: "BOOKING",
+          entityId: booking.id,
+          action: "PAID",
+          metadata: {
+            amount: Number(invoice.amount),
+          },
+        },
+        tx,
+      );
     });
 
     await enqueueBookingStart(booking.id, new Date(booking.startTime));
@@ -450,8 +468,6 @@ export class BookingServices {
       venueId: booking.venueId,
       bookings: await this.getVenueDashboard(booking.venueId),
     });
-
-    await cancelInvoiceExpiry(invoice.id);
 
     return { message: "Booking paid successfully" };
   }

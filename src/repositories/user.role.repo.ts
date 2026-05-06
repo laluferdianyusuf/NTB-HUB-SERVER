@@ -174,6 +174,11 @@ export class UserRoleRepository {
             id: true,
             name: true,
             image: true,
+            accounts: {
+              select: {
+                id: true,
+              },
+            },
           },
         },
         venue: {
@@ -181,6 +186,11 @@ export class UserRoleRepository {
             id: true,
             name: true,
             image: true,
+            accounts: {
+              select: {
+                id: true,
+              },
+            },
           },
         },
         event: {
@@ -188,6 +198,11 @@ export class UserRoleRepository {
             id: true,
             name: true,
             image: true,
+            accounts: {
+              select: {
+                id: true,
+              },
+            },
           },
         },
       },

@@ -36,6 +36,11 @@ export class CommunityRepository {
     return client.community.findUnique({
       where: { id },
       include: {
+        accounts: {
+          select: {
+            id: true,
+          },
+        },
         members: true,
         posts: { include: { reactions: true } },
       },

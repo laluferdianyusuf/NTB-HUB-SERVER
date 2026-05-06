@@ -272,6 +272,11 @@ export class VenueRepository {
         id,
       },
       include: {
+        accounts: {
+          select: {
+            id: true,
+          },
+        },
         invitation: true,
         operationalHours: true,
         services: {

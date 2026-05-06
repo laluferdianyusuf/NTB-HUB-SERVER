@@ -16,4 +16,19 @@ export class AccountController {
       sendError(res, error.message || "Internal server error");
     }
   }
+
+  async getAccountByType(req: Request, res: Response) {
+    try {
+      const { type, id } = req.params;
+
+      const account = await accountService.getAccountByType(
+        type.toUpperCase() as any,
+        id,
+      );
+
+      sendSuccess(res, account, "Account retrieved");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
+    }
+  }
 }

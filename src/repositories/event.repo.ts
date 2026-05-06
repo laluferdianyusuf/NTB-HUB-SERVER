@@ -90,6 +90,11 @@ export class EventRepository {
           event: true,
           tickets: true,
           user: true,
+          accounts: {
+            select: {
+              id: true,
+            },
+          },
         },
         orderBy: {
           createdAt: "desc",
@@ -106,6 +111,11 @@ export class EventRepository {
           event: true,
           tickets: true,
           user: true,
+          accounts: {
+            select: {
+              id: true,
+            },
+          },
         },
         orderBy: {
           createdAt: "desc",
@@ -122,6 +132,11 @@ export class EventRepository {
           event: true,
           tickets: true,
           user: true,
+          accounts: {
+            select: {
+              id: true,
+            },
+          },
         },
         orderBy: {
           createdAt: "desc",
@@ -138,6 +153,11 @@ export class EventRepository {
           event: true,
           tickets: true,
           user: true,
+          accounts: {
+            select: {
+              id: true,
+            },
+          },
         },
         orderBy: {
           createdAt: "desc",
@@ -332,6 +352,11 @@ export class EventRepository {
         ticketTypes: true,
         tickets: true,
         orders: true,
+        accounts: {
+          select: {
+            id: true,
+          },
+        },
       },
     });
   }

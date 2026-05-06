@@ -10,17 +10,23 @@ const notificationController = new NotificationController();
 router.post("/notification/user", (req, res) =>
   notificationController.createNotification(req, res),
 );
+
 router.get("/notification", auth.authenticate, (req, res) =>
   notificationController.getNotification(req, res),
+);
+
+router.get("/by-recipient", auth.authenticate, (req, res) =>
+  notificationController.getNotificationByRecipient(req, res),
 );
 
 router.get("/notification/venue/:venueId", auth.authenticate, (req, res) =>
   notificationController.getNotificationByVenue(req, res),
 );
-router.put("/notification/read", auth.authenticate, (req, res) =>
+router.put("/read", auth.authenticate, (req, res) =>
   notificationController.markAllAsRead(req, res),
 );
-router.put("/notification/unread", auth.authenticate, (req, res) =>
+
+router.put("/unread", auth.authenticate, (req, res) =>
   notificationController.markAllAsUnread(req, res),
 );
 

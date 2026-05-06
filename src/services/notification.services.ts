@@ -490,7 +490,7 @@ export class NotificationService {
     const notification = await notificationRepository.create({
       recipientId: mentionedUserId,
       recipientType: "USER",
-      userId: mentionedUserId,
+      entityId: mentionedUserId,
       title: "Kamu di-mention",
       message: `${actorName} menyebut kamu di postingan komunitas`,
       type: "SYSTEM",
@@ -552,6 +552,18 @@ export class NotificationService {
     );
 
     return items;
+  }
+
+  async getNotificationByRecipient(
+    recipientType: NotificationRecipientType,
+    recipientId: string,
+  ) {
+    const result = await notificationRepository.findByRecipient(
+      recipientType,
+      recipientId,
+    );
+
+    return result;
   }
 
   async getUserNotifications(userId: string, page?: number, limit?: number) {

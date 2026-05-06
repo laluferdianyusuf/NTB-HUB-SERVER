@@ -10,4 +10,6 @@ router.post("/ensure", auth.authenticate, (req, res) =>
   controller.ensureAccount(req, res),
 );
 
+router.get("/:type/:id", (req, res) => controller.getAccountByType(req, res));
+
 export default router;

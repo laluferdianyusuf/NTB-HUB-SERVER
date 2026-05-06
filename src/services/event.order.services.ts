@@ -6,23 +6,23 @@ import {
 } from "@prisma/client";
 import crypto from "crypto";
 import { generateTicketQR } from "helpers/qrCodeHelper";
+import jwt from "jsonwebtoken";
 import {
+  AccountRepository,
+  ActivityLogRepository,
+  EventAttendanceRepository,
+  EventBalanceRepository,
   EventOrderRepository,
   EventTicketRepository,
   EventTicketTypeRepository,
   InvoiceRepository,
   LedgerRepository,
-  AccountRepository,
-  UserRepository,
-  UserBalanceRepository,
   PaymentRepository,
-  EventBalanceRepository,
   PlatformBalanceRepository,
-  EventAttendanceRepository,
+  UserBalanceRepository,
+  UserRepository,
 } from "../repositories";
 import { UserService } from "./user.services";
-import jwt from "jsonwebtoken";
-import { publishEvent } from "helpers/redisPubliser";
 
 const prisma = new PrismaClient();
 
@@ -40,6 +40,7 @@ export class EventOrderService {
   private userRepository = new UserRepository();
   private userService = new UserService();
   private attendanceRepo = new EventAttendanceRepository();
+  private activityLogRepository = new ActivityLogRepository();
 
   async checkout(
     userId: string,
@@ -231,6 +232,20 @@ export class EventOrderService {
           method: "WALLET",
           provider: "NTB_HUB",
           providerRef: `PAY-${crypto.randomUUID().slice(0, 8)}`,
+        },
+        tx,
+      );
+
+      await this.activityLogRepository.create(
+        {
+          actorId: userId,
+          actorType: "USER",
+          entityType: "EVENT",
+          entityId: order.id,
+          action: "PAID",
+          metadata: {
+            amount: Number(invoice.amount),
+          },
         },
         tx,
       );

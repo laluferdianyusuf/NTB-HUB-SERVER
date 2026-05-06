@@ -2,8 +2,10 @@ import { CommunityEventOrder, EventOrderStatus, Prisma } from "@prisma/client";
 import { prisma } from "config/prisma";
 import { generateTicketQR } from "helpers/qrCodeHelper";
 
+import jwt from "jsonwebtoken";
 import {
   AccountRepository,
+  ActivityLogRepository,
   CommunityBalanceRepository,
   CommunityEventAttendanceRepository,
   CommunityEventOrderRepository,
@@ -17,7 +19,6 @@ import {
   UserRepository,
 } from "repositories";
 import { UserService } from "./user.services";
-import jwt from "jsonwebtoken";
 
 interface CreateOrderItem {
   ticketTypeId: string;
@@ -46,6 +47,7 @@ export class CommunityEventOrderService {
   private userRepository = new UserRepository();
   private userService = new UserService();
   private attendanceRepo = new CommunityEventAttendanceRepository();
+  private activityLogRepository = new ActivityLogRepository();
 
   private async generateTickets(
     order: CommunityEventOrder,
@@ -318,6 +320,20 @@ export class CommunityEventOrderService {
           method: "WALLET",
           provider: "NTB_HUB",
           providerRef: paymentId,
+        },
+        tx,
+      );
+
+      await this.activityLogRepository.create(
+        {
+          actorId: userId,
+          actorType: "USER",
+          entityType: "EVENT",
+          entityId: order.id,
+          action: "PAID",
+          metadata: {
+            amount: Number(invoice.amount),
+          },
         },
         tx,
       );
