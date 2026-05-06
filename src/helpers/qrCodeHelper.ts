@@ -1,13 +1,13 @@
 import jwt from "jsonwebtoken";
 
 export const generateTicketQR = (payload: {
-  ticketId: string;
+  orderId: string;
   userId: string;
   eventId: string;
 }) => {
   return jwt.sign(
     {
-      tid: payload.ticketId,
+      oid: payload.orderId,
       uid: payload.userId,
       eid: payload.eventId,
     },

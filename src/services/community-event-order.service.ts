@@ -1,10 +1,11 @@
-import { EventOrderStatus } from "@prisma/client";
+import { CommunityEventOrder, EventOrderStatus, Prisma } from "@prisma/client";
 import { prisma } from "config/prisma";
 import { generateTicketQR } from "helpers/qrCodeHelper";
 
 import {
   AccountRepository,
   CommunityBalanceRepository,
+  CommunityEventAttendanceRepository,
   CommunityEventOrderRepository,
   CommunityEventTicketRepository,
   CommunityEventTicketTypeRepository,
@@ -16,6 +17,7 @@ import {
   UserRepository,
 } from "repositories";
 import { UserService } from "./user.services";
+import jwt from "jsonwebtoken";
 
 interface CreateOrderItem {
   ticketTypeId: string;
@@ -43,11 +45,12 @@ export class CommunityEventOrderService {
   private platformBalanceRepository = new PlatformBalanceRepository();
   private userRepository = new UserRepository();
   private userService = new UserService();
+  private attendanceRepo = new CommunityEventAttendanceRepository();
 
   private async generateTickets(
-    order: any,
+    order: CommunityEventOrder,
     items: { ticketTypeId: string; qty: number }[],
-    tx: any,
+    tx: Prisma.TransactionClient,
   ) {
     const ticketTypes = await this.ticketTypeRepo.findActiveByEvent(
       order.communityEventId,
@@ -59,7 +62,6 @@ export class CommunityEventOrderService {
       communityEventId: string;
       orderId: string;
       ticketTypeId: string;
-      qrCode: string;
     }[] = [];
 
     for (const item of items) {
@@ -74,18 +76,11 @@ export class CommunityEventOrderService {
       }
 
       for (let i = 0; i < item.qty; i++) {
-        const ticketId = crypto.randomUUID();
-
         ticketsPayload.push({
           userId: order.userId,
           communityEventId: order.communityEventId,
           orderId: order.id,
           ticketTypeId: type.id,
-          qrCode: generateTicketQR({
-            ticketId,
-            userId: order.userId,
-            eventId: order.communityEventId,
-          }),
         });
       }
 
@@ -96,42 +91,58 @@ export class CommunityEventOrderService {
     await this.ticketRepo.createMany(ticketsPayload, tx);
   }
 
-  async createOrder(payload: CreateCommunityEventOrderPayload) {
-    const { userId, communityEventId, items, paymentMethod, idempotencyKey } =
-      payload;
-
-    const existingOrder =
-      await this.orderRepo.findByIdempotencyKey(idempotencyKey);
-
-    if (existingOrder) return existingOrder;
-
+  async createOrder(
+    userId: string,
+    eventId: string,
+    items: { ticketTypeId: string; qty: number }[],
+  ) {
     return prisma.$transaction(async (tx) => {
+      if (!items.length) throw new Error("ITEMS_REQUIRED");
+
+      const existingTickets = await tx.communityEventTicket.count({
+        where: { userId, eventId },
+      });
+
+      const newQty = items.reduce((a, b) => a + b.qty, 0);
+
+      if (existingTickets + newQty > 2) {
+        throw new Error("MAX_2_TICKETS_PER_USER");
+      }
+
+      let total = 0;
+
       let totalAmount = 0;
 
       for (const item of items) {
-        const ticketType = await this.ticketTypeRepo.findById(
-          item.ticketTypeId,
-          tx,
-        );
+        const type = await this.ticketTypeRepo.findById(item.ticketTypeId, tx);
 
-        if (!ticketType) throw new Error("TICKET_NOT_FOUND");
-        if (!ticketType.isActive) throw new Error("TICKET_INACTIVE");
-
-        if (ticketType.sold + item.quantity > ticketType.quota) {
-          throw new Error("TICKET_QUOTA_EXCEEDED");
+        if (!type || !type.isActive) {
+          throw new Error("TICKET_NOT_AVAILABLE");
         }
 
-        totalAmount += Number(ticketType.price) * item.quantity;
+        if (type.quota - type.sold < item.qty) {
+          throw new Error("TICKET_SOLD_OUT");
+        }
+
+        total += Number(type.price) * item.qty;
       }
+
+      const orderId = crypto.randomUUID();
+
+      const qrCode = generateTicketQR({
+        orderId,
+        userId,
+        eventId,
+      });
 
       const order = await this.orderRepo.create(
         {
-          user: { connect: { id: userId } },
-          communityEvent: { connect: { id: communityEventId } },
+          id: orderId,
+          userId,
+          communityEventId: eventId,
           total: totalAmount,
           status: EventOrderStatus.PENDING,
-          idempotencyKey,
-          expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+          qrCode,
         },
         tx,
       );
@@ -142,7 +153,7 @@ export class CommunityEventOrderService {
           entityId: order.id,
           invoiceNumber: `COM-EVT-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
           amount: totalAmount,
-          expiredAt: order.expiresAt!,
+          expiredAt: new Date(Date.now() + 15 * 60 * 1000),
         },
         tx,
       );
@@ -213,6 +224,15 @@ export class CommunityEventOrderService {
         order.id,
         tx,
       );
+
+      if (!invoice) throw new Error("INVOICE_NOT_FOUND");
+      if (invoice.status !== "PENDING") {
+        throw new Error("INVOICE_ALREADY_PAID");
+      }
+
+      if (invoice.expiredAt && invoice.expiredAt < new Date()) {
+        throw new Error("INVOICE_EXPIRED");
+      }
 
       const userAccount = await this.accountRepo.findUserAccount(order.userId);
       const eventAccount = await this.accountRepo.findCommunityAccount(
@@ -308,6 +328,52 @@ export class CommunityEventOrderService {
       await this.generateTickets(order, items, tx);
 
       return order;
+    });
+  }
+
+  async scanQrCode(qrCode: string) {
+    let payload: any;
+
+    try {
+      payload = jwt.verify(qrCode, process.env.QR_SECRET!);
+    } catch {
+      throw new Error("INVALID_QR_CODE");
+    }
+
+    const order = await this.orderRepo.findByQrCode(qrCode);
+
+    if (!order) throw new Error("ORDER_NOT_FOUND");
+
+    if (order.userId !== payload.uid) {
+      throw new Error("INVALID_OWNER");
+    }
+
+    if (order.status !== "PAID") {
+      throw new Error("ORDER_NOT_PAID");
+    }
+
+    if (order.isCheckedIn) {
+      throw new Error("ALREADY_USED");
+    }
+
+    return prisma.$transaction(async (tx) => {
+      await this.orderRepo.lockOrder(order.id);
+
+      await this.ticketRepo.markAsUsed(order.id);
+
+      await this.attendanceRepo.attendance(
+        order.communityEventId,
+        order.userId,
+        tx,
+      );
+
+      const result = await this.orderRepo.findById(order.id);
+
+      return {
+        success: true,
+        message: "CHECK_IN_SUCCESS",
+        data: result,
+      };
     });
   }
 

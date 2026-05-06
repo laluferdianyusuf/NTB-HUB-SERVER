@@ -25,6 +25,23 @@ export class CommunityEventOrderRepository {
     });
   }
 
+  async findByQrCode(qrCode: string, tx?: Prisma.TransactionClient) {
+    return this.getClient(tx).communityEventOrder.findUnique({
+      where: { qrCode },
+    });
+  }
+
+  async lockOrder(id: string, tx?: Prisma.TransactionClient) {
+    const db = tx ?? prisma;
+    return await db.communityEventOrder.update({
+      where: { id: id },
+      data: {
+        isCheckedIn: true,
+        checkedInAt: new Date(),
+      },
+    });
+  }
+
   async findByUserId(userId: string, tx?: Prisma.TransactionClient) {
     return this.getClient(tx).communityEventOrder.findFirst({
       where: { userId },
@@ -51,7 +68,14 @@ export class CommunityEventOrderRepository {
   }
 
   async create(
-    data: Prisma.CommunityEventOrderCreateInput,
+    data: {
+      id: string;
+      userId: string;
+      communityEventId: string;
+      total: number;
+      status: EventOrderStatus;
+      qrCode: string;
+    },
     tx?: Prisma.TransactionClient,
   ) {
     return this.getClient(tx).communityEventOrder.create({

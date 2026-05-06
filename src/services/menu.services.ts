@@ -55,41 +55,23 @@ export class MenuServices {
         tx,
       );
 
-      const notification = await notificationRepository.createNewNotification(
-        {
-          title: "New Menu Release!",
-          message: `${menu.name} has been added to ${venue?.name ?? "venue"}`,
-          type: "Information",
-          image: imageUrl || "",
-          isGlobal: true,
-        } as Notification,
-        tx,
-      );
+      const users = await userRepository.findManyUsers();
 
-      const users = await userRepository.findManyUsers(tx);
+      await notificationService.sendToMultipleRecipients({
+        targets: users.map((user) => ({
+          recipientType: "USER",
+          recipientId: user.id,
+        })),
+        title: "New Menu Release!",
+        message: `${menu.name} has been added to ${venue?.name ?? "venue"}`,
+        type: "SYSTEM",
+        entityId: menu.id,
+        image: imageUrl || undefined,
+      });
 
-      await Promise.all(
-        users.map((user) =>
-          notificationService.sendToUser(
-            venue?.id as string,
-            user.id,
-            "New Menu Release!",
-            `${menu.name} has been added to ${venue?.name}`,
-            imageUrl as string,
-          ),
-        ),
-      );
-
-      return { menu, notification };
+      return { menu };
     });
 
-    await publisher.publish(
-      "notification-events",
-      JSON.stringify({
-        event: "notification:updated",
-        payload: result.notification,
-      }),
-    );
     return result;
   }
 

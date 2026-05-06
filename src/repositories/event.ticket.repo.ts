@@ -3,17 +3,6 @@ import { Prisma, PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 export class EventTicketRepository {
-  findByQrCode(qrCode: string) {
-    return prisma.eventTicket.findUnique({
-      where: { qrCode },
-      include: {
-        event: true,
-        user: true,
-        ticketType: true,
-      },
-    });
-  }
-
   createMany(
     tickets: Prisma.EventTicketCreateManyInput[],
     tx?: Prisma.TransactionClient,
@@ -63,11 +52,11 @@ export class EventTicketRepository {
     });
   }
 
-  markAsUsed(ticketId: string, tx?: Prisma.TransactionClient) {
+  markAsUsed(orderId: string, tx?: Prisma.TransactionClient) {
     const client = tx ?? prisma;
     return client.eventTicket.updateMany({
       where: {
-        id: ticketId,
+        orderId,
         status: "ACTIVE",
       },
       data: {

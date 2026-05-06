@@ -38,20 +38,12 @@ router.get("/event/dashboard/:eventId", auth.authenticate, (req, res) =>
   eventController.getCommunityEventDashboard(req, res),
 );
 
-// event scan ticket
+// event scan qr code
 router.post(
-  "/scan-ticket",
+  "/scan-community-qrCode",
   auth.authenticate,
   auth.authorizeGlobalRole(["VENUE_OWNER", "EVENT_OWNER", "ADMIN"]),
-  (req, res) => eventTicketController.scan(req, res),
-);
-
-// event verify ticket
-router.post(
-  "/verify-ticket",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["VENUE_OWNER", "EVENT_OWNER", "ADMIN"]),
-  (req, res) => eventTicketController.verify(req, res),
+  (req, res) => eventOrderController.scanQrCode(req, res),
 );
 
 // event ticket DETAIL

@@ -7,32 +7,20 @@ export class CommunityEventOrderController {
 
   createOrder = async (req: Request, res: Response) => {
     try {
-      const userId = req.user?.id;
+      const { eventId, userId, items } = req.body;
 
-      if (!userId) {
-        return res.status(401).json({
-          message: "Unauthorized",
-        });
-      }
-
-      const { communityEventId } = req.params;
-      const { items, paymentMethod } = req.body;
-
-      const idempotencyKey = req.headers["idempotency-key"] as string;
-
-      if (!idempotencyKey) {
+      if (!eventId || !items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({
-          message: "Idempotency key required",
+          status: false,
+          message: "Invalid payload",
         });
       }
 
-      const result = await this.orderService.createOrder({
+      const result = await this.orderService.createOrder(
+        eventId,
         userId,
-        communityEventId,
         items,
-        paymentMethod,
-        idempotencyKey,
-      });
+      );
 
       sendSuccess(res, result, "Order created", 201);
     } catch (error: any) {
@@ -53,6 +41,18 @@ export class CommunityEventOrderController {
       );
 
       sendSuccess(res, result, "Order payment successful");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
+    }
+  };
+
+  scanQrCode = async (req: Request, res: Response) => {
+    try {
+      const { qrCode } = req.body;
+
+      const order = await this.orderService.scanQrCode(qrCode);
+
+      sendSuccess(res, order, "Qr Code scanned");
     } catch (error: any) {
       sendError(res, error.message || "Internal server error");
     }

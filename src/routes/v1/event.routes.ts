@@ -49,20 +49,12 @@ router.delete("/remove/:id", auth.authenticate, (req, res) =>
   eventController.removeEvent(req, res),
 );
 
-// event scan ticket
+// event scan qr code
 router.post(
-  "/scan-ticket",
+  "/scan-qrCode",
   auth.authenticate,
   auth.authorizeGlobalRole(["VENUE_OWNER", "EVENT_OWNER", "ADMIN"]),
-  (req, res) => eventTicketController.scan(req, res),
-);
-
-// event verify ticket
-router.post(
-  "/verify-ticket",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["VENUE_OWNER", "EVENT_OWNER", "ADMIN"]),
-  (req, res) => eventTicketController.verify(req, res),
+  (req, res) => eventOrderController.scanQrCode(req, res),
 );
 
 // event ticket DETAIL
@@ -110,13 +102,6 @@ router.post(
   auth.authenticate,
   auth.authorizeGlobalRole(["CUSTOMER"]),
   (req, res) => eventOrderController.checkout(req, res),
-);
-
-router.post(
-  "/order/checkout-multiple",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["CUSTOMER"]),
-  (req, res) => eventOrderController.checkoutMultiple(req, res),
 );
 
 router.post("/order/ticket-payment/webhook", (req, res) =>

@@ -1291,6 +1291,11 @@ model EventOrder {
   idempotencyKey String?   @unique
   expiresAt      DateTime?
 
+  qrCode String? @unique
+
+  isCheckedIn Boolean @default(false) 
+  checkedInAt DateTime?              
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1310,7 +1315,6 @@ model EventTicket {
   userId       String
   orderId      String
 
-  qrCode String       @unique
   status TicketStatus @default(ACTIVE)
   usedAt DateTime?
 
@@ -1809,7 +1813,11 @@ model CommunityEventOrder {
   status           EventOrderStatus @default(PENDING)
   idempotencyKey   String?          @unique
   expiresAt        DateTime?
+  qrCode           String           @unique
 
+  isCheckedIn Boolean @default(false) 
+  checkedInAt DateTime?   
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1829,7 +1837,6 @@ model CommunityEventTicket {
   userId           String
   orderId          String
 
-  qrCode String       @unique
   status TicketStatus @default(ACTIVE)
   usedAt DateTime?
 

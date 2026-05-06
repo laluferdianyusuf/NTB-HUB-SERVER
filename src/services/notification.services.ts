@@ -8,13 +8,18 @@ import {
 } from "@prisma/client";
 import { error, success } from "helpers/return";
 import { notificationQueue } from "queue/notificationQueue";
-import { DeviceRepository, UserRoleRepository } from "repositories";
+import {
+  DeviceRepository,
+  UserRepository,
+  UserRoleRepository,
+} from "repositories";
 import { NotificationJobData } from "types/notification.types";
 import { uploadToCloudinary } from "utils/image";
 import { NotificationRepository } from "../repositories/notification.repo";
 import firebase from "../utils/firebase";
 
 const notificationRepository = new NotificationRepository();
+const userRepository = new UserRepository();
 
 function chunkArray<T>(arr: T[], size: number): T[][] {
   const result: T[][] = [];
@@ -178,23 +183,62 @@ export class NotificationService {
     }
   }
 
-  async sendNotificationToRecipient(params: {
-    recipientType: NotificationRecipientType;
-    recipientId: string;
+  async sendPromotionToAllUsers(params: {
     title: string;
     message: string;
     image?: string;
     data?: Record<string, string>;
   }) {
-    const { recipientType, recipientId, title, message, image, data } = params;
+    const users = await userRepository.findManyUsers();
+
+    const tokens = users.flatMap((u) => u.devices?.map((d) => d.token) ?? []);
+
+    const uniqueTokens = [...new Set(tokens)];
+
+    if (!uniqueTokens.length) return;
+
+    return this.sendFCMQueue(uniqueTokens, {
+      notification: {
+        title: params.title,
+        body: params.message,
+        imageUrl: params.image || undefined,
+      },
+      data: {
+        type: "PROMOTION",
+        ...params.data,
+      },
+    });
+  }
+
+  async sendNotificationToRecipient(params: {
+    recipientType: NotificationRecipientType;
+    recipientId: string;
+    title: string;
+    message: string;
+    type?: NotificationType;
+    entityId?: string;
+    image?: string;
+    data?: Record<string, string>;
+  }) {
+    const {
+      recipientType,
+      recipientId,
+      title,
+      message,
+      image,
+      data,
+      type,
+      entityId,
+    } = params;
 
     await notificationRepository.create({
       recipientType,
       recipientId,
       title,
       message,
-      type: "SYSTEM",
+      type: type ? type : "SYSTEM",
       image,
+      entityId,
       isGlobal: false,
       adminOnly: false,
     });
@@ -258,6 +302,7 @@ export class NotificationService {
       recipientType: NotificationRecipientType;
       recipientId: string;
     }[];
+
     title: string;
     message: string;
     type: NotificationType;

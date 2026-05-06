@@ -2,11 +2,12 @@ import { Job } from "bullmq";
 import { publisher } from "config/redis.config";
 import { InvoiceRepository } from "repositories";
 import { BookingRepository } from "repositories/booking.repo";
-import { BookingServices } from "services";
+import { BookingServices, NotificationService } from "services";
 import { addDelayedJob, cancelJob, createWorker } from "./index";
 
 const bookingRepository = new BookingRepository();
 const invoiceRepository = new InvoiceRepository();
+const notificationService = new NotificationService();
 
 let bookingService: BookingServices;
 function getBookingService() {
@@ -73,6 +74,15 @@ createWorker(START_QUEUE, async (job: Job<BookingJobData>) => {
 
   const service = getBookingService();
 
+  await notificationService.sendNotificationToRecipient({
+    recipientType: "USER",
+    recipientId: booking.userId,
+    title: "Booking Dimulai",
+    message: "Booking kamu sudah dimulai. Selamat menikmati layanan!",
+    type: "BOOKING",
+    entityId: booking.id,
+  });
+
   publisher.publish(
     "booking-events",
     JSON.stringify({
@@ -102,6 +112,15 @@ createWorker(COMPLETE_QUEUE, async (job: Job<BookingJobData>) => {
 
   const service = getBookingService();
 
+  await notificationService.sendNotificationToRecipient({
+    recipientType: "USER",
+    recipientId: booking.userId,
+    title: "Booking Selesai",
+    message: "Terima kasih sudah menggunakan layanan kami!",
+    type: "BOOKING",
+    entityId: booking.id,
+  });
+
   publisher.publish(
     "booking-events",
     JSON.stringify({
@@ -120,7 +139,8 @@ createWorker(COMPLETE_QUEUE, async (job: Job<BookingJobData>) => {
 });
 
 export async function enqueueBookingStart(bookingId: string, startTime: Date) {
-  const delay = Math.max(0, startTime.getTime() - Date.now());
+  const startReminderAt = new Date(startTime.getTime() - 15 * 60 * 1000);
+  const delay = Math.max(0, startReminderAt.getTime() - Date.now());
 
   await addDelayedJob(
     START_QUEUE,
@@ -132,7 +152,8 @@ export async function enqueueBookingStart(bookingId: string, startTime: Date) {
 }
 
 export async function enqueueBookingComplete(bookingId: string, endTime: Date) {
-  const delay = Math.max(0, endTime.getTime() - Date.now());
+  const endReminderAt = new Date(endTime.getTime() - 15 * 60 * 1000);
+  const delay = Math.max(0, endReminderAt.getTime() - Date.now());
 
   await addDelayedJob(
     COMPLETE_QUEUE,

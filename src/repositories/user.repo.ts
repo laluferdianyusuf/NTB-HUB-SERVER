@@ -157,7 +157,11 @@ export class UserRepository {
         transactionPin: true,
         pinLockedUntil: true,
         pinFailedCount: true,
-        accounts: true,
+        accounts: {
+          select: {
+            id: true,
+          },
+        },
         createdAt: true,
       },
     });
@@ -296,7 +300,16 @@ export class UserRepository {
   async findManyUsers(tx?: Prisma.TransactionClient) {
     const db = tx ?? prisma;
     return db.user.findMany({
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        devices: {
+          select: {
+            token: true,
+            expoToken: true,
+          },
+        },
+      },
     });
   }
 

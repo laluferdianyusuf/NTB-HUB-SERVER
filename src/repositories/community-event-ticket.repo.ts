@@ -54,18 +54,11 @@ export class CommunityEventTicketRepository {
     });
   }
 
-  async findByQrCode(qrCode: string, tx?: Prisma.TransactionClient) {
-    return this.getClient(tx).communityEventTicket.findUnique({
-      where: { qrCode },
-    });
-  }
-
-  markAsUsed(ticketId: string, tx?: Prisma.TransactionClient) {
+  markAsUsed(orderId: string, tx?: Prisma.TransactionClient) {
     const client = tx ?? prisma;
     return client.communityEventTicket.updateMany({
       where: {
-        id: ticketId,
-        status: "ACTIVE",
+        orderId,
       },
       data: {
         status: "USED",

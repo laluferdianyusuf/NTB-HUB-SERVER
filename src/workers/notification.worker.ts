@@ -16,7 +16,7 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
 
 new Worker<NotificationJobData>(
   "notification-queue",
-  async (job: Job<NotificationJobData>) => {
+  async (job) => {
     const { tokens, payload } = job.data;
 
     if (!tokens?.length) return;
@@ -31,8 +31,6 @@ new Worker<NotificationJobData>(
           ...payload,
         });
 
-        console.log(`[Worker FCM] ${response.successCount}/${chunk.length}`);
-
         response.responses.forEach((res, i) => {
           if (!res.success) {
             const msg = res.error?.message || "";
@@ -41,17 +39,12 @@ new Worker<NotificationJobData>(
               msg.includes("registration-token-not-registered") ||
               msg.includes("invalid-registration-token")
             ) {
-              const token = chunk[i];
-
-              if (typeof token === "string") {
-                invalidTokens.push(token);
-              }
+              invalidTokens.push(chunk[i]);
             }
           }
         });
       } catch (err) {
         console.log("[Worker FCM ERROR]", err);
-        throw err;
       }
     }
 
@@ -59,8 +52,5 @@ new Worker<NotificationJobData>(
       await Promise.all(invalidTokens.map((t) => deviceRepo.deleteByToken(t)));
     }
   },
-  {
-    connection: redis,
-    concurrency: 5,
-  },
+  { connection: redis, concurrency: 5 },
 );

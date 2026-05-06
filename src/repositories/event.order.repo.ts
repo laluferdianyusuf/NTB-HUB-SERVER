@@ -10,13 +10,27 @@ export class EventOrderRepository {
   createOrder(
     tx: Prisma.TransactionClient,
     data: {
+      id: string;
       userId: string;
       eventId: string;
       total: number;
       status: EventOrderStatus;
+      qrCode: string;
     },
   ) {
     return tx.eventOrder.create({ data });
+  }
+
+  findByQrCode(qrCode: string) {
+    return prisma.eventOrder.findUnique({
+      where: { qrCode },
+      include: {
+        event: true,
+        user: true,
+        tickets: true,
+        ticketType: true,
+      },
+    });
   }
 
   findById(id: string, tx?: Prisma.TransactionClient) {
@@ -26,6 +40,18 @@ export class EventOrderRepository {
       include: {
         event: true,
         tickets: true,
+        user: true,
+      },
+    });
+  }
+
+  lockOrder(id: string, tx?: Prisma.TransactionClient) {
+    const db = tx ?? prisma;
+    return db.eventOrder.update({
+      where: { id: id },
+      data: {
+        isCheckedIn: true,
+        checkedInAt: new Date(),
       },
     });
   }
