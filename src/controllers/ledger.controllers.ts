@@ -45,6 +45,23 @@ export class LedgerController {
     }
   };
 
+  getAllTransactions = async (req: Request, res: Response) => {
+    try {
+      const { page = 1, limit = 20, type, mode } = req.query;
+
+      const result = await this.ledgerService.getAllTransactions(
+        Number(page),
+        Number(limit),
+        type as string | undefined,
+        mode as "USER_TRANSACTION" | "APP_REVENUE" | undefined,
+      );
+
+      sendSuccess(res, result, "All transactions retrieved");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
+    }
+  };
+
   getBalances = async (req: Request, res: Response) => {
     try {
       const { accountId } = req.params;

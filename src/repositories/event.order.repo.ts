@@ -127,6 +127,16 @@ export class EventOrderRepository {
             name: true,
             photo: true,
             username: true,
+            communityMemberships: {
+              select: {
+                community: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
           },
         },
       },

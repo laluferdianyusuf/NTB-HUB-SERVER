@@ -38,6 +38,17 @@ export class LedgerServices {
     return this.ledgerRepository.getBalance(accountId);
   }
 
+  async getAllTransactions(
+    page = 1,
+    limit = 20,
+    type?: string,
+    mode?: "USER_TRANSACTION" | "APP_REVENUE",
+  ) {
+    const skip = (page - 1) * limit;
+
+    return this.ledgerRepository.getAllTransactions(skip, limit, type, mode);
+  }
+
   async getBalanceByOwner(params: {
     userId?: string;
     venueId?: string;

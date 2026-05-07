@@ -8,6 +8,7 @@ const floorController = new FloorControllers();
 
 router.post(
   "/floor/venues/:venueId",
+  auth.authenticate,
   auth.authorizeGlobalRole(["VENUE_OWNER"]),
   (req, res) => floorController.createFloor(req, res),
 );
@@ -17,11 +18,13 @@ router.get("/floor/venues/:venueId", (req, res) =>
 router.get("/floor/:id", (req, res) => floorController.getFloorById(req, res));
 router.put(
   "/floor/update/:id",
+  auth.authenticate,
   auth.authorizeGlobalRole(["VENUE_OWNER"]),
   (req, res) => floorController.updateFloor(req, res),
 );
 router.delete(
   "/floor/delete/:id",
+  auth.authenticate,
   auth.authorizeGlobalRole(["VENUE_OWNER"]),
   (req, res) => floorController.deleteFloor(req, res),
 );

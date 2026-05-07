@@ -94,6 +94,16 @@ export class BookingControllers {
     }
   }
 
+  async getVenueWithDetails(req: Request, res: Response) {
+    try {
+      const result = await this.bookingService.getVenueWithDetails();
+
+      sendSuccess(res, result, "Booking retrieved successfully");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal Server Error");
+    }
+  }
+
   async getBookingPaidByUserId(req: Request, res: Response) {
     try {
       const userId = req.params.userId;

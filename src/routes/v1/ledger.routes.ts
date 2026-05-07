@@ -44,4 +44,9 @@ router.get("/courier-transactions/:courierId", auth.authenticate, (req, res) =>
   controller.getCourierTransactions(req, res),
 );
 
+// admin
+router.get("/all-transactions", auth.authenticate, (req, res) =>
+  controller.getAllTransactions(req, res),
+);
+
 export default router;

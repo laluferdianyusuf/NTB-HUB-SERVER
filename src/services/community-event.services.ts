@@ -1,5 +1,6 @@
 import { CommunityEventType } from "@prisma/client";
 import { prisma } from "config/prisma";
+import { toBool, toNum } from "helpers/parser";
 import {
   CommunityEventCollaborationRepository,
   CommunityEventRepository,
@@ -49,10 +50,10 @@ export class CommunityEventService {
           endAt: data.endAt,
           type: data.type,
           location: data.location,
-          latitude: data.latitude,
-          longitude: data.longitude,
+          latitude: toNum(data.latitude),
+          longitude: toNum(data.longitude),
           image: imageUrl,
-          includeTicket: data.includeTicket,
+          includeTicket: toBool(data.includeTicket),
           community: { connect: { id: communityId } },
           createdBy: { connect: { id: createdById } },
         },

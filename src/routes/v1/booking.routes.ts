@@ -58,4 +58,9 @@ router.get("/existing/bookings", (req, res) =>
   bookingController.getExistingBooking(req, res),
 );
 
+// admin
+router.get("/booking/venue-with-details", auth.authenticate, (req, res) =>
+  bookingController.getVenueWithDetails(req, res),
+);
+
 export default router;

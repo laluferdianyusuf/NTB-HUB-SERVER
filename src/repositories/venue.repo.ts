@@ -296,6 +296,12 @@ export class VenueRepository {
             },
           },
         },
+        userRoles: {
+          select: {
+            id: true,
+            venueId: true,
+          },
+        },
       },
     });
   }

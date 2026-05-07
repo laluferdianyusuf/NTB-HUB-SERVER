@@ -515,6 +515,82 @@ export class BookingRepository {
     };
   }
 
+  async getVenueWithDetails() {
+    const venues = await prisma.venue.findMany({
+      include: {
+        bookings: {
+          include: bookingInclude,
+        },
+      },
+    });
+
+    return venues.map((venue) => {
+      const bookings = venue.bookings;
+
+      const totalPending = bookings.filter(
+        (b) => b.status === BookingStatus.PENDING,
+      ).length;
+
+      const totalPaid = bookings.filter(
+        (b) => b.status === BookingStatus.PAID,
+      ).length;
+
+      const totalOngoing = bookings.filter(
+        (b) => b.status === BookingStatus.ONGOING,
+      ).length;
+
+      const totalCompleted = bookings.filter(
+        (b) => b.status === BookingStatus.COMPLETED,
+      ).length;
+
+      const totalCancelled = bookings.filter(
+        (b) => b.status === BookingStatus.CANCELLED,
+      ).length;
+
+      const totalExpired = bookings.filter(
+        (b) => b.status === BookingStatus.EXPIRED,
+      ).length;
+
+      const totalRevenue = bookings
+        .filter((b) =>
+          [BookingStatus.PAID, BookingStatus.COMPLETED].includes(b.status),
+        )
+        .reduce((acc, curr) => acc + Number(curr.totalPrice || 0), 0);
+
+      return {
+        ...venue,
+
+        finance: {
+          totalRevenue,
+        },
+
+        summary: {
+          totalPending,
+          totalPaid,
+          totalOngoing,
+          totalCompleted,
+          totalCancelled,
+          totalExpired,
+        },
+
+        bookings: {
+          pending: bookings.filter((b) => b.status === BookingStatus.PENDING),
+
+          ongoing: bookings.filter((b) => b.status === BookingStatus.ONGOING),
+
+          latestCompleted: bookings
+            .filter((b) => b.status === BookingStatus.COMPLETED)
+            .sort(
+              (a, b) =>
+                new Date(b.updatedAt).getTime() -
+                new Date(a.updatedAt).getTime(),
+            )
+            .slice(0, 5),
+        },
+      };
+    });
+  }
+
   async findBookingCompleteByUserId(
     userId: string,
   ): Promise<BookingWithRelations[]> {

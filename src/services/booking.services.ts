@@ -731,6 +731,15 @@ export class BookingServices {
     };
   }
 
+  async getVenueWithDetails() {
+    const dashboard = await bookingRepository.getVenueWithDetails();
+
+    return {
+      message: "Venue detail fetched successfully",
+      data: dashboard,
+    };
+  }
+
   async getBookingPaidByUserId(userId: string) {
     const booking = await bookingRepository.findBookingPaidByUserId(userId);
 

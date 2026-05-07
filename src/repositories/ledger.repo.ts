@@ -81,6 +81,63 @@ export class LedgerRepository {
     });
   }
 
+  async getAllTransactions(
+    skip = 0,
+    take = 20,
+    type?: string,
+    mode?: "USER_TRANSACTION" | "APP_REVENUE",
+  ) {
+    const where: Prisma.LedgerEntryWhereInput = {};
+
+    if (mode === "APP_REVENUE") {
+      where.account = {
+        type: "PLATFORM",
+      };
+
+      where.referenceType = "FEE";
+
+      where.type = "CREDIT";
+    }
+
+    if (mode === "USER_TRANSACTION") {
+      where.account = {
+        type: "USER",
+      };
+
+      where.referenceType = {
+        in: [
+          "ORDER",
+          "BOOKING_PAYMENT",
+          "EVENT_PAYMENT",
+          "TOPUP",
+          "COMMUNITY_EVENT_PAYMENT",
+        ],
+      };
+    }
+
+    const [data, total] = await prisma.$transaction([
+      prisma.ledgerEntry.findMany({
+        where,
+        skip,
+        take,
+        include: {
+          account: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+
+      prisma.ledgerEntry.count({ where }),
+    ]);
+
+    return {
+      data,
+      total,
+      totalPages: Math.ceil(total / take),
+    };
+  }
+
   async getTransactions(venueId: string, skip = 0, take = 20, type?: string) {
     const where: Prisma.LedgerEntryWhereInput = {
       account: {

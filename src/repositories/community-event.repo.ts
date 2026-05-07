@@ -235,7 +235,7 @@ export class CommunityEventRepository {
     await db.account.create({
       data: {
         type: "COMMUNITY",
-        communityId: event.id,
+        communityId: event.communityId,
       },
     });
 

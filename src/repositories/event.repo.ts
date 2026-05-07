@@ -280,6 +280,9 @@ export class EventRepository {
 
       prisma.eventOrder.groupBy({
         by: ["eventId"],
+        where: {
+          status: "PAID",
+        },
         _sum: { total: true },
         _count: { id: true },
       }),
@@ -352,9 +355,22 @@ export class EventRepository {
         ticketTypes: true,
         tickets: true,
         orders: true,
+        user: {
+          select: {
+            phone: true,
+            photo: true,
+            name: true,
+          },
+        },
         accounts: {
           select: {
             id: true,
+          },
+        },
+        userRoles: {
+          select: {
+            id: true,
+            venueId: true,
           },
         },
       },
