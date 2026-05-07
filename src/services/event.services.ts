@@ -224,6 +224,7 @@ export class EventService {
         totalOrders: event.summary.totalOrders,
         totalRevenue: event.summary.totalRevenue,
         totalTicketsSold: event.summary.totalTicketsSold,
+        totalParticipants: event.summary.totalParticipants,
         totalAttendees: event.summary.totalAttendees,
       },
     }));

@@ -268,39 +268,55 @@ export class EventRepository {
       where.status = status;
     }
 
-    const [events, orderAgg, ticketAgg, attendanceAgg] = await Promise.all([
-      prisma.event.findMany({
-        where,
-        skip,
-        take,
-        include: {
-          eventBalance: true,
-        },
-      }),
+    const [events, orderAgg, ticketAgg, participantsAgg, attendanceAgg] =
+      await Promise.all([
+        prisma.event.findMany({
+          where,
+          skip,
+          take,
+          include: {
+            eventBalance: true,
+          },
+        }),
 
-      prisma.eventOrder.groupBy({
-        by: ["eventId"],
-        where: {
-          status: "PAID",
-        },
-        _sum: { total: true },
-        _count: { id: true },
-      }),
+        prisma.eventOrder.groupBy({
+          by: ["eventId"],
+          where: {
+            status: "PAID",
+          },
+          _sum: { total: true },
+          _count: { id: true },
+        }),
 
-      prisma.eventTicket.groupBy({
-        by: ["eventId"],
-        _count: { id: true },
-      }),
+        prisma.eventTicket.groupBy({
+          by: ["eventId"],
+          _count: { id: true },
+        }),
 
-      prisma.eventAttendance.groupBy({
-        by: ["eventId"],
-        _count: { id: true },
-      }),
-    ]);
+        prisma.eventAttendance.groupBy({
+          where: {
+            ticket: {
+              status: "ACTIVE",
+            },
+          },
+          by: ["eventId"],
+          _count: { id: true },
+        }),
+        prisma.eventAttendance.groupBy({
+          where: {
+            ticket: {
+              status: "USED",
+            },
+          },
+          by: ["eventId"],
+          _count: { id: true },
+        }),
+      ]);
 
     return events.map((event) => {
       const order = orderAgg.find((o) => o.eventId === event.id);
       const ticket = ticketAgg.find((t) => t.eventId === event.id);
+      const participants = participantsAgg.find((a) => a.eventId === event.id);
       const attendance = attendanceAgg.find((a) => a.eventId === event.id);
 
       return {
@@ -309,6 +325,7 @@ export class EventRepository {
           totalOrders: order?._count.id ?? 0,
           totalRevenue: Number(order?._sum.total ?? 0),
           totalTicketsSold: ticket?._count.id ?? 0,
+          totalParticipants: participants?._count.id ?? 0,
           totalAttendees: attendance?._count.id ?? 0,
         },
       };
