@@ -82,14 +82,15 @@ export class LedgerController {
 
   async getBalance(req: Request, res: Response) {
     try {
-      const { userId, venueId, courierId, eventId, communityId } = req.query;
+      const { userId, venueId, courierId, eventId, communityEventId } =
+        req.query;
 
       const result = await this.ledgerService.getBalanceByOwner({
         userId: userId as string | undefined,
         venueId: venueId as string | undefined,
         courierId: courierId as string | undefined,
         eventId: eventId as string | undefined,
-        communityId: communityId as string | undefined,
+        communityEventId: communityEventId as string | undefined,
       });
 
       sendSuccess(res, result, "Balances retrieved");
@@ -143,19 +144,19 @@ export class LedgerController {
     }
   };
 
-  getCommunityTransactions = async (req: Request, res: Response) => {
+  getCommunityEventTransactions = async (req: Request, res: Response) => {
     try {
-      const { communityId } = req.params;
+      const { communityEventId } = req.params;
       const { cursor } = req.query;
 
-      if (!communityId) {
+      if (!communityEventId) {
         return res.status(400).json({
-          message: "communityId is required",
+          message: "communityEventId is required",
         });
       }
 
-      const result = await this.ledgerService.getCommunityTransactions(
-        communityId,
+      const result = await this.ledgerService.getCommunityEventTransactions(
+        communityEventId,
         cursor as string | undefined,
       );
 
@@ -176,7 +177,7 @@ export class LedgerController {
         });
       }
 
-      const result = await this.ledgerService.getCommunityTransactions(
+      const result = await this.ledgerService.getEventTransactions(
         eventId,
         cursor as string | undefined,
       );
@@ -198,7 +199,7 @@ export class LedgerController {
         });
       }
 
-      const result = await this.ledgerService.getCommunityTransactions(
+      const result = await this.ledgerService.getCourierTransactions(
         courierId,
         cursor as string | undefined,
       );

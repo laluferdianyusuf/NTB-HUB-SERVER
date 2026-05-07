@@ -8,7 +8,7 @@ interface CreateAccountPayload {
   userId?: string;
   venueId?: string;
   eventId?: string;
-  communityId?: string;
+  communityEventId?: string;
   courierId?: string;
   id?: string;
 }
@@ -37,7 +37,10 @@ export class AccountService {
         return accountRepo.upsertByEvent(payload.eventId as string, tx);
 
       case "COMMUNITY":
-        return accountRepo.upsertByCommunity(payload.communityId as string, tx);
+        return accountRepo.upsertByCommunity(
+          payload.communityEventId as string,
+          tx,
+        );
 
       case "COURIER":
         return accountRepo.upsertByCourier(payload.courierId as string, tx);
@@ -70,7 +73,7 @@ export class AccountService {
         account = await accountRepo.findEventAccount(id);
         break;
       case "COMMUNITY":
-        account = await accountRepo.findCommunityAccount(id);
+        account = await accountRepo.findCommunityEventAccount(id);
         break;
       case "COURIER":
         account = await accountRepo.findCourierAccount(id);

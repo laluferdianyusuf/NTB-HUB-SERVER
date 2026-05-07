@@ -1,5 +1,5 @@
-import { prisma } from "config/prisma";
 import { EventOrderStatus, Prisma } from "@prisma/client";
+import { prisma } from "config/prisma";
 
 export class CommunityEventRepository {
   private transaction(tx?: Prisma.TransactionClient) {
@@ -52,7 +52,7 @@ export class CommunityEventRepository {
 
     const eventAccount = await prisma.account.findFirst({
       where: {
-        eventId,
+        communityEventId: eventId,
       },
     });
     if (!eventAccount) throw new Error("Community event account not found");
@@ -89,7 +89,7 @@ export class CommunityEventRepository {
 
       prisma.communityEventOrder.findMany({
         where: {
-          eventId,
+          communityEventId: eventId,
           status: EventOrderStatus.PENDING,
         },
         include: {
@@ -104,7 +104,7 @@ export class CommunityEventRepository {
       }),
       prisma.communityEventOrder.findMany({
         where: {
-          eventId,
+          communityEventId: eventId,
           status: EventOrderStatus.PAID,
         },
         include: {
@@ -119,7 +119,7 @@ export class CommunityEventRepository {
       }),
       prisma.communityEventOrder.findMany({
         where: {
-          eventId,
+          communityEventId: eventId,
           status: EventOrderStatus.CANCELLED,
         },
         include: {
@@ -134,7 +134,7 @@ export class CommunityEventRepository {
       }),
       prisma.communityEventOrder.findMany({
         where: {
-          eventId,
+          communityEventId: eventId,
           status: EventOrderStatus.EXPIRED,
         },
         include: {
@@ -235,7 +235,7 @@ export class CommunityEventRepository {
     await db.account.create({
       data: {
         type: "COMMUNITY",
-        communityId: event.communityId,
+        communityEventId: event.id,
       },
     });
 

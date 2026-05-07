@@ -198,7 +198,7 @@ export class UserRoleRepository {
             id: true,
             name: true,
             image: true,
-            accounts: {
+            account: {
               select: {
                 id: true,
               },

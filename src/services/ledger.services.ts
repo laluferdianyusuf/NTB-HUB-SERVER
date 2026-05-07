@@ -54,7 +54,7 @@ export class LedgerServices {
     venueId?: string;
     courierId?: string;
     eventId?: string;
-    communityId?: string;
+    communityEventId?: string;
   }) {
     return this.ledgerRepository.getBalanceByOwner(params);
   }
@@ -75,9 +75,12 @@ export class LedgerServices {
     return this.ledgerRepository.getAccountHistory(account.id, cursor);
   }
 
-  async getCommunityTransactions(communityId: string, cursor?: string) {
+  async getCommunityEventTransactions(
+    communityEventId: string,
+    cursor?: string,
+  ) {
     const account =
-      await this.accountRepository.findCommunityAccount(communityId);
+      await this.accountRepository.findCommunityEventAccount(communityEventId);
 
     if (!account) throw new Error("Account not found");
 

@@ -31,9 +31,9 @@ router.get("/venue-transactions/:venueId", auth.authenticate, (req, res) =>
 );
 
 router.get(
-  "/community-transactions/:communityId",
+  "/community-event-transactions/:communityEventId",
   auth.authenticate,
-  (req, res) => controller.getCommunityTransactions(req, res),
+  (req, res) => controller.getCommunityEventTransactions(req, res),
 );
 
 router.get("/event-transactions/:eventId", auth.authenticate, (req, res) =>

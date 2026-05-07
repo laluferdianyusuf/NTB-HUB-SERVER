@@ -69,15 +69,18 @@ export class AccountRepository {
     });
   }
 
-  async upsertByCommunity(communityId: string, tx?: Prisma.TransactionClient) {
+  async upsertByCommunity(
+    communityEventId: string,
+    tx?: Prisma.TransactionClient,
+  ) {
     const client = tx ?? prisma;
 
     return client.account.upsert({
-      where: { communityId },
+      where: { communityEventId },
       update: {},
       create: {
-        community: {
-          connect: { id: communityId },
+        communityEvent: {
+          connect: { id: communityEventId },
         },
         type: "COMMUNITY",
       },
@@ -158,6 +161,11 @@ export class AccountRepository {
         userId,
         type: "USER",
       },
+      select: {
+        id: true,
+        userId: true,
+        type: true,
+      },
     });
   }
 
@@ -168,6 +176,11 @@ export class AccountRepository {
         venueId,
         type: "VENUE",
       },
+      select: {
+        id: true,
+        venueId: true,
+        type: true,
+      },
     });
   }
 
@@ -177,14 +190,24 @@ export class AccountRepository {
         eventId,
         type: "EVENT",
       },
+      select: {
+        id: true,
+        eventId: true,
+        type: true,
+      },
     });
   }
 
-  async findCommunityAccount(communityId: string) {
+  async findCommunityEventAccount(communityEventId: string) {
     return prisma.account.findFirst({
       where: {
-        communityId,
+        communityEventId,
         type: "COMMUNITY",
+      },
+      select: {
+        id: true,
+        communityEventId: true,
+        type: true,
       },
     });
   }
@@ -194,6 +217,11 @@ export class AccountRepository {
       where: {
         courierId,
         type: "COURIER",
+      },
+      select: {
+        id: true,
+        communityEventId: true,
+        type: true,
       },
     });
   }

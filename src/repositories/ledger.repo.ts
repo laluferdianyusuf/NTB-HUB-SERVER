@@ -227,7 +227,7 @@ export class LedgerRepository {
       venueId?: string;
       courierId?: string;
       eventId?: string;
-      communityId?: string;
+      communityEventId?: string;
     },
     tx?: Prisma.TransactionClient,
   ) {
@@ -240,7 +240,7 @@ export class LedgerRepository {
           { venueId: params.venueId },
           { courierId: params.courierId },
           { eventId: params.eventId },
-          { communityId: params.communityId },
+          { communityEventId: params.communityEventId },
         ],
       },
     });
