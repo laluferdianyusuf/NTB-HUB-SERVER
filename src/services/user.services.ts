@@ -18,6 +18,7 @@ import {
 } from "../repositories";
 import { AccountService } from "./account.services";
 import { RateLimiterService } from "./rateLimiterService";
+import { LINK } from "utils/link";
 
 const prisma = new PrismaClient();
 const redis = new Redis();
@@ -90,7 +91,7 @@ export class UserService {
       emailVerifyExpiry: verificationExpiry,
     });
 
-    const url = `${process.env.APP_DOMAIN}/deep-link?type=verify-email&token=${rawToken}`;
+    const url = `${LINK}verifyEmail?token=${rawToken}`;
 
     await sendEmail(
       user.email,
@@ -332,7 +333,7 @@ export class UserService {
       emailVerifyExpiry: verificationExpiry,
     });
 
-    const url = `${process.env.APP_DOMAIN}/deep-link?type=verify-email&token=${rawToken}`;
+    const url = `${LINK}verifyEmail?token=${rawToken}`;
 
     await sendEmail(
       user.email,
@@ -808,7 +809,7 @@ export class UserService {
 
     await userRepository.setResetToken(user.id, hashedToken, expire);
 
-    const url = `${process.env.APP_DOMAIN}/deep-link?type=reset-password&token=${rawToken}`;
+    const url = `${LINK}forgotPassword`;
 
     await sendEmail(
       user.email,

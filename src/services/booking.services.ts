@@ -319,7 +319,10 @@ export class BookingServices {
       throw new Error("Invoice invalid");
 
     const order = await orderRepository.findByBookingId(booking.id);
-    if (!order) throw new Error("Order not found");
+
+    if (order && order.status !== "PENDING") {
+      throw new Error("Order already processed");
+    }
 
     const userBalance = await ledgerRepository.getBalanceByOwner({ userId });
 
@@ -393,8 +396,10 @@ export class BookingServices {
       await invoiceRepository.markPaid(invoice.id, tx);
 
       await bookingRepository.updateBookingStatus(booking.id, "PAID", tx);
-      await orderRepository.updateStatus(order.id, "SUCCESS", tx);
 
+      if (order) {
+        await orderRepository.updateStatus(order.id, "SUCCESS", tx);
+      }
       const admins = await userRoleRepository.findAdmins();
 
       await notificationService.sendCustomNotifications(
@@ -413,14 +418,6 @@ export class BookingServices {
             title: "Booking Paid",
             message: `Booking ${invoice.invoiceNumber} telah dibayar`,
             type: "BOOKING",
-            entityId: booking.id,
-          },
-          {
-            recipientType: "ADMIN",
-            recipientId: "GLOBAL",
-            title: "Platform Fee Collected",
-            message: `Fee ${platformFee} dari booking ${invoice.invoiceNumber}`,
-            type: "SYSTEM",
             entityId: booking.id,
           },
           ...admins.map(

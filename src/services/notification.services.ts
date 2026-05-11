@@ -531,8 +531,8 @@ export class NotificationService {
   }
 
   async markAllAsRead(
-    recipientType: NotificationRecipientType,
     recipientId: string,
+    recipientType: NotificationRecipientType,
   ) {
     const items = await notificationRepository.markAllAsRead(
       recipientType,

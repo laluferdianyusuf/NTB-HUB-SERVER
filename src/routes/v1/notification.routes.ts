@@ -15,18 +15,18 @@ router.get("/notification", auth.authenticate, (req, res) =>
   notificationController.getNotification(req, res),
 );
 
-router.get("/by-recipient", auth.authenticate, (req, res) =>
+router.get("/by-recipient/:recipientId", auth.authenticate, (req, res) =>
   notificationController.getNotificationByRecipient(req, res),
 );
 
 router.get("/notification/venue/:venueId", auth.authenticate, (req, res) =>
   notificationController.getNotificationByVenue(req, res),
 );
-router.put("/read", auth.authenticate, (req, res) =>
+router.put("/read/:recipientId", auth.authenticate, (req, res) =>
   notificationController.markAllAsRead(req, res),
 );
 
-router.put("/unread", auth.authenticate, (req, res) =>
+router.put("/unread/:recipientId", auth.authenticate, (req, res) =>
   notificationController.markAllAsUnread(req, res),
 );
 

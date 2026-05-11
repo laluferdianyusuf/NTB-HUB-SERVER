@@ -78,7 +78,10 @@ export class UserRepository {
         email: true,
         photo: true,
         address: true,
-
+        isVerified: true,
+        profileLikeCount: true,
+        profileLikesGiven: true,
+        profileViewCount: true,
         eventOrders: {
           include: {
             event: {

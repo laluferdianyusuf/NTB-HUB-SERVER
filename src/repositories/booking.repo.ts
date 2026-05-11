@@ -524,71 +524,67 @@ export class BookingRepository {
       },
     });
 
-    return venues.map((venue) => {
-      const bookings = venue.bookings;
+    return Promise.all(
+      venues.map(async (venue) => {
+        const bookings = venue.bookings;
 
-      const totalPending = bookings.filter(
-        (b) => b.status === BookingStatus.PENDING,
-      ).length;
-
-      const totalPaid = bookings.filter(
-        (b) => b.status === BookingStatus.PAID,
-      ).length;
-
-      const totalOngoing = bookings.filter(
-        (b) => b.status === BookingStatus.ONGOING,
-      ).length;
-
-      const totalCompleted = bookings.filter(
-        (b) => b.status === BookingStatus.COMPLETED,
-      ).length;
-
-      const totalCancelled = bookings.filter(
-        (b) => b.status === BookingStatus.CANCELLED,
-      ).length;
-
-      const totalExpired = bookings.filter(
-        (b) => b.status === BookingStatus.EXPIRED,
-      ).length;
-
-      const totalRevenue = bookings
-        .filter((b) =>
-          [BookingStatus.PAID, BookingStatus.COMPLETED].includes(b.status),
-        )
-        .reduce((acc, curr) => acc + Number(curr.totalPrice || 0), 0);
-
-      return {
-        ...venue,
-
-        finance: {
-          totalRevenue,
-        },
-
-        summary: {
+        const [
+          revenue,
           totalPending,
           totalPaid,
           totalOngoing,
           totalCompleted,
           totalCancelled,
           totalExpired,
-        },
+        ] = await Promise.all([
+          prisma.ledgerEntry.aggregate({
+            where: {
+              accountId: venue.id,
+              type: "CREDIT",
+              referenceType: "BOOKING_PAYMENT",
+            },
+            _sum: {
+              amount: true,
+            },
+          }),
 
-        bookings: {
-          pending: bookings.filter((b) => b.status === BookingStatus.PENDING),
+          bookings.filter((b) => b.status === BookingStatus.PENDING).length,
+          bookings.filter((b) => b.status === BookingStatus.PAID).length,
+          bookings.filter((b) => b.status === BookingStatus.ONGOING).length,
+          bookings.filter((b) => b.status === BookingStatus.COMPLETED).length,
+          bookings.filter((b) => b.status === BookingStatus.CANCELLED).length,
+          bookings.filter((b) => b.status === BookingStatus.EXPIRED).length,
+        ]);
 
-          ongoing: bookings.filter((b) => b.status === BookingStatus.ONGOING),
+        const completedBookings = bookings
+          .filter((b) => b.status === BookingStatus.COMPLETED)
+          .sort(
+            (a, b) =>
+              new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+          )
+          .slice(0, 5);
 
-          latestCompleted: bookings
-            .filter((b) => b.status === BookingStatus.COMPLETED)
-            .sort(
-              (a, b) =>
-                new Date(b.updatedAt).getTime() -
-                new Date(a.updatedAt).getTime(),
-            )
-            .slice(0, 5),
-        },
-      };
-    });
+        return {
+          ...venue,
+          finance: {
+            revenue: revenue._sum.amount ?? 0,
+          },
+          summary: {
+            totalPending,
+            totalPaid,
+            totalOngoing,
+            totalCompleted,
+            totalCancelled,
+            totalExpired,
+          },
+          bookings: {
+            pending: bookings.filter((b) => b.status === BookingStatus.PENDING),
+            ongoing: bookings.filter((b) => b.status === BookingStatus.ONGOING),
+            latestCompleted: completedBookings,
+          },
+        };
+      }),
+    );
   }
 
   async findBookingCompleteByUserId(

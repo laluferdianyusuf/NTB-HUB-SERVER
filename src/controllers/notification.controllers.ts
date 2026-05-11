@@ -21,7 +21,7 @@ export class NotificationController {
 
   async getNotificationByRecipient(req: Request, res: Response) {
     try {
-      const recipientId = req.user?.id as string;
+      const { recipientId } = req.params;
       const { recipientType } = req.query;
 
       const result = await this.notificationService.getNotificationByRecipient(
@@ -60,12 +60,12 @@ export class NotificationController {
 
   async markAllAsRead(req: Request, res: Response) {
     try {
-      const userId = req.user?.id as string;
-      const { recipientType } = req.body;
+      const { recipientId } = req.params;
+      const { recipientType } = req.query;
 
       const result = await this.notificationService.markAllAsRead(
-        recipientType,
-        userId,
+        recipientId,
+        recipientType as NotificationRecipientType,
       );
 
       sendSuccess(res, result, "Notification marked as read");
@@ -78,12 +78,12 @@ export class NotificationController {
 
   async markAllAsUnread(req: Request, res: Response) {
     try {
-      const userId = req.user?.id as string;
-      const { recipientType } = req.body;
+      const { recipientId } = req.params;
+      const { recipientType } = req.query;
 
       const result = await this.notificationService.markAllAsUnread(
-        recipientType,
-        userId,
+        recipientType as NotificationRecipientType,
+        recipientId,
       );
 
       sendSuccess(res, result, "Notification marked as unread");
