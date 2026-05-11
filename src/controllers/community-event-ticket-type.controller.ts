@@ -29,6 +29,8 @@ export class CommunityEventTicketTypeController {
 
       sendSuccess(res, result, "Create success", 201);
     } catch (error: any) {
+      console.log(error);
+
       sendError(res, error.message || "Internal server error");
     }
   };
@@ -52,6 +54,7 @@ export class CommunityEventTicketTypeController {
 
       sendSuccess(res, result, "Tickets retrieved");
     } catch (error: any) {
+      console.log(error);
       sendError(res, error.message || "Internal server error");
     }
   };

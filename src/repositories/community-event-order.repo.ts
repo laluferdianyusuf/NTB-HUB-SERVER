@@ -10,9 +10,32 @@ export class CommunityEventOrderRepository {
     return this.getClient(tx).communityEventOrder.findUnique({
       where: { id },
       include: {
-        tickets: true,
+        tickets: {
+          select: {
+            id: true,
+            status: true,
+            ticketType: true,
+            ticketTypeId: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            photo: true,
+          },
+        },
         communityEvent: {
           select: {
+            id: true,
+            endAt: true,
+            startAt: true,
+            title: true,
+            image: true,
+            description: true,
+            location: true,
+
             community: {
               select: {
                 id: true,
@@ -43,12 +66,26 @@ export class CommunityEventOrderRepository {
   }
 
   async findByUserId(userId: string, tx?: Prisma.TransactionClient) {
-    return this.getClient(tx).communityEventOrder.findFirst({
+    return this.getClient(tx).communityEventOrder.findMany({
       where: { userId },
       include: {
         tickets: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
         communityEvent: {
           select: {
+            id: true,
+            endAt: true,
+            startAt: true,
+            title: true,
+            image: true,
+            description: true,
+            location: true,
             community: {
               select: {
                 id: true,

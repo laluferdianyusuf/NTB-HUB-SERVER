@@ -38,9 +38,31 @@ export class EventOrderRepository {
     return db.eventOrder.findUnique({
       where: { id },
       include: {
-        event: true,
-        tickets: true,
-        user: true,
+        event: {
+          select: {
+            id: true,
+            name: true,
+            location: true,
+            startAt: true,
+            endAt: true,
+          },
+        },
+        tickets: {
+          select: {
+            id: true,
+            status: true,
+            ticketType: true,
+            ticketTypeId: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            photo: true,
+            email: true,
+          },
+        },
       },
     });
   }
@@ -88,6 +110,7 @@ export class EventOrderRepository {
         status: "PAID",
       },
       select: {
+        id: true,
         createdAt: true,
         tickets: true,
         event: {
@@ -95,7 +118,17 @@ export class EventOrderRepository {
             id: true,
             name: true,
             image: true,
+            location: true,
             startAt: true,
+            endAt: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            photo: true,
+            email: true,
           },
         },
       },

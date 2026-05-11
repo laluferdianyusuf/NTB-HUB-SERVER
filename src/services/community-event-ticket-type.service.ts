@@ -51,13 +51,6 @@ export class CommunityEventTicketTypeService {
       throw new Error("You are not allowed to manage this event");
     }
 
-    const existing =
-      await this.ticketTypeRepo.findActiveByEvent(communityEventId);
-
-    if (existing) {
-      throw new Error("Ticket type with this name already exists");
-    }
-
     return this.ticketTypeRepo.create({
       communityEvent: { connect: { id: communityEventId } },
       name,

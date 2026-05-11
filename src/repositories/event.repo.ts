@@ -90,7 +90,7 @@ export class EventRepository {
           event: true,
           tickets: true,
           user: true,
-          accounts: {
+          account: {
             select: {
               id: true,
             },
@@ -111,7 +111,7 @@ export class EventRepository {
           event: true,
           tickets: true,
           user: true,
-          accounts: {
+          account: {
             select: {
               id: true,
             },
@@ -132,7 +132,7 @@ export class EventRepository {
           event: true,
           tickets: true,
           user: true,
-          accounts: {
+          account: {
             select: {
               id: true,
             },
@@ -153,7 +153,7 @@ export class EventRepository {
           event: true,
           tickets: true,
           user: true,
-          accounts: {
+          account: {
             select: {
               id: true,
             },
@@ -379,7 +379,7 @@ export class EventRepository {
             name: true,
           },
         },
-        accounts: {
+        account: {
           select: {
             id: true,
           },

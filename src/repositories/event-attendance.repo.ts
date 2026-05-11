@@ -15,11 +15,24 @@ export class EventAttendanceRepository {
   ): Promise<EventAttendance> {
     const client = this.getClient(tx);
 
+    const existingAttendance = await client.eventAttendance.findUnique({
+      where: {
+        eventId_userId: {
+          eventId,
+          userId,
+        },
+      },
+    });
+
+    if (existingAttendance) {
+      return existingAttendance;
+    }
+
     return client.eventAttendance.create({
       data: {
         eventId,
         userId,
-        checkInMethod: CheckInMethod.MANUAL,
+        checkInMethod: CheckInMethod.TICKET,
       },
     });
   }

@@ -77,7 +77,7 @@ export class CommunityEventRepository {
         where: {
           accountId: eventAccount.id,
           type: "CREDIT",
-          referenceType: "EVENT_PAYMENT",
+          referenceType: "COMMUNITY_EVENT_PAYMENT",
           createdAt: {
             gte: startOfToday,
           },
@@ -162,6 +162,7 @@ export class CommunityEventRepository {
       summary[row.status.toLowerCase() as keyof typeof summary] =
         row._count.status;
     }
+    console.log(todayRevenue);
 
     return {
       summary,
@@ -210,6 +211,15 @@ export class CommunityEventRepository {
       include: {
         community: true,
         collaborations: true,
+        communityEventTicketTypes: {
+          select: {
+            id: true,
+            price: true,
+            quota: true,
+            sold: true,
+          },
+        },
+        communityEventTickets: true,
       },
     });
   }

@@ -5,43 +5,68 @@ import { CommunityEventOrderService } from "../services";
 export class CommunityEventOrderController {
   private orderService = new CommunityEventOrderService();
 
-  createOrder = async (req: Request, res: Response) => {
-    try {
-      const { eventId, userId, items } = req.body;
+  // createOrder = async (req: Request, res: Response) => {
+  //   try {
+  //     const { eventId, userId, items } = req.body;
+  //     console.log(userId);
 
-      if (!eventId || !items || !Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({
-          status: false,
-          message: "Invalid payload",
-        });
-      }
+  //     if (!eventId || !items || !Array.isArray(items) || items.length === 0) {
+  //       return res.status(400).json({
+  //         status: false,
+  //         message: "Invalid payload",
+  //       });
+  //     }
 
-      const result = await this.orderService.createOrder(
-        eventId,
-        userId,
-        items,
-      );
+  //     const result = await this.orderService.createOrder(
+  //       userId,
+  //       eventId,
+  //       items,
+  //     );
 
-      sendSuccess(res, result, "Order created", 201);
-    } catch (error: any) {
-      sendError(res, error.message || "Internal server error");
-    }
-  };
+  //     sendSuccess(res, result, "Order created", 201);
+  //   } catch (error: any) {
+  //     console.log(error);
 
-  handlePaymentSuccess = async (req: Request, res: Response) => {
+  //     sendError(res, error.message || "Internal server error");
+  //   }
+  // };
+
+  // handlePaymentSuccess = async (req: Request, res: Response) => {
+  //   try {
+  //     const userId = req.user?.id as string;
+  //     const { orderId, items, pin } = req.body;
+  //     const result = await this.orderService.handlePaymentSuccess(
+  //       userId,
+  //       orderId,
+  //       items,
+  //       pin,
+  //     );
+
+  //     sendSuccess(res, result, "Order payment successful");
+  //   } catch (error: any) {
+  //     console.log(error);
+
+  //     sendError(res, error.message || "Internal server error");
+  //   }
+  // };
+
+  checkoutAndPay = async (req: Request, res: Response) => {
     try {
       const userId = req.user?.id as string;
-      const { orderId, items } = req.body;
-      const { pin } = req.body;
-      const result = await this.orderService.handlePaymentSuccess(
+
+      const { selectedUserId, eventId, items, pin } = req.body;
+      const result = await this.orderService.checkoutAndPay(
         userId,
-        orderId,
+        selectedUserId,
+        eventId,
         items,
         pin,
       );
 
       sendSuccess(res, result, "Order payment successful");
     } catch (error: any) {
+      console.log(error);
+
       sendError(res, error.message || "Internal server error");
     }
   };

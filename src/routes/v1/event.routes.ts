@@ -97,15 +97,19 @@ router.get("/ticket/type/event/:eventId", (req, res) =>
 );
 
 // event order
-router.post(
-  "/order/checkout-ticket",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["CUSTOMER"]),
-  (req, res) => eventOrderController.checkout(req, res),
-);
+// router.post(
+//   "/order/checkout-ticket",
+//   auth.authenticate,
+//   auth.authorizeGlobalRole(["CUSTOMER"]),
+//   (req, res) => eventOrderController.checkout(req, res),
+// );
 
-router.post("/order/ticket-payment/webhook", (req, res) =>
-  eventOrderController.paymentWebhook(req, res),
+// router.post("/order/ticket-payment/webhook", auth.authenticate, (req, res) =>
+//   eventOrderController.paymentWebhook(req, res),
+// );
+
+router.post("/order/checkout-pay", auth.authenticate, (req, res) =>
+  eventOrderController.checkoutAndPay(req, res),
 );
 
 router.get(

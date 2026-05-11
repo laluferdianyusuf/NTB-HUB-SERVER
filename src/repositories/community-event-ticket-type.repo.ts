@@ -48,9 +48,6 @@ export class CommunityEventTicketTypeRepository {
         sold: {
           increment: quantity,
         },
-        quota: {
-          decrement: quantity,
-        },
       },
     });
   }

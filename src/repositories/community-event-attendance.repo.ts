@@ -19,11 +19,26 @@ export class CommunityEventAttendanceRepository {
   ): Promise<CommunityEventAttendance> {
     const client = this.getClient(tx);
 
+    const existingAttendance = await client.communityEventAttendance.findUnique(
+      {
+        where: {
+          eventId_userId: {
+            eventId,
+            userId,
+          },
+        },
+      },
+    );
+
+    if (existingAttendance) {
+      return existingAttendance;
+    }
+
     return client.communityEventAttendance.create({
       data: {
         eventId,
         userId,
-        checkInMethod: CheckInMethod.MANUAL,
+        checkInMethod: CheckInMethod.TICKET,
       },
     });
   }

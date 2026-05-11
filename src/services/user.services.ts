@@ -578,7 +578,7 @@ export class UserService {
       .filter((r) => r.eventId && r.isActive)
       .map((r) => ({
         eventId: r.eventId!,
-        accounts: r.event?.accounts!,
+        accounts: r.event?.account!,
         name: r.event?.name!,
         image: r.event?.image!,
         role: r.role,

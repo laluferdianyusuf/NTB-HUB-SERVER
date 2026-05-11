@@ -39,71 +39,66 @@ router.get("/event/dashboard/:eventId", auth.authenticate, (req, res) =>
 );
 
 // event scan qr code
-router.post(
-  "/scan-community-qrCode",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["VENUE_OWNER", "EVENT_OWNER", "ADMIN"]),
-  (req, res) => eventOrderController.scanQrCode(req, res),
+router.post("/scan-community-qrCode", auth.authenticate, (req, res) =>
+  eventOrderController.scanQrCode(req, res),
 );
 
 // event ticket DETAIL
 router.get(
   "/detail-ticket/:id",
   auth.authenticate,
-  auth.authorizeGlobalRole(["VENUE_OWNER", "EVENT_OWNER", "ADMIN", "CUSTOMER"]),
+
   (req, res) => eventTicketController.getTicketById(req, res),
 );
 
 router.get(
   "/tickets-user/:userId",
   auth.authenticate,
-  auth.authorizeGlobalRole(["VENUE_OWNER", "EVENT_OWNER", "ADMIN", "CUSTOMER"]),
+
   (req, res) => eventTicketController.getTicketByUserId(req, res),
 );
 
 router.get(
   "/orders-tickets/:orderId",
   auth.authenticate,
-  auth.authorizeGlobalRole(["VENUE_OWNER", "EVENT_OWNER", "ADMIN", "CUSTOMER"]),
+
   (req, res) => eventTicketController.getTicketByOrderId(req, res),
 );
 
 // event ticket type
 router.post(
-  "/ticket/type/create",
+  "/ticket/type/create/:communityEventId",
   auth.authenticate,
-  auth.authorizeGlobalRole(["ADMIN", "EVENT_OWNER"]),
   (req, res) => eventTicketTypeController.createTicketType(req, res),
 );
 
-router.get("/ticket/type/event/:eventId", (req, res) =>
+router.get("/ticket/type/event/:communityEventId", (req, res) =>
   eventTicketTypeController.findAllTicketTypes(req, res),
 );
 
 // event order
-router.post(
-  "/order/checkout-ticket",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["CUSTOMER"]),
-  (req, res) => eventOrderController.createOrder(req, res),
+// router.post("/order/checkout-ticket", auth.authenticate, (req, res) =>
+//   eventOrderController.createOrder(req, res),
+// );
+
+// router.post("/order/ticket-payment/webhook", auth.authenticate, (req, res) =>
+//   eventOrderController.handlePaymentSuccess(req, res),
+// );
+
+router.post("/order/checkout-pay", auth.authenticate, (req, res) =>
+  eventOrderController.checkoutAndPay(req, res),
 );
 
-router.post("/order/ticket-payment/webhook", (req, res) =>
-  eventOrderController.handlePaymentSuccess(req, res),
+router.get("/detail-order/:id", auth.authenticate, (req, res) =>
+  eventOrderController.getDetail(req, res),
 );
 
-router.get(
-  "/detail-order/:id",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["CUSTOMER"]),
-  (req, res) => eventOrderController.getDetail(req, res),
+router.get("/orders", auth.authenticate, (req, res) =>
+  eventOrderController.getEventOrders(req, res),
 );
 
-router.get(
-  "/orders",
-  auth.authenticate,
-  auth.authorizeGlobalRole(["CUSTOMER"]),
-  (req, res) => eventOrderController.getEventOrders(req, res),
+router.post("/scan-qrCode", auth.authenticate, (req, res) =>
+  eventOrderController.scanQrCode(req, res),
 );
 
 export default router;

@@ -54,11 +54,6 @@ export class CommunityEventOrderService {
     items: { ticketTypeId: string; qty: number }[],
     tx: Prisma.TransactionClient,
   ) {
-    const ticketTypes = await this.ticketTypeRepo.findActiveByEvent(
-      order.communityEventId,
-      tx,
-    );
-
     const ticketsPayload: {
       userId: string;
       communityEventId: string;
@@ -67,8 +62,7 @@ export class CommunityEventOrderService {
     }[] = [];
 
     for (const item of items) {
-      const type = ticketTypes.find((t) => t.id === item.ticketTypeId);
-
+      const type = await this.ticketTypeRepo.findById(item.ticketTypeId, tx);
       if (!type) {
         throw new Error("TICKET_TYPE_NOT_FOUND");
       }
@@ -94,74 +88,71 @@ export class CommunityEventOrderService {
   }
 
   async createOrder(
-    userId: string,
+    selectedUserId: string,
     eventId: string,
     items: { ticketTypeId: string; qty: number }[],
+    tx: Prisma.TransactionClient,
   ) {
-    return prisma.$transaction(async (tx) => {
-      if (!items.length) throw new Error("ITEMS_REQUIRED");
+    if (!items.length) throw new Error("ITEMS_REQUIRED");
 
-      const existingTickets = await tx.communityEventTicket.count({
-        where: { userId, eventId },
-      });
-
-      const newQty = items.reduce((a, b) => a + b.qty, 0);
-
-      if (existingTickets + newQty > 2) {
-        throw new Error("MAX_2_TICKETS_PER_USER");
-      }
-
-      let total = 0;
-
-      let totalAmount = 0;
-
-      for (const item of items) {
-        const type = await this.ticketTypeRepo.findById(item.ticketTypeId, tx);
-
-        if (!type || !type.isActive) {
-          throw new Error("TICKET_NOT_AVAILABLE");
-        }
-
-        if (type.quota - type.sold < item.qty) {
-          throw new Error("TICKET_SOLD_OUT");
-        }
-
-        total += Number(type.price) * item.qty;
-      }
-
-      const orderId = crypto.randomUUID();
-
-      const qrCode = generateTicketQR({
-        orderId,
-        userId,
-        eventId,
-      });
-
-      const order = await this.orderRepo.create(
-        {
-          id: orderId,
-          userId,
-          communityEventId: eventId,
-          total: totalAmount,
-          status: EventOrderStatus.PENDING,
-          qrCode,
-        },
-        tx,
-      );
-
-      await this.invoiceRepo.create(
-        {
-          entityType: "COMMUNITY_EVENT_ORDER",
-          entityId: order.id,
-          invoiceNumber: `COM-EVT-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
-          amount: totalAmount,
-          expiredAt: new Date(Date.now() + 15 * 60 * 1000),
-        },
-        tx,
-      );
-
-      return order;
+    const existingTickets = await tx.communityEventTicket.count({
+      where: { userId: selectedUserId, communityEventId: eventId },
     });
+
+    const newQty = items.reduce((a, b) => a + b.qty, 0);
+
+    // if (existingTickets + newQty > 2) {
+    //   throw new Error("MAX_2_TICKETS_PER_USER");
+    // }
+
+    let total = 0;
+
+    for (const item of items) {
+      const type = await this.ticketTypeRepo.findById(item.ticketTypeId, tx);
+
+      if (!type || !type.isActive) {
+        throw new Error("TICKET_NOT_AVAILABLE");
+      }
+
+      if (type.quota - type.sold < item.qty) {
+        throw new Error("TICKET_SOLD_OUT");
+      }
+
+      total += Number(type.price) * item.qty;
+    }
+
+    const orderId = crypto.randomUUID();
+
+    const qrCode = generateTicketQR({
+      orderId,
+      userId: selectedUserId,
+      eventId,
+    });
+
+    const order = await this.orderRepo.create(
+      {
+        id: orderId,
+        userId: selectedUserId,
+        communityEventId: eventId,
+        total: total,
+        status: EventOrderStatus.PENDING,
+        qrCode,
+      },
+      tx,
+    );
+
+    await this.invoiceRepo.create(
+      {
+        entityType: "COMMUNITY_EVENT_ORDER",
+        entityId: order.id,
+        invoiceNumber: `COM-EVT-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
+        amount: total,
+        expiredAt: new Date(Date.now() + 15 * 60 * 1000),
+      },
+      tx,
+    );
+
+    return order;
   }
 
   async expireOrder(orderId: string) {
@@ -201,145 +192,157 @@ export class CommunityEventOrderService {
   async handlePaymentSuccess(
     userId: string,
     orderId: string,
-    items: { ticketTypeId: string; qty: number }[],
-    pin: string,
+    tx: Prisma.TransactionClient,
   ) {
     const user = await this.userRepository.findById(userId);
 
     if (!user) throw new Error("USER_NOT_FOUND");
 
-    if (!user.biometricEnabled) {
-      await this.userService.verifyPin(userId, pin);
+    const order = await this.orderRepo.findById(orderId, tx);
+    if (!order) throw new Error("ORDER_NOT_FOUND");
+    if (order.status === "PAID") return order;
+
+    if (order.status !== "PENDING") {
+      throw new Error("INVALID_ORDER_STATUS");
     }
 
-    return prisma.$transaction(async (tx) => {
-      const order = await this.orderRepo.findById(orderId, tx);
-      if (!order) throw new Error("ORDER_NOT_FOUND");
-      if (order.status === "PAID") return order;
+    const invoice = await this.invoiceRepo.findByEntity(
+      "COMMUNITY_EVENT_ORDER",
+      order.id,
+      tx,
+    );
 
-      if (order.status !== "PENDING") {
-        throw new Error("INVALID_ORDER_STATUS");
-      }
+    if (!invoice) throw new Error("INVOICE_NOT_FOUND");
+    if (invoice.status !== "PENDING") {
+      throw new Error("INVOICE_ALREADY_PAID");
+    }
 
-      const invoice = await this.invoiceRepo.findByEntity(
-        "COMMUNITY_EVENT_ORDER",
-        order.id,
-        tx,
-      );
+    if (invoice.expiredAt && invoice.expiredAt < new Date()) {
+      throw new Error("INVOICE_EXPIRED");
+    }
 
-      if (!invoice) throw new Error("INVOICE_NOT_FOUND");
-      if (invoice.status !== "PENDING") {
-        throw new Error("INVOICE_ALREADY_PAID");
-      }
+    const userAccount = await this.accountRepo.findUserAccount(userId);
+    const eventAccount = await this.accountRepo.findCommunityEventAccount(
+      order.communityEvent.id,
+    );
+    const platformAccount = await this.accountRepo.findPlatformAccount();
 
-      if (invoice.expiredAt && invoice.expiredAt < new Date()) {
-        throw new Error("INVOICE_EXPIRED");
-      }
+    if (!userAccount || !eventAccount || !platformAccount) {
+      throw new Error("Account not found");
+    }
 
-      const userAccount = await this.accountRepo.findUserAccount(order.userId);
-      const eventAccount = await this.accountRepo.findCommunityAccount(
-        order.communityEvent.community.id,
-      );
-      const platformAccount = await this.accountRepo.findPlatformAccount();
+    if (!invoice) throw new Error("Invoice not found");
+    if (invoice.status !== "PENDING") {
+      throw new Error("Invoice already paid or cancelled");
+    }
 
-      if (!userAccount || !eventAccount || !platformAccount) {
-        throw new Error("Account not found");
-      }
+    if (invoice.expiredAt && invoice.expiredAt < new Date()) {
+      throw new Error("INVOICE_EXPIRED");
+    }
 
-      if (!invoice) throw new Error("Invoice not found");
-      if (invoice.status !== "PENDING") {
-        throw new Error("Invoice already paid or cancelled");
-      }
+    const balance = await this.ledgerRepo.getBalance(userAccount.id);
 
-      if (invoice.expiredAt && invoice.expiredAt < new Date()) {
-        throw new Error("INVOICE_EXPIRED");
-      }
+    const platformFee = Number(invoice.amount) * 0.1;
+    const eventAmount = Number(invoice.amount) - platformFee;
 
-      const balance = await this.ledgerRepo.getBalance(order.userId);
-      const platformFee = Number(invoice.amount) * 0.1;
-      const eventAmount = Number(invoice.amount) - platformFee;
+    if (!balance || balance.totalBalance < Number(order.total)) {
+      throw new Error("Insufficient balance");
+    }
 
-      if (!balance || balance.totalBalance < Number(order.total)) {
-        throw new Error("Insufficient balance");
-      }
+    if (!balance || balance.balance < Number(order.total)) {
+      throw new Error("Insufficient balance");
+    }
 
-      if (!balance || balance.balance < Number(order.total)) {
-        throw new Error("Insufficient balance");
-      }
+    const paymentId = `PAY-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
 
-      const paymentId = `PAY-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
-
-      await this.ledgerRepo.createMany(
-        [
-          {
-            accountId: userAccount?.id as string,
-            type: "DEBIT",
-            amount: Number(invoice.amount),
-            referenceType: "COMMUNITY_EVENT_PAYMENT",
-            referenceId: order.id,
-          },
-          {
-            accountId: eventAccount.id,
-            type: "CREDIT",
-            amount: eventAmount,
-            referenceType: "COMMUNITY_EVENT_PAYMENT",
-            referenceId: order.id,
-          },
-          {
-            accountId: platformAccount.id,
-            type: "CREDIT",
-            amount: platformFee,
-            referenceType: "FEE",
-            referenceId: order.id,
-          },
-        ],
-        tx,
-      );
-
-      await this.userBalanceRepo.decrementBalance(
-        order.userId,
-        Number(invoice.amount),
-        tx,
-      );
-
-      await this.eventBalanceRepository.incrementBalance(
-        order.communityEvent.community.id,
-        Number(eventAmount),
-        tx,
-      );
-
-      await this.platformBalanceRepository.incrementBalance(
-        Number(platformFee),
-        tx,
-      );
-
-      await this.paymentRepo.create(
+    await this.ledgerRepo.createMany(
+      [
         {
-          invoiceId: invoice.id,
+          accountId: userAccount?.id as string,
+          type: "DEBIT",
           amount: Number(invoice.amount),
-          method: "WALLET",
-          provider: "NTB_HUB",
-          providerRef: paymentId,
+          referenceType: "COMMUNITY_EVENT_PAYMENT",
+          referenceId: order.id,
         },
-        tx,
-      );
-
-      await this.activityLogRepository.create(
         {
-          actorId: userId,
-          actorType: "USER",
-          entityType: "EVENT",
-          entityId: order.id,
-          action: "PAID",
-          metadata: {
-            amount: Number(invoice.amount),
-          },
+          accountId: eventAccount.id,
+          type: "CREDIT",
+          amount: eventAmount,
+          referenceType: "COMMUNITY_EVENT_PAYMENT",
+          referenceId: order.id,
         },
-        tx,
-      );
+        {
+          accountId: platformAccount.id,
+          type: "CREDIT",
+          amount: platformFee,
+          referenceType: "FEE",
+          referenceId: order.id,
+        },
+      ],
+      tx,
+    );
 
-      await this.invoiceRepo.markPaid(invoice.id, tx);
-      await this.orderRepo.updateStatus(order.id, "PAID", tx);
+    await this.userBalanceRepo.decrementBalance(
+      order.userId,
+      Number(invoice.amount),
+      tx,
+    );
+
+    await this.eventBalanceRepository.incrementBalance(
+      order.communityEvent.community.id,
+      Number(eventAmount),
+      tx,
+    );
+
+    await this.platformBalanceRepository.incrementBalance(
+      Number(platformFee),
+      tx,
+    );
+
+    await this.paymentRepo.create(
+      {
+        invoiceId: invoice.id,
+        amount: Number(invoice.amount),
+        method: "WALLET",
+        provider: "NTB_HUB",
+        providerRef: paymentId,
+      },
+      tx,
+    );
+
+    await this.activityLogRepository.create(
+      {
+        actorId: userId,
+        actorType: "USER",
+        entityType: "EVENT",
+        entityId: order.id,
+        action: "PAID",
+        metadata: {
+          amount: Number(invoice.amount),
+        },
+      },
+      tx,
+    );
+
+    await this.invoiceRepo.markPaid(invoice.id, tx);
+    await this.orderRepo.updateStatus(order.id, "PAID", tx);
+
+    return order;
+  }
+
+  async checkoutAndPay(
+    userId: string,
+    selectedUserId: string,
+    eventId: string,
+    items: { ticketTypeId: string; qty: number }[],
+    pin: string,
+  ) {
+    await this.userService.verifyPin(userId, pin);
+
+    return prisma.$transaction(async (tx) => {
+      const order = await this.createOrder(selectedUserId, eventId, items, tx);
+
+      await this.handlePaymentSuccess(userId, order.id, tx);
 
       await this.generateTickets(order, items, tx);
 
@@ -373,9 +376,9 @@ export class CommunityEventOrderService {
     }
 
     return prisma.$transaction(async (tx) => {
-      await this.orderRepo.lockOrder(order.id);
+      await this.orderRepo.lockOrder(order.id, tx);
 
-      await this.ticketRepo.markAsUsed(order.id);
+      await this.ticketRepo.markAsUsed(order.id, tx);
 
       await this.attendanceRepo.attendance(
         order.communityEventId,
@@ -385,11 +388,7 @@ export class CommunityEventOrderService {
 
       const result = await this.orderRepo.findById(order.id);
 
-      return {
-        success: true,
-        message: "CHECK_IN_SUCCESS",
-        data: result,
-      };
+      return result;
     });
   }
 

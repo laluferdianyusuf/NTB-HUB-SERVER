@@ -5,50 +5,72 @@ import { EventOrderService } from "../services";
 export class EventOrderController {
   private service = new EventOrderService();
 
-  async checkout(req: Request, res: Response) {
-    try {
-      const { eventId, userId, items } = req.body;
+  // async checkout(req: Request, res: Response) {
+  //   try {
+  //     const { eventId, userId, items } = req.body;
 
-      if (!eventId || !items || !Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({
-          status: false,
-          message: "Invalid payload",
-        });
-      }
+  //     if (!eventId || !items || !Array.isArray(items) || items.length === 0) {
+  //       return res.status(400).json({
+  //         status: false,
+  //         message: "Invalid payload",
+  //       });
+  //     }
 
-      const result = await this.service.checkout(userId, eventId, items);
+  //     const result = await this.service.checkout(userId, eventId, items);
 
-      sendSuccess(res, result, "Ticket checked out");
-    } catch (error: any) {
-      sendError(res, error.message || "Internal server error");
-    }
-  }
+  //     sendSuccess(res, result, "Ticket checked out");
+  //   } catch (error: any) {
+  //     sendError(res, error.message || "Internal server error");
+  //   }
+  // }
 
-  async paymentWebhook(req: Request, res: Response) {
+  // async paymentWebhook(req: Request, res: Response) {
+  //   try {
+  //     const userId = req.user?.id as string;
+  //     const { eventOrderId, items } = req.body;
+  //     const { pin } = req.body;
+  //     console.log(userId);
+
+  //     if (!eventOrderId) {
+  //       return res.status(400).json({
+  //         status: false,
+  //         message: "eventOrderId is required",
+  //       });
+  //     }
+
+  //     const result = await this.service.markPaid(
+  //       userId,
+  //       eventOrderId,
+  //       items,
+  //       pin,
+  //     );
+
+  //     sendSuccess(res, result, "Payment successful", 201);
+  //   } catch (error: any) {
+  //     sendError(res, error.message || "Internal server error");
+  //   }
+  // }
+
+  checkoutAndPay = async (req: Request, res: Response) => {
     try {
       const userId = req.user?.id as string;
-      const { eventOrderId, items } = req.body;
-      const { pin } = req.body;
 
-      if (!eventOrderId) {
-        return res.status(400).json({
-          status: false,
-          message: "eventOrderId is required",
-        });
-      }
-
-      const result = await this.service.markPaid(
+      const { selectedUserId, eventId, items, pin } = req.body;
+      const result = await this.service.checkoutAndPay(
         userId,
-        eventOrderId,
+        selectedUserId,
+        eventId,
         items,
         pin,
       );
 
-      sendSuccess(res, result, "Payment successful", 201);
+      sendSuccess(res, result, "Order payment successful");
     } catch (error: any) {
+      console.log(error);
+
       sendError(res, error.message || "Internal server error");
     }
-  }
+  };
 
   async scanQrCode(req: Request, res: Response) {
     try {
@@ -58,6 +80,8 @@ export class EventOrderController {
 
       sendSuccess(res, order, "Qr Code scanned");
     } catch (error: any) {
+      console.log(error);
+
       sendError(res, error.message || "Internal server error");
     }
   }
