@@ -47,17 +47,11 @@ export class UserController {
     }
   }
 
-  async verifyEmail(req: Request, res: Response) {
+  async verifyPinEmail(req: Request, res: Response) {
     try {
-      const { token } = req.body;
+      const { userId, pin } = req.body;
 
-      if (!token) {
-        return res.status(400).json({
-          message: "TOKEN_REQUIRED",
-        });
-      }
-
-      const result = await userService.verifyEmail(token);
+      const result = await userService.verifyPinEmail(userId, pin);
 
       sendSuccess(res, result, "Email verified");
     } catch (error: any) {

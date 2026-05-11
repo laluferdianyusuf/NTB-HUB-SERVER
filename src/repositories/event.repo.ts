@@ -1,4 +1,10 @@
-import { EventOrderStatus, EventStatus, PrismaClient } from "@prisma/client";
+import {
+  Event,
+  EventOrderStatus,
+  EventStatus,
+  Prisma,
+  PrismaClient,
+} from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -399,6 +405,15 @@ export class EventRepository {
       where: { id },
       data: { status },
     });
+  }
+
+  async updateEvent(
+    id: string,
+    data: Prisma.EventUpdateInput,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Event> {
+    const client = tx ?? prisma;
+    return client.event.update({ where: { id }, data });
   }
 
   async deleteEvent(id: string) {

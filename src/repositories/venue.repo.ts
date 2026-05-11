@@ -374,6 +374,15 @@ export class VenueRepository {
     });
   }
 
+  async updateVenueOwner(
+    id: string,
+    data: Prisma.VenueUpdateInput,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Venue> {
+    const client = tx ?? prisma;
+    return client.venue.update({ where: { id }, data });
+  }
+
   async deleteVenueWithRelations(id: string): Promise<Venue> {
     return prisma.$transaction(async (tx) => {
       await tx.invitationKey.deleteMany({

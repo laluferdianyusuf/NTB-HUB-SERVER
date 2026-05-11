@@ -16,7 +16,7 @@ router.post("/register-admin", upload.single("image"), (req, res) =>
 router.post("/login", (req, res) => userController.login(req, res));
 router.post("/refresh", (req, res) => userController.refreshToken(req, res));
 router.post("/verify-email", (req, res) =>
-  userController.verifyEmail(req, res),
+  userController.verifyPinEmail(req, res),
 );
 router.post("/resend-verification", (req, res) =>
   userController.resendVerification(req, res),

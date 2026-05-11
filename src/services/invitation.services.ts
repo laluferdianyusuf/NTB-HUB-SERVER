@@ -4,16 +4,21 @@ import { randomUUID } from "crypto";
 import {
   CommunityMemberRepository,
   CommunityRepository,
+  EventRepository,
   InvitationKeyRepository,
   UserRoleRepository,
+  VenueRepository,
 } from "repositories";
 import { sendEmail } from "utils/mail";
 import { AccountService } from "./account.services";
+
 const invitationKeyRepository = new InvitationKeyRepository();
 const userRoleRepository = new UserRoleRepository();
 const communityRepository = new CommunityRepository();
 const communityMemberRepository = new CommunityMemberRepository();
 const accountService = new AccountService();
+const eventService = new EventRepository();
+const venueService = new VenueRepository();
 
 export class InvitationServices {
   async generateInvitationKey(email: string, venueId: string) {
@@ -122,6 +127,14 @@ export class InvitationServices {
 
       await invitationKeyRepository.markUsed(invitation.id, tx);
 
+      await venueService.updateVenueOwner(
+        invitation.venueId as string,
+        {
+          owner: { connect: { id: userId } },
+        },
+        tx,
+      );
+
       return {
         venueId: invitation.venueId,
         role: invitation.role,
@@ -159,6 +172,14 @@ export class InvitationServices {
 
       await invitationKeyRepository.markUsed(invitation.id, tx);
 
+      await eventService.updateEvent(
+        invitation.eventId,
+        {
+          owner: { connect: { id: userId } },
+        },
+        tx,
+      );
+
       return {
         eventId: invitation.eventId,
         role: invitation.role,
@@ -191,14 +212,6 @@ export class InvitationServices {
           community: { connect: { id: invitation.communityId } },
           role: "OWNER",
           status: "APPROVED",
-        },
-        tx,
-      );
-
-      await accountService.ensureAccount(
-        {
-          type: "COMMUNITY",
-          communityId: invitation.communityId!,
         },
         tx,
       );

@@ -1,10 +1,10 @@
-import { Point, PrismaClient, Role } from "@prisma/client";
+import { PrismaClient, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { publisher } from "config/redis.config";
 import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";
 import Redis from "ioredis";
 import jwt from "jsonwebtoken";
+import { LINK } from "utils/link";
 import { sendEmail } from "utils/mail";
 import { uploadImage } from "utils/uploadS3";
 import {
@@ -18,7 +18,6 @@ import {
 } from "../repositories";
 import { AccountService } from "./account.services";
 import { RateLimiterService } from "./rateLimiterService";
-import { LINK } from "utils/link";
 
 const prisma = new PrismaClient();
 const redis = new Redis();
@@ -71,15 +70,6 @@ export class UserService {
 
     const hashedPassword = await bcrypt.hash(data.password, 12);
 
-    const rawToken = crypto.randomBytes(32).toString("hex");
-
-    const hashedToken = crypto
-      .createHash("sha256")
-      .update(rawToken)
-      .digest("hex");
-
-    const verificationExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-
     const user = await userRepository.create({
       email: data.email,
       name: data.name,
@@ -87,96 +77,62 @@ export class UserService {
       password: hashedPassword,
       photo,
       isVerified: false,
-      emailVerifyToken: hashedToken,
-      emailVerifyExpiry: verificationExpiry,
     });
 
-    const url = `${LINK}verifyEmail?token=${rawToken}`;
+    const pin = crypto.randomInt(100000, 999999).toString();
+
+    const hashedPin = await bcrypt.hash(pin, 10);
+
+    await redis.set(
+      `verify-pin:${user.id}`,
+      hashedPin,
+      "EX",
+      5 * 60, // 5 menit
+    );
+
+    await redis.set(`verify-pin-attempt:${user.id}`, "0", "EX", 5 * 60);
+
+    console.log(pin);
 
     await sendEmail(
       user.email,
-      "Verify Your Email",
+      "Verify Your Account",
       `
-  <!DOCTYPE html>
-  <html>
-  <head>
-    <meta charset="UTF-8" />
-    <title>Email Verification</title>
-  </head>
-  <body style="margin:0; padding:0; background-color:#f4f6f8; font-family:Arial, sans-serif;">
-    
-    <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
-      <tr>
-        <td align="center">
+    <html>
+      <body style="font-family:Arial,sans-serif;background:#f4f6f8;padding:30px;">
+        <div style="max-width:500px;margin:auto;background:#fff;padding:30px;border-radius:10px;">
           
-          <table width="500" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:8px; padding:40px; box-shadow:0 4px 10px rgba(0,0,0,0.05);">
-            
-            <tr>
-              <td align="center">
-                <h2 style="margin:0; color:#333;">Email Verification</h2>
-              </td>
-            </tr>
+          <h2>Email Verification</h2>
 
-            <tr>
-              <td style="padding-top:20px; color:#555; font-size:14px; line-height:22px;">
-                <p style="margin:0;">Hello <strong>${user.name}</strong>,</p>
-                <p style="margin:15px 0;">
-                  Thank you for registering. Please verify your email address by clicking the button below:
-                </p>
-              </td>
-            </tr>
+          <p>Hello <b>${user.name}</b>,</p>
 
-            <tr>
-              <td align="center" style="padding:25px 0;">
-                <a href="${url}"
-                  style="
-                    background-color:#2563eb;
-                    color:#ffffff;
-                    text-decoration:none;
-                    padding:14px 28px;
-                    border-radius:6px;
-                    font-size:14px;
-                    font-weight:bold;
-                    display:inline-block;
-                  ">
-                  Verify Account
-                </a>
-              </td>
-            </tr>
+          <p>Use the following verification code to activate your account:</p>
 
-            <tr>
-              <td style="color:#777; font-size:13px; line-height:20px;">
-                <p style="margin:0;">
-                  This verification link will expire in <strong>1 hour</strong>.
-                </p>
-                <p style="margin:15px 0 0 0;">
-                  If the button above does not work, copy and paste this link into your browser:
-                </p>
-                <p style="word-break:break-all; color:#2563eb; font-size:12px;">
-                  ${url}
-                </p>
-              </td>
-            </tr>
+          <div style="font-size:28px;letter-spacing:6px;font-weight:bold;text-align:center;margin:20px 0;">
+            ${pin}
+          </div>
 
-            <tr>
-              <td style="padding-top:30px; font-size:12px; color:#aaa; text-align:center;">
-                © ${new Date().getFullYear()} PT. Inspira Internusa. All rights reserved.
-              </td>
-            </tr>
+          <p style="color:#777;font-size:13px;">
+            This code will expire in <b>5 minutes</b>.
+          </p>
 
-          </table>
+          <p style="color:#999;font-size:12px;">
+            If you didn't request this, ignore this email.
+          </p>
 
-        </td>
-      </tr>
-    </table>
-
-  </body>
-  </html>
-  `,
+        </div>
+      </body>
+    </html>
+    `,
     );
 
     return {
-      message: "Verification email sent",
+      message: "Verification code sent to email",
+
+      data: {
+        userId: user.id,
+        email: user.email,
+      },
     };
   }
 
@@ -240,67 +196,43 @@ export class UserService {
 
     return {
       message: "Admin registered successfully",
-      userId: result.id,
+      data: {
+        userId: result.id,
+        email: result.email,
+      },
     };
   }
 
-  async verifyEmail(token: string) {
-    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+  async verifyPinEmail(userId: string, pin: string) {
+    const storedHash = await redis.get(`verify-pin:${userId}`);
+    if (!storedHash) throw new Error("PIN_EXPIRED");
 
-    const user = await userRepository.findByVerifyToken(hashedToken);
+    const attemptsKey = `verify-pin-attempt:${userId}`;
+    const attempts = parseInt((await redis.get(attemptsKey)) || "0");
 
-    if (!user) throw new Error("INVALID_OR_EXPIRED_TOKEN");
+    if (attempts >= 5) {
+      throw new Error("TOO_MANY_ATTEMPTS");
+    }
 
-    if (user.emailVerifyExpiry! < new Date()) throw new Error("TOKEN_EXPIRED");
+    const isValid = await bcrypt.compare(pin, storedHash);
 
-    const result = await prisma.$transaction(async (tx) => {
-      await userRepository.verifyUser(user.id, tx);
+    if (!isValid) {
+      await redis.set(attemptsKey, String(attempts + 1), "EX", 300);
+      throw new Error("INVALID_PIN");
+    }
 
-      const balance = await userBalanceRepository.generateInitialBalance(
-        user.id,
-        tx,
-      );
+    const user = await userRepository.verifyUser(userId);
 
-      const point = await pointRepository.generatePoints(
-        {
-          userId: user.id,
-          points: 0,
-          activity: "REGISTER",
-          reference: user.id,
-        } as Point,
-        tx,
-      );
+    await redis.del(`verify-pin:${userId}`);
+    await redis.del(attemptsKey);
 
-      await userRoleRepository.assignGlobalRole(
-        {
-          userId: user.id,
-          role: Role.CUSTOMER,
-        },
-        tx,
-      );
-
-      await accountService.ensureAccount(
-        {
-          type: "USER",
-          userId: user.id,
-        },
-        tx,
-      );
-
-      return { balance, point };
-    });
-
-    await publisher.publish(
-      "point-events",
-      JSON.stringify({ event: "point:updated", payload: result.point }),
-    );
-
-    await publisher.publish(
-      "balance-events",
-      JSON.stringify({ event: "balance:updated", payload: result.balance }),
-    );
-
-    return { message: "Account verified successfully" };
+    return {
+      message: "Account verified successfully",
+      data: {
+        userId: user.id,
+        email: user.email,
+      },
+    };
   }
 
   async resendVerification(email: string, ip: string) {
@@ -315,121 +247,55 @@ export class UserService {
     if (!user || user.isVerified) {
       return {
         message:
-          "If your email is not verified, a verification link has been sent.",
+          "If your email is not verified, a verification code has been sent.",
       };
     }
 
-    const rawToken = crypto.randomBytes(32).toString("hex");
+    const pin = crypto.randomInt(100000, 999999).toString();
 
-    const hashedToken = crypto
-      .createHash("sha256")
-      .update(rawToken)
-      .digest("hex");
+    console.log(pin);
 
-    const verificationExpiry = new Date(Date.now() + 60 * 60 * 1000);
+    const hashedPin = await bcrypt.hash(pin, 10);
 
-    await userRepository.update(user.id, {
-      emailVerifyToken: hashedToken,
-      emailVerifyExpiry: verificationExpiry,
-    });
+    await redis.set(`verify-pin:${user.id}`, hashedPin, "EX", 5 * 60);
 
-    const url = `${LINK}verifyEmail?token=${rawToken}`;
+    await redis.set(`verify-pin-attempt:${user.id}`, "0", "EX", 5 * 60);
 
     await sendEmail(
       user.email,
-      "Verify Your Email - Resend",
+      "Verify Your Email - Resend Code",
       `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <title>Email Verification</title>
-</head>
-<body style="margin:0; padding:0; background-color:#f4f6f8; font-family:Arial, sans-serif;">
-  
-  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
-    <tr>
-      <td align="center">
-        
-        <table width="500" cellpadding="0" cellspacing="0" 
-          style="background:#ffffff; border-radius:8px; padding:40px; box-shadow:0 4px 10px rgba(0,0,0,0.05);">
-          
-          <tr>
-            <td align="center">
-              <h2 style="margin:0; color:#333;">Email Verification</h2>
-            </td>
-          </tr>
+    <html>
+      <body style="font-family:Arial,sans-serif;background:#f4f6f8;padding:30px;">
+        <div style="max-width:500px;margin:auto;background:#fff;padding:30px;border-radius:10px;">
 
-          <tr>
-            <td style="padding-top:20px; color:#555; font-size:14px; line-height:22px;">
-              <p style="margin:0;">Hello <strong>${user.name}</strong>,</p>
-              <p style="margin:15px 0;">
-                You requested a new verification email. Please confirm your account by clicking the button below:
-              </p>
-            </td>
-          </tr>
+          <h2>Email Verification</h2>
 
-          <tr>
-            <td align="center" style="padding:25px 0;">
-              <a href="${url}"
-                style="
-                  background-color:#2563eb;
-                  color:#ffffff;
-                  text-decoration:none;
-                  padding:14px 28px;
-                  border-radius:6px;
-                  font-size:14px;
-                  font-weight:bold;
-                  display:inline-block;
-                ">
-                Verify Account
-              </a>
-            </td>
-          </tr>
-          
-            <tr>
-              <td style="color:#777; font-size:13px; line-height:20px;">
-                <p style="margin:0;">
-                  This verification link will expire in <strong>1 hour</strong>.
-                </p>
-                <p style="margin:15px 0 0 0;">
-                  If the button above does not work, copy and paste this link into your browser:
-                </p>
-                <p style="word-break:break-all; color:#2563eb; font-size:12px;">
-                  ${url}
-                </p>
-              </td>
-            </tr>
+          <p>Hello <b>${user.name}</b>,</p>
 
-          <tr>
-            <td style="color:#777; font-size:13px; line-height:20px;">
-              <p style="margin:0;">
-                This verification link will expire in <strong>1 hour</strong>.
-              </p>
-              <p style="margin:15px 0 0 0;">
-                If you did not request this email, you can safely ignore it.
-              </p>
-            </td>
-          </tr>
+          <p>Your new verification code is:</p>
 
-          <tr>
-            <td style="padding-top:30px; font-size:12px; color:#aaa; text-align:center;">
-              © ${new Date().getFullYear()} PT. Inspira Internusa. All rights reserved.
-            </td>
-          </tr>
+          <div style="font-size:28px;letter-spacing:6px;font-weight:bold;text-align:center;margin:20px 0;">
+            ${pin}
+          </div>
 
-        </table>
+          <p style="color:#777;font-size:13px;">
+            This code will expire in <b>5 minutes</b>.
+          </p>
 
-      </td>
-    </tr>
-  </table>
+          <p style="color:#999;font-size:12px;">
+            If you didn't request this, ignore this email.
+          </p>
 
-</body>
-</html>
-`,
+        </div>
+      </body>
+    </html>
+    `,
     );
 
-    return { message: "Verification email resent" };
+    return {
+      message: "Verification code resent successfully",
+    };
   }
 
   async login(email: string, password: string) {
@@ -438,6 +304,10 @@ export class UserService {
 
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) throw new Error("INVALID_PASSWORD");
+
+    if (!user.isVerified) {
+      throw new Error("EMAIL_NOT_VERIFIED");
+    }
 
     const tokens = await this.generateTokens(user.id);
 
@@ -451,12 +321,18 @@ export class UserService {
       3600,
     );
 
+    await userRoleRepository.assignGlobalRole({
+      userId: user.id,
+      role: Role.CUSTOMER,
+    });
+
     return {
       user: {
         id: user.id,
         name: user.name,
         username: user.username,
         email: user.email,
+        isVerified: user.isVerified,
       },
       ...tokens,
     };
