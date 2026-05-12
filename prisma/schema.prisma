@@ -1030,6 +1030,35 @@ model LedgerEntry {
   @@index([createdAt])
 }
 
+// model LedgerEntry {
+//   id String @id @default(uuid())
+
+//   accountId String
+//   account   Account @relation(fields: [accountId], references: [id])
+
+//   type   LedgerDirection
+//   amount Decimal @db.Decimal(18,2)
+
+//   referenceType LedgerReferenceType?
+
+//   eventId String?
+//   event   Event? @relation(fields: [eventId], references: [id])
+
+//   venueId String?
+//   venue   Venue? @relation(fields: [venueId], references: [id])
+
+//   bookingId String?
+//   booking   Booking? @relation(fields: [bookingId], references: [id])
+
+//   orderId String?
+//   order   Order? @relation(fields: [orderId], references: [id])
+
+//   communityEventId String?
+//   communityEvent   CommunityEvent? @relation(fields: [communityEventId], references: [id])
+
+//   createdAt DateTime @default(now())
+// }
+
 model UserVirtualAccount {
   id       String  @id @default(uuid())
   userId   String

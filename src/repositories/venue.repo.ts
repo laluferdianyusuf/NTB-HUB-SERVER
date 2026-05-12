@@ -307,27 +307,16 @@ export class VenueRepository {
   }
 
   async findVenueLikedByUser(userId: string) {
-    return prisma.venue.findMany({
+    return prisma.user.findUnique({
       where: {
-        likes: {
-          some: {
-            userId,
-          },
-        },
+        id: userId,
       },
-      include: {
-        invitation: true,
-        operationalHours: true,
-        services: {
-          where: {
-            isActive: true,
-          },
+      select: {
+        id: true,
+        name: true,
+        likedVenues: {
           include: {
-            units: {
-              where: {
-                isActive: true,
-              },
-            },
+            venue: true,
           },
         },
       },

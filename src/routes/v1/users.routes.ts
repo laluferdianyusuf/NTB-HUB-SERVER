@@ -27,13 +27,18 @@ router.patch("/change-password", auth.authenticate, (req, res) =>
   userController.changePassword(req, res),
 );
 
+router.post("/forgot-password", (req, res) =>
+  userController.forgotPassword(req, res),
+);
+
+router.post("/verify/forgot-password", (req, res) =>
+  userController.verifyForgotPasswordPin(req, res),
+);
+
 router.post("/reset-password", (req, res) =>
   userController.resetPassword(req, res),
 );
 
-router.post("/forgot-password", (req, res) =>
-  userController.forgotPassword(req, res),
-);
 router.delete(
   "/delete-user/:id",
   auth.authenticate,

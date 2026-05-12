@@ -198,19 +198,37 @@ export class UserController {
   async forgotPassword(req: Request, res: Response) {
     try {
       const { email } = req.body;
-      await userService.forgotPassword(email);
+      const ip = getClientIp(req);
 
-      sendSuccess(res, "If the email exists, a reset form has been sent");
+      const result = await userService.forgotPassword(email, ip);
+
+      sendSuccess(
+        res,
+        result,
+        "If the email exists, a reset form has been sent",
+      );
     } catch (error: any) {
       console.log(error);
       sendError(res, error.message || "Internal server error");
     }
   }
 
+  async verifyForgotPasswordPin(req: Request, res: Response) {
+    try {
+      const { userId, pin } = req.body;
+
+      const result = await userService.verifyForgotPasswordPin(userId, pin);
+
+      sendSuccess(res, result, "Pin verified");
+    } catch (error: any) {
+      sendError(res, error.message || "Internal server error");
+    }
+  }
+
   async resetPassword(req: Request, res: Response) {
     try {
-      const { token, newPassword } = req.body;
-      await userService.resetPassword(token, newPassword);
+      const { resetToken, newPassword } = req.body;
+      await userService.resetPassword(resetToken, newPassword);
 
       sendSuccess(res, "Reset password successful");
     } catch (error: any) {

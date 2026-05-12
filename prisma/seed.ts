@@ -32,7 +32,7 @@ async function main() {
       });
 
       console.log(
-        `✔ Venue "${venue.name}" sudah ditambahkan jam operasional default (${DEFAULT_OPEN_HOUR}:00 - ${DEFAULT_CLOSE_HOUR}:00).`,
+        `Venue "${venue.name}" sudah ditambahkan jam operasional default (${DEFAULT_OPEN_HOUR}:00 - ${DEFAULT_CLOSE_HOUR}:00).`,
       );
     }
   }

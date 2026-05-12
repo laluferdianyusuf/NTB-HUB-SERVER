@@ -1,3 +1,4 @@
+import { LedgerReferenceType } from "@prisma/client";
 import { Request, Response } from "express";
 import { sendError, sendSuccess } from "helpers/response";
 import {
@@ -103,7 +104,10 @@ export class LedgerController {
     try {
       const userId = req.user?.id;
 
-      const { cursor } = req.query;
+      const page = Number(req.query.page || 1);
+      const limit = Number(req.query.limit || 10);
+
+      const referenceType = req.query.referenceType as LedgerReferenceType;
 
       if (!userId) {
         return res.status(401).json({
@@ -111,10 +115,11 @@ export class LedgerController {
         });
       }
 
-      const result = await this.ledgerService.getUserTransactions(
-        userId,
-        cursor as string | undefined,
-      );
+      const result = await this.ledgerService.getUserTransactions(userId, {
+        page,
+        limit,
+        referenceType,
+      });
 
       sendSuccess(res, result, "Histories retrieved");
     } catch (error: any) {

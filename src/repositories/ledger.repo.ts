@@ -191,6 +191,68 @@ export class LedgerRepository {
     });
   }
 
+  async findUserTransactions(
+    userId: string,
+    params?: {
+      page?: number;
+      limit?: number;
+      referenceType?: Prisma.LedgerEntryWhereInput["referenceType"];
+    },
+  ) {
+    const page = params?.page || 1;
+    const limit = params?.limit || 10;
+
+    const where: Prisma.LedgerEntryWhereInput = {
+      account: {
+        userId,
+      },
+    };
+
+    if (params?.referenceType) {
+      where.referenceType = params.referenceType;
+    }
+
+    const [transactions, total] = await Promise.all([
+      prisma.ledgerEntry.findMany({
+        where,
+        select: {
+          id: true,
+          type: true,
+          amount: true,
+          referenceType: true,
+          referenceId: true,
+          createdAt: true,
+
+          account: {
+            select: {
+              id: true,
+              type: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+
+      prisma.ledgerEntry.count({
+        where,
+      }),
+    ]);
+
+    return {
+      data: transactions,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
   async getBalance(accountId: string, tx?: Prisma.TransactionClient) {
     const client = this.getClient(tx);
 

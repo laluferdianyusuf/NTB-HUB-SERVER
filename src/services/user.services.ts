@@ -18,6 +18,7 @@ import {
 } from "../repositories";
 import { AccountService } from "./account.services";
 import { RateLimiterService } from "./rateLimiterService";
+import { publisher } from "config/redis.config";
 
 const prisma = new PrismaClient();
 const redis = new Redis();
@@ -205,9 +206,13 @@ export class UserService {
 
   async verifyPinEmail(userId: string, pin: string) {
     const storedHash = await redis.get(`verify-pin:${userId}`);
-    if (!storedHash) throw new Error("PIN_EXPIRED");
+
+    if (!storedHash) {
+      throw new Error("PIN_EXPIRED");
+    }
 
     const attemptsKey = `verify-pin-attempt:${userId}`;
+
     const attempts = parseInt((await redis.get(attemptsKey)) || "0");
 
     if (attempts >= 5) {
@@ -218,19 +223,76 @@ export class UserService {
 
     if (!isValid) {
       await redis.set(attemptsKey, String(attempts + 1), "EX", 300);
+
       throw new Error("INVALID_PIN");
     }
 
-    const user = await userRepository.verifyUser(userId);
+    const result = await prisma.$transaction(async (tx) => {
+      const user = await userRepository.verifyUser(userId, tx);
+
+      await userRoleRepository.assignGlobalRole(
+        {
+          userId: user.id,
+          role: Role.CUSTOMER,
+        },
+        tx,
+      );
+
+      await accountService.ensureAccount(
+        {
+          type: "USER",
+          userId: user.id,
+        },
+        tx,
+      );
+
+      const balance = await userBalanceRepository.generateInitialBalance(
+        user.id,
+        tx,
+      );
+
+      const point = await pointRepository.generatePoints(
+        {
+          userId: user.id,
+          points: 100,
+          activity: "REGISTER",
+          reference: user.id,
+        },
+        tx,
+      );
+
+      return {
+        user,
+        balance,
+        point,
+      };
+    });
 
     await redis.del(`verify-pin:${userId}`);
     await redis.del(attemptsKey);
 
+    await publisher.publish(
+      "point-events",
+      JSON.stringify({
+        event: "point:updated",
+        payload: result.point,
+      }),
+    );
+
+    await publisher.publish(
+      "balance-events",
+      JSON.stringify({
+        event: "balance:updated",
+        payload: result.balance,
+      }),
+    );
+
     return {
       message: "Account verified successfully",
+
       data: {
-        userId: user.id,
-        email: user.email,
+        userId: result.user.id,
+        email: result.user.email,
       },
     };
   }
@@ -668,61 +730,139 @@ export class UserService {
     await userRepository.updatePassword(userId, hashed);
   }
 
-  async forgotPassword(email: string): Promise<void> {
+  async forgotPassword(email: string, ip: string) {
+    const emailKey = `rate:forgot:email:${email}`;
+    const ipKey = `rate:forgot:ip:${ip}`;
+
+    await rateLimiter.checkLimit(emailKey, 3, 600);
+    await rateLimiter.checkLimit(ipKey, 10, 600);
+
     const user = await userRepository.findByEmail(email);
 
     if (!user) {
-      throw new Error("Email not registered");
+      return {
+        message: "If the email is registered, a reset code has been sent.",
+      };
     }
 
-    const rawToken = crypto.randomBytes(32).toString("hex");
-    const hashedToken = crypto
-      .createHash("sha256")
-      .update(rawToken)
-      .digest("hex");
+    const pin = crypto.randomInt(100000, 999999).toString();
 
-    const expire = new Date(Date.now() + 15 * 60 * 1000);
+    const hashedPin = await bcrypt.hash(pin, 10);
 
-    await userRepository.setResetToken(user.id, hashedToken, expire);
+    await redis.set(`forgot-pin:${user.id}`, hashedPin, "EX", 5 * 60);
 
-    const url = `${LINK}forgotPassword`;
+    await redis.set(`forgot-pin-attempt:${user.id}`, "0", "EX", 5 * 60);
 
     await sendEmail(
       user.email,
-      "Reset Password",
+      "Reset Your Password",
       `
-        <html>
-          <body style="font-family:Arial,sans-serif">
-            <h2>Reset Password</h2>
-            <p>Hello ${user.name},</p>
-            <p>Click the button below to reset your password:</p>
-            <a 
-              href="${url}" 
-              style="display:inline-block;padding:10px 20px;background:black;color:white;text-decoration:none;"
-            >
-              Reset Password
-            </a>
-            <p style="font-size:12px;color:gray">
-              This link expires in 15 minutes
-            </p>
-          </body>
-        </html>
-      `,
+    <html>
+      <body style="font-family:Arial,sans-serif;background:#f4f6f8;padding:30px;">
+        <div style="max-width:500px;margin:auto;background:#fff;padding:30px;border-radius:10px;">
+
+          <h2>Password Reset</h2>
+
+          <p>Hello <b>${user.name}</b>,</p>
+
+          <p>Use this code to reset your password:</p>
+
+          <div style="
+            font-size:32px;
+            letter-spacing:8px;
+            font-weight:bold;
+            text-align:center;
+            margin:30px 0;
+            color:#111827;
+          ">
+            ${pin}
+          </div>
+
+          <p style="color:#777;font-size:13px;">
+            This code expires in <b>5 minutes</b>.
+          </p>
+
+          <p style="color:#999;font-size:12px;">
+            If you didn't request this, ignore this email.
+          </p>
+
+        </div>
+      </body>
+    </html>
+    `,
     );
+
+    return {
+      message: "If the email is registered, a reset code has been sent.",
+      data: {
+        userId: user.id,
+        email: user.email,
+      },
+    };
   }
 
-  async resetPassword(token: string, newPassword: string): Promise<void> {
-    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+  async verifyForgotPasswordPin(userId: string, pin: string) {
+    const storedHash = await redis.get(`forgot-pin:${userId}`);
 
-    const user = await userRepository.findByResetToken(hashedToken);
+    if (!storedHash) {
+      throw new Error("PIN_EXPIRED");
+    }
+
+    const attemptsKey = `forgot-pin-attempt:${userId}`;
+
+    const attempts = parseInt((await redis.get(attemptsKey)) || "0");
+
+    if (attempts >= 5) {
+      throw new Error("TOO_MANY_ATTEMPTS");
+    }
+
+    const isValid = await bcrypt.compare(pin, storedHash);
+
+    if (!isValid) {
+      await redis.set(attemptsKey, String(attempts + 1), "EX", 5 * 60);
+
+      throw new Error("INVALID_PIN");
+    }
+
+    const resetToken = crypto.randomBytes(32).toString("hex");
+
+    await redis.set(`reset-session:${resetToken}`, userId, "EX", 10 * 60);
+
+    await redis.del(`forgot-pin:${userId}`);
+    await redis.del(attemptsKey);
+
+    return {
+      message: "PIN verified successfully",
+      data: {
+        resetToken,
+      },
+    };
+  }
+
+  async resetPassword(resetToken: string, newPassword: string) {
+    const userId = await redis.get(`reset-session:${resetToken}`);
+
+    if (!userId) {
+      throw new Error("RESET_SESSION_EXPIRED");
+    }
+
+    const user = await userRepository.findById(userId);
 
     if (!user) {
-      throw new Error("Invalid or expired token");
+      throw new Error("USER_NOT_FOUND");
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 12);
 
-    await userRepository.updatePasswordAndClearToken(user.id, hashedPassword);
+    await userRepository.updatePassword(user.id, hashedPassword);
+
+    await redis.del(`refresh:${user.id}`);
+
+    await redis.del(`reset-session:${resetToken}`);
+
+    return {
+      message: "Password reset successfully",
+    };
   }
 
   async deleteUser(userId: string) {

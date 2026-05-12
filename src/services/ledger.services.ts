@@ -1,9 +1,23 @@
+import { LedgerReferenceType } from "@prisma/client";
 import { prisma } from "config/prisma";
 import {
   AccountRepository,
   LedgerRepository,
   UserRepository,
 } from "repositories";
+
+const transactionLabels: Record<string, string> = {
+  TOPUP: "Top Up",
+  BOOKING_PAYMENT: "Booking",
+  EVENT_PAYMENT: "Event",
+  COMMUNITY_EVENT_PAYMENT: "Community Event",
+  REFUND: "Refund",
+  WITHDRAWAL: "Withdrawal",
+  SETTLEMENT: "Settlement",
+  FEE: "Fee",
+  ADJUSTMENT: "Adjustment",
+  ORDER: "Order",
+};
 
 export class LedgerServices {
   constructor(
@@ -59,12 +73,45 @@ export class LedgerServices {
     return this.ledgerRepository.getBalanceByOwner(params);
   }
 
-  async getUserTransactions(userId: string, cursor?: string) {
-    const account = await this.accountRepository.findUserAccount(userId);
+  async getUserTransactions(
+    userId: string,
+    params?: {
+      page?: number;
+      limit?: number;
+      referenceType?: LedgerReferenceType;
+    },
+  ) {
+    const result = await this.ledgerRepository.findUserTransactions(
+      userId,
+      params,
+    );
 
-    if (!account) throw new Error("Account not found");
+    const grouped = result.data.reduce(
+      (acc, transaction) => {
+        const key = transaction.referenceType || "OTHER";
 
-    return this.ledgerRepository.getAccountHistory(account.id, cursor);
+        if (!acc[key]) {
+          acc[key] = [];
+        }
+
+        acc[key].push(transaction);
+
+        return acc;
+      },
+      {} as Record<string, typeof result.data>,
+    );
+
+    const sections = Object.entries(grouped).map(([type, data]) => ({
+      type,
+      label: transactionLabels[type] || type,
+      totalTransactions: data.length,
+      data,
+    }));
+
+    return {
+      sections,
+      meta: result.meta,
+    };
   }
 
   async getEventTransactions(eventId: string, cursor?: string) {
