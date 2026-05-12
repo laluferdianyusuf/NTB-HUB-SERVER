@@ -20,6 +20,7 @@ export * from "./event.ticket.controllers";
 export * from "./event.ticket.type.controllers";
 export * from "./finance.controllers";
 export * from "./floor.controllers";
+export * from "./interest.controller";
 export * from "./invitation.controllers";
 export * from "./invoice.controllers";
 export * from "./ledger.controllers";

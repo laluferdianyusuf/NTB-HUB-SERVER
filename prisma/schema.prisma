@@ -405,10 +405,36 @@ model User {
   venues                    Venue[]
   ownedEvents               Event[]                    @relation("EventOwner")
   events                    Event[]                    @relation("EventUser")
+  userInterests             UserInterest[]
 
   @@index([email])
   @@index([phone])
   @@index([createdAt])
+}
+
+model Interest {
+  id    String  @id @default(cuid())
+  name  String  @unique
+  color String?
+
+  users UserInterest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserInterest {
+  id String @id @default(cuid())
+
+  userId     String
+  interestId String
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interest Interest @relation(fields: [interestId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, interestId])
 }
 
 model ProfileView {

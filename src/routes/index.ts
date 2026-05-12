@@ -46,6 +46,7 @@ import courierRouter from "./v1/courier.routes";
 import deepLinkRouter from "./v1/deepLink.routes";
 import eventAttendanceRouter from "./v1/event-attendance.routes";
 import financeRouter from "./v1/finance.routes";
+import interestRouter from "./v1/interest.routes";
 import ledgerRouter from "./v1/ledger.routes";
 import mapsRouter from "./v1/maps.routes";
 import profileRouter from "./v1/profile.routes";
@@ -118,6 +119,7 @@ v1.use("/finance", financeRouter);
 v1.use("/deep-link", deepLinkRouter);
 v1.use("/well-known", wellKnownRouter);
 v1.use("/banners", promotionBannerRouter);
+v1.use("/interests", interestRouter);
 
 // mount v1 API
 router.use("/api/v1", v1);

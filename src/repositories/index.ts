@@ -28,6 +28,7 @@ export * from "./event.repo";
 export * from "./event.ticket.repo";
 export * from "./event.ticket.type.repo";
 export * from "./floor.repo";
+export * from "./interest.repo";
 export * from "./invitation.repo";
 export * from "./invoice.repo";
 export * from "./ledger.repo";

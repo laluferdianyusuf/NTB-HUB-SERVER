@@ -100,8 +100,6 @@ export class InvitationServices {
   async claimInvitation(key: string, userId: string) {
     return prisma.$transaction(async (tx) => {
       const invitation = await invitationKeyRepository.findByKey(key, tx);
-      console.log("INVITAION", invitation);
-      console.log("User", userId);
 
       if (!invitation) throw new Error("INVALID_INVITATION");
       if (invitation.usedAt) throw new Error("INVITATION_USED");
