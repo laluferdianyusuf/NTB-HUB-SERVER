@@ -454,9 +454,6 @@ export class BookingRepository {
           accountId: venueAccount.id,
           type: "CREDIT",
           referenceType: "BOOKING_PAYMENT",
-          createdAt: {
-            gte: startOfToday,
-          },
         },
         _sum: {
           amount: true,
@@ -468,6 +465,9 @@ export class BookingRepository {
           accountId: venueAccount.id,
           type: "CREDIT",
           referenceType: "BOOKING_PAYMENT",
+          createdAt: {
+            gte: startOfToday,
+          },
         },
         _sum: {
           amount: true,
