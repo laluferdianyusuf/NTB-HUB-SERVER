@@ -48,11 +48,9 @@ export class CommunityEventController {
         req.file as Express.Multer.File,
       );
 
-      return sendSuccess(res, event, "Event created", 201);
+      sendSuccess(res, event, "Event created", 201);
     } catch (error: any) {
-      console.log(error);
-
-      return sendError(res, error.message || "FAILED_TO_CREATE_EVENT");
+      sendError(res, error.message || "Internal server error");
     }
   };
 
@@ -74,11 +72,11 @@ export class CommunityEventController {
 
       const result = await service.addCollaboration(eventId, body.communityId);
 
-      return sendSuccess(res, result, "Collaboration created", 201);
+      sendSuccess(res, result, "Collaboration created", 201);
     } catch (error: any) {
       console.log(error);
 
-      return sendError(res, error.message || "FAILED_TO_CREATE_COLLABORATION");
+      sendError(res, error.message || "Internal server error");
     }
   };
 
@@ -86,11 +84,11 @@ export class CommunityEventController {
     try {
       const { communityId } = req.params;
       const events = await service.listByCommunity(communityId);
-      return sendSuccess(res, events, "Events retrieved");
+      sendSuccess(res, events, "Events retrieved");
     } catch (error: any) {
       console.log(error);
 
-      return sendError(res, error.message || "FAILED_TO_FETCH_EVENT");
+      sendError(res, error.message || "Internal server error");
     }
   };
 
@@ -98,11 +96,11 @@ export class CommunityEventController {
     try {
       const { eventId } = req.params;
       const data = await service.getEventDetail(eventId);
-      return sendSuccess(res, data, "Detail event");
+      sendSuccess(res, data, "Detail event");
     } catch (error: any) {
       console.log(error);
 
-      return sendError(res, error.message || "FAILED_TO_CREATE_TWIBBON");
+      sendError(res, error.message || "Internal server error");
     }
   };
 }

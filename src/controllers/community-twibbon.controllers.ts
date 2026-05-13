@@ -39,7 +39,7 @@ export class CommunityTwibbonController {
     } catch (error: any) {
       console.log(error);
 
-      return sendError(res, error.message || "FAILED_TO_CREATE_TWIBBON");
+      return sendError(res, error.message || "Internal server error");
     }
   };
 
@@ -51,7 +51,7 @@ export class CommunityTwibbonController {
 
       return sendSuccess(res, twibbon, "Twibbon updated");
     } catch (error: any) {
-      return sendError(res, error.message || "FAILED_TO_UPDATE_TWIBBON");
+      return sendError(res, error.message || "Internal server error");
     }
   };
 
@@ -63,7 +63,7 @@ export class CommunityTwibbonController {
 
       return sendSuccess(res, null, "Twibbon deleted");
     } catch (error: any) {
-      return sendError(res, error.message || "FAILED_TO_DELETE_TWIBBON");
+      return sendError(res, error.message || "Internal server error");
     }
   };
 }

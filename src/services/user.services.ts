@@ -60,7 +60,7 @@ export class UserService {
     file?: Express.Multer.File;
   }) {
     const existing = await userRepository.findByEmail(data.email);
-    if (existing) throw new Error("EMAIL_ALREADY_REGISTERED");
+    if (existing) throw new Error("Email already registered");
 
     let photo: string | null = null;
 
@@ -148,11 +148,11 @@ export class UserService {
     secretKey?: string,
   ) {
     if (secretKey !== process.env.ADMIN_SECRET_KEY) {
-      throw new Error("UNAUTHORIZED");
+      throw new Error("Unauthorized");
     }
 
     const existing = await userRepository.findByEmail(data.email);
-    if (existing) throw new Error("EMAIL_ALREADY_REGISTERED");
+    if (existing) throw new Error("Email already registered");
 
     let photo: string | null = null;
 
@@ -208,7 +208,7 @@ export class UserService {
     const storedHash = await redis.get(`verify-pin:${userId}`);
 
     if (!storedHash) {
-      throw new Error("PIN_EXPIRED");
+      throw new Error("Pin Expired");
     }
 
     const attemptsKey = `verify-pin-attempt:${userId}`;
@@ -216,7 +216,7 @@ export class UserService {
     const attempts = parseInt((await redis.get(attemptsKey)) || "0");
 
     if (attempts >= 5) {
-      throw new Error("TOO_MANY_ATTEMPTS");
+      throw new Error("Too many attempts");
     }
 
     const isValid = await bcrypt.compare(pin, storedHash);
@@ -224,7 +224,7 @@ export class UserService {
     if (!isValid) {
       await redis.set(attemptsKey, String(attempts + 1), "EX", 300);
 
-      throw new Error("INVALID_PIN");
+      throw new Error("Invalid pin");
     }
 
     const result = await prisma.$transaction(async (tx) => {
@@ -362,13 +362,13 @@ export class UserService {
 
   async login(email: string, password: string) {
     const user = await userRepository.findByEmail(email);
-    if (!user) throw new Error("USER_NOT_FOUND");
+    if (!user) throw new Error("User not found");
 
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) throw new Error("INVALID_PASSWORD");
+    if (!valid) throw new Error("Invalid password");
 
     if (!user.isVerified) {
-      throw new Error("EMAIL_NOT_VERIFIED");
+      throw new Error("Email not verified");
     }
 
     const tokens = await this.generateTokens(user.id);
@@ -407,7 +407,7 @@ export class UserService {
     });
 
     const payload = ticket.getPayload();
-    if (!payload) throw new Error("INVALID_GOOGLE_TOKEN");
+    if (!payload) throw new Error("Invalid google token");
 
     const { email, name, picture, sub } = payload;
 
@@ -474,7 +474,7 @@ export class UserService {
   }
 
   async refresh(refreshToken: string) {
-    if (!refreshToken) throw new Error("MISSING_REFRESH_TOKEN");
+    if (!refreshToken) throw new Error("Missing refresh token");
 
     const decoded = jwt.verify(
       refreshToken,
@@ -483,7 +483,7 @@ export class UserService {
 
     const stored = await redis.get(`refresh:${decoded.sub}`);
     if (!stored || stored !== refreshToken)
-      throw new Error("INVALID_REFRESH_TOKEN");
+      throw new Error("Invalid refresh token");
 
     return this.generateTokens(decoded.sub);
   }
@@ -491,7 +491,7 @@ export class UserService {
   async getCurrentUser(userId: string) {
     const user = await userRepository.findById(userId);
     if (!user) {
-      throw new Error("USER_NOT_FOUND");
+      throw new Error("User not found");
     }
 
     const roles = await userRoleRepository.findByUserId(userId);
@@ -577,7 +577,7 @@ export class UserService {
   async getUserById(userId: string) {
     const user = await userRepository.findById(userId);
     if (!user) {
-      throw new Error("USER_NOT_FOUND");
+      throw new Error("User not found");
     }
 
     const roles = await userRoleRepository.findByUserId(userId);
@@ -683,7 +683,7 @@ export class UserService {
     file?: Express.Multer.File,
   ) {
     const user = await userRepository.findUserById(userId);
-    if (!user) throw new Error("USER NOT FOUND");
+    if (!user) throw new Error("User not found");
 
     let photo = user.photo;
 
@@ -805,7 +805,7 @@ export class UserService {
     const storedHash = await redis.get(`forgot-pin:${userId}`);
 
     if (!storedHash) {
-      throw new Error("PIN_EXPIRED");
+      throw new Error("Pin expired");
     }
 
     const attemptsKey = `forgot-pin-attempt:${userId}`;
@@ -813,7 +813,7 @@ export class UserService {
     const attempts = parseInt((await redis.get(attemptsKey)) || "0");
 
     if (attempts >= 5) {
-      throw new Error("TOO_MANY_ATTEMPTS");
+      throw new Error("Too many attempts");
     }
 
     const isValid = await bcrypt.compare(pin, storedHash);
@@ -821,7 +821,7 @@ export class UserService {
     if (!isValid) {
       await redis.set(attemptsKey, String(attempts + 1), "EX", 5 * 60);
 
-      throw new Error("INVALID_PIN");
+      throw new Error("Invalid pin");
     }
 
     const resetToken = crypto.randomBytes(32).toString("hex");
@@ -843,13 +843,13 @@ export class UserService {
     const userId = await redis.get(`reset-session:${resetToken}`);
 
     if (!userId) {
-      throw new Error("RESET_SESSION_EXPIRED");
+      throw new Error("Reset session expired");
     }
 
     const user = await userRepository.findById(userId);
 
     if (!user) {
-      throw new Error("USER_NOT_FOUND");
+      throw new Error("User not found");
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 12);
@@ -867,7 +867,7 @@ export class UserService {
 
   async deleteUser(userId: string) {
     const user = await userRepository.findById(userId);
-    if (!user) throw new Error("USER_NOT_FOUND");
+    if (!user) throw new Error("User not found");
 
     return userRepository.delete(userId);
   }

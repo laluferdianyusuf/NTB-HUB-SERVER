@@ -14,7 +14,7 @@ export class CommunityMemberServices {
     const exists = await this.checkMember(communityId, userId);
 
     if (exists) {
-      throw new Error("USER_ALREADY_JOINED");
+      throw new Error("User already joined");
     }
 
     return this.memberRepo.addMember({
@@ -30,7 +30,7 @@ export class CommunityMemberServices {
     const exists = await this.checkMember(communityId, userId);
 
     if (exists) {
-      throw new Error("USER_ALREADY_JOINED");
+      throw new Error("User already joined");
     }
 
     return this.memberRepo.addMember({

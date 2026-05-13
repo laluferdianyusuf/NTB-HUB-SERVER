@@ -83,7 +83,7 @@ export class PublicPlaceService {
     const place = await this.repo.findById(id);
 
     if (!place || !place.isActive) {
-      throw new Error("PUBLIC_PLACE_NOT_FOUND");
+      throw new Error("Public place not found");
     }
 
     let isLiked = false;

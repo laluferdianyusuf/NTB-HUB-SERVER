@@ -84,13 +84,13 @@ export class CommunityService {
 
   async findById(id: string) {
     const community = await this.communityRepo.findById(id);
-    if (!community) throw new Error("COMMUNITY_NOT_FOUND");
+    if (!community) throw new Error("Community not found");
     return community;
   }
 
   async update(id: string, data: { name?: string; description?: string }) {
     const community = await this.communityRepo.updateCommunity(id, data);
-    if (!community) throw new Error("COMMUNITY_NOT_FOUND");
+    if (!community) throw new Error("Community not found");
     return community;
   }
 

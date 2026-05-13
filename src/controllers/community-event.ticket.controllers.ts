@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { CommunityEventTicketService } from "../services";
+import { sendError, sendSuccess } from "helpers/response";
 
 export class CommunityEventTicketController {
   private service = new CommunityEventTicketService();
@@ -8,22 +9,11 @@ export class CommunityEventTicketController {
     try {
       const { id } = req.params;
 
-      if (!id) {
-        return res.status(400).json({
-          message: "ID_REQUIRED",
-        });
-      }
-
       const result = await this.service.getTicketById(id);
 
-      return res.status(200).json({
-        message: "TICKET FOUND",
-        data: result,
-      });
+      sendSuccess(res, result, "Ticket found");
     } catch (error: any) {
-      return res.status(400).json({
-        message: error.message || "TICKET NOT FOUND",
-      });
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -31,22 +21,11 @@ export class CommunityEventTicketController {
     try {
       const { userId } = req.params;
 
-      if (!userId) {
-        return res.status(400).json({
-          message: "USER_ID_REQUIRED",
-        });
-      }
-
       const result = await this.service.getTicketByUserId(userId);
 
-      return res.status(200).json({
-        message: "TICKET FOUND",
-        data: result,
-      });
+      sendSuccess(res, result, "Ticket found");
     } catch (error: any) {
-      return res.status(400).json({
-        message: error.message || "TICKET NOT FOUND",
-      });
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -54,24 +33,11 @@ export class CommunityEventTicketController {
     try {
       const { orderId } = req.params;
 
-      if (!orderId) {
-        return res.status(400).json({
-          message: "ORDER_ID_REQUIRED",
-        });
-      }
-
       const result = await this.service.getTicketByOrderId(orderId);
 
-      return res.status(200).json({
-        message: "TICKET FOUND",
-        data: result,
-      });
+      sendSuccess(res, result, "Ticket found");
     } catch (error: any) {
-      console.log(res);
-
-      return res.status(400).json({
-        message: error.message || "TICKET NOT FOUND",
-      });
+      sendError(res, error.message || "Internal server error");
     }
   }
 }

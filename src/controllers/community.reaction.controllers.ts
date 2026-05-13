@@ -11,9 +11,9 @@ export class CommunityReactionController {
 
       const reactions = await this.service.getReactions(postId);
 
-      return sendSuccess(res, reactions, "Reactions fetched successfully");
+      sendSuccess(res, reactions, "Reactions fetched successfully");
     } catch (error: any) {
-      return sendError(res, error.message || "FAILED_TO_FETCH_REACTIONS");
+      sendError(res, error.message || "FAILED_TO_FETCH_REACTIONS");
     }
   };
 
@@ -29,11 +29,11 @@ export class CommunityReactionController {
         type,
       );
 
-      return sendSuccess(res, reaction, "Reaction added successfully", 201);
+      sendSuccess(res, reaction, "Reaction added successfully", 201);
     } catch (error: any) {
       console.log(error);
 
-      return sendError(res, error.message || "FAILED_TO_ADD_REACTION");
+      sendError(res, error.message || "FAILED_TO_ADD_REACTION");
     }
   };
 
@@ -43,9 +43,9 @@ export class CommunityReactionController {
 
       await this.service.removeReaction(reactionId);
 
-      return sendSuccess(res, null, "Reaction removed successfully");
+      sendSuccess(res, null, "Reaction removed successfully");
     } catch (error: any) {
-      return sendError(res, error.message || "FAILED_TO_REMOVE_REACTION");
+      sendError(res, error.message || "FAILED_TO_REMOVE_REACTION");
     }
   };
 }

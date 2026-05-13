@@ -48,7 +48,7 @@ export class EventOrderService {
     items: { ticketTypeId: string; qty: number }[],
     tx: Prisma.TransactionClient,
   ) {
-    if (!items.length) throw new Error("ITEMS_REQUIRED");
+    if (!items.length) throw new Error("Tickets required");
 
     const existingTickets = await tx?.eventTicket.count({
       where: { userId: selectedUserId, eventId },
@@ -56,9 +56,9 @@ export class EventOrderService {
 
     const newQty = items.reduce((a, b) => a + b.qty, 0);
 
-    // if (existingTickets + newQty > 2) {
-    //   throw new Error("MAX_2_TICKETS_PER_USER");
-    // }
+    if (existingTickets + newQty > 2) {
+      throw new Error("Max 2 tickets per user");
+    }
 
     let total = 0;
 
@@ -69,11 +69,11 @@ export class EventOrderService {
       );
 
       if (!type || !type.isActive) {
-        throw new Error("TICKET_NOT_AVAILABLE");
+        throw new Error("Ticket not available");
       }
 
       if (type.quota - type.sold < item.qty) {
-        throw new Error("TICKET_SOLD_OUT");
+        throw new Error("Ticket sold out");
       }
 
       total += Number(type.price) * item.qty;
@@ -124,14 +124,14 @@ export class EventOrderService {
     tx: Prisma.TransactionClient,
   ) {
     const user = await this.userRepository.findById(userId);
-    if (!user) throw new Error("USER_NOT_FOUND");
+    if (!user) throw new Error("User not found");
 
     const order = await this.eventOrderRepo.findById(orderId, tx);
-    if (!order) throw new Error("ORDER_NOT_FOUND");
+    if (!order) throw new Error("Order not found");
 
     if (order.status === "PAID") return order;
     if (order.status !== "PENDING") {
-      throw new Error("INVALID_ORDER_STATUS");
+      throw new Error("Invalid order status");
     }
 
     const invoice = await this.invoiceRepo.findByEntity(
@@ -140,13 +140,13 @@ export class EventOrderService {
       tx,
     );
 
-    if (!invoice) throw new Error("INVOICE_NOT_FOUND");
+    if (!invoice) throw new Error("Invoice not found");
     if (invoice.status !== "PENDING") {
-      throw new Error("INVOICE_ALREADY_PAID");
+      throw new Error("Invoice already paid");
     }
 
     if (invoice.expiredAt && invoice.expiredAt < new Date()) {
-      throw new Error("INVOICE_EXPIRED");
+      throw new Error("Invoice expired");
     }
 
     const userAccount = await this.accountRepository.findUserAccount(userId);
@@ -170,7 +170,7 @@ export class EventOrderService {
     const balance = await this.ledgerRepository.getBalance(userAccount.id);
 
     if (!balance || Number(balance.totalBalance) < Number(order.total)) {
-      throw new Error("INSUFFICIENT_BALANCE");
+      throw new Error("Insufficient balance");
     }
 
     const platformFee = Number(order.total) * 0.1;
@@ -292,7 +292,7 @@ export class EventOrderService {
         tx,
         item.ticketTypeId,
       );
-      if (!type) throw new Error("TICKET_TYPE_NOT_FOUND");
+      if (!type) throw new Error("Ticket type not found");
 
       await this.eventTicketTypeRepo.updateSold(type.id, item.qty, tx);
 
@@ -315,23 +315,23 @@ export class EventOrderService {
     try {
       payload = jwt.verify(qrCode, process.env.QR_SECRET!);
     } catch {
-      throw new Error("INVALID_QR_CODE");
+      throw new Error("Invalid qr code");
     }
 
     const order = await this.eventOrderRepo.findByQrCode(qrCode);
 
-    if (!order) throw new Error("ORDER_NOT_FOUND");
+    if (!order) throw new Error("Order not found");
 
     if (order.userId !== payload.uid) {
-      throw new Error("INVALID_OWNER");
+      throw new Error("Invalid owner");
     }
 
     if (order.status !== "PAID") {
-      throw new Error("ORDER_NOT_PAID");
+      throw new Error("Order not found");
     }
 
     if (order.isCheckedIn) {
-      throw new Error("ALREADY_USED");
+      throw new Error("Already used");
     }
 
     return prisma.$transaction(async (tx) => {
@@ -345,7 +345,7 @@ export class EventOrderService {
 
       return {
         success: true,
-        message: "CHECK_IN_SUCCESS",
+        message: "Check-In Success",
         data: result,
       };
     });

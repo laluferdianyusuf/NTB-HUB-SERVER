@@ -18,9 +18,9 @@ export class CommunityPostController {
         search,
       );
 
-      return sendSuccess(res, posts, "Posts fetched successfully");
+      sendSuccess(res, posts, "Posts fetched successfully");
     } catch (error: any) {
-      return sendError(res, error.message || "FAILED_TO_FETCH_POSTS");
+      sendError(res, error.message || "FAILED_TO_FETCH_POSTS");
     }
   };
 
@@ -39,11 +39,11 @@ export class CommunityPostController {
         file,
       );
 
-      return sendSuccess(res, post, "Post created successfully", 201);
+      sendSuccess(res, post, "Post created successfully", 201);
     } catch (error: any) {
       console.log(error);
 
-      return sendError(res, error.message || "FAILED_TO_CREATE_POST");
+      sendError(res, error.message || "FAILED_TO_CREATE_POST");
     }
   };
 
@@ -54,9 +54,9 @@ export class CommunityPostController {
 
       const post = await this.service.updatePost(postId, { content, link });
 
-      return sendSuccess(res, post, "Post updated successfully");
+      sendSuccess(res, post, "Post updated successfully");
     } catch (error: any) {
-      return sendError(res, error.message || "FAILED_TO_UPDATE_POST");
+      sendError(res, error.message || "FAILED_TO_UPDATE_POST");
     }
   };
 
@@ -66,9 +66,9 @@ export class CommunityPostController {
 
       await this.service.deletePost(postId);
 
-      return sendSuccess(res, null, "Post deleted successfully");
+      sendSuccess(res, null, "Post deleted successfully");
     } catch (error: any) {
-      return sendError(res, error.message || "FAILED_TO_DELETE_POST");
+      sendError(res, error.message || "FAILED_TO_DELETE_POST");
     }
   };
 }

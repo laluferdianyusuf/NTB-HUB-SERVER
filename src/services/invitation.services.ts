@@ -101,10 +101,10 @@ export class InvitationServices {
     return prisma.$transaction(async (tx) => {
       const invitation = await invitationKeyRepository.findByKey(key, tx);
 
-      if (!invitation) throw new Error("INVALID_INVITATION");
-      if (invitation.usedAt) throw new Error("INVITATION_USED");
+      if (!invitation) throw new Error("Invalid invitation");
+      if (invitation.usedAt) throw new Error("Invitation used");
       if (invitation.expiresAt && new Date() > invitation.expiresAt)
-        throw new Error("INVITATION_EXPIRED");
+        throw new Error("Invitation expired");
 
       await userRoleRepository.assignVenueRole(
         {
@@ -144,12 +144,12 @@ export class InvitationServices {
     return prisma.$transaction(async (tx) => {
       const invitation = await invitationKeyRepository.findByKey(key, tx);
 
-      if (!invitation) throw new Error("INVALID_INVITATION");
-      if (invitation.usedAt) throw new Error("INVITATION_USED");
+      if (!invitation) throw new Error("Invalid invitation");
+      if (invitation.usedAt) throw new Error("Invitation used");
       if (invitation.expiresAt && new Date() > invitation.expiresAt)
-        throw new Error("INVITATION_EXPIRED");
+        throw new Error("Invitation expired");
 
-      if (!invitation.eventId) throw new Error("INVALID_EVENT_INVITATION");
+      if (!invitation.eventId) throw new Error("Invalid event invitation");
 
       await userRoleRepository.assignEventRole(
         {
@@ -189,12 +189,12 @@ export class InvitationServices {
     return prisma.$transaction(async (tx) => {
       const invitation = await invitationKeyRepository.findByKey(key, tx);
 
-      if (!invitation) throw new Error("INVALID_INVITATION");
-      if (invitation.usedAt) throw new Error("INVITATION_USED");
+      if (!invitation) throw new Error("Invalid invitation");
+      if (invitation.usedAt) throw new Error("Invitation used");
       if (invitation.expiresAt && new Date() > invitation.expiresAt)
-        throw new Error("INVITATION_EXPIRED");
+        throw new Error("Invitation expired");
       if (!invitation.communityId)
-        throw new Error("INVALID_COMMUNITY_INVITATION");
+        throw new Error("Invalid community invitation");
 
       await communityRepository.updateCommunity(
         invitation.communityId,

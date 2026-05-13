@@ -17,13 +17,9 @@ export class CommunityMemberController {
         role ?? CommunityMemberRole.MEMBER,
       );
 
-      return sendSuccess(res, member, "Member added successfully", 201);
+      sendSuccess(res, member, "Member added successfully", 201);
     } catch (error: any) {
-      if (error.message === "USER_ALREADY_JOINED") {
-        return sendError(res, "User already joined this community", 409);
-      }
-
-      return sendError(res, "Failed to add member");
+      sendError(res, "Failed to add member");
     }
   };
 
@@ -37,13 +33,9 @@ export class CommunityMemberController {
         userId,
       );
 
-      return sendSuccess(res, member, "Request send", 201);
+      sendSuccess(res, member, "Request send", 201);
     } catch (error: any) {
-      if (error.message === "USER_ALREADY_JOINED") {
-        return sendError(res, "User already joined this community", 409);
-      }
-
-      return sendError(res, "Failed to request join");
+      sendError(res, "Failed to request join");
     }
   };
 
@@ -57,9 +49,9 @@ export class CommunityMemberController {
         String(adminId),
       );
 
-      return sendSuccess(res, result, "Member approved successfully");
+      sendSuccess(res, result, "Member approved successfully");
     } catch (error: any) {
-      return sendError(res, error.message || "FAILED_TO_APPROVE_MEMBER");
+      sendError(res, error.message || "FAILED_TO_APPROVE_MEMBER");
     }
   };
 
@@ -70,9 +62,9 @@ export class CommunityMemberController {
 
       const result = await this.service.rejectMember(memberId, String(adminId));
 
-      return sendSuccess(res, result, "Member removed successfully");
+      sendSuccess(res, result, "Member removed successfully");
     } catch (error: any) {
-      return sendError(res, error.message || "FAILED_TO_REMOVE_MEMBER");
+      sendError(res, error.message || "FAILED_TO_REMOVE_MEMBER");
     }
   };
 }

@@ -52,7 +52,7 @@ export class EventService {
     }
 
     if (payload.endAt <= payload.startAt) {
-      throw new Error("INVALID_EVENT_TIME");
+      throw new Error("Invalid event time");
     }
 
     return this.repo.createEvent({
@@ -243,7 +243,7 @@ export class EventService {
   async getEventDetail(eventId: string) {
     const event = await this.repo.findEventById(eventId);
     if (!event || !event.isActive) {
-      throw new Error("EVENT_NOT_FOUND");
+      throw new Error("Event not found");
     }
     return event;
   }

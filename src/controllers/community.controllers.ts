@@ -28,7 +28,7 @@ export class CommunityController {
 
       return sendSuccess(res, result, "Communities fetched successfully");
     } catch (error: any) {
-      return sendError(res, error.message || "FAILED_TO_FETCH_COMMUNITIES");
+      return sendError(res, error.message || "Internal server error");
     }
   };
 
@@ -47,7 +47,7 @@ export class CommunityController {
 
       return sendSuccess(res, result, "Communities fetched successfully");
     } catch (error: any) {
-      return sendError(res, error.message || "FAILED_TO_FETCH_COMMUNITIES");
+      return sendError(res, error.message || "Internal server error");
     }
   };
 
@@ -59,11 +59,7 @@ export class CommunityController {
 
       return sendSuccess(res, community, "Community fetched successfully");
     } catch (error: any) {
-      if (error.message === "COMMUNITY_NOT_FOUND") {
-        return sendError(res, "Community not found", 404);
-      }
-
-      return sendError(res, "FAILED_TO_FETCH_COMMUNITY");
+      return sendError(res, error.message || "Internal server error");
     }
   };
 
@@ -79,11 +75,7 @@ export class CommunityController {
 
       return sendSuccess(res, updated, "Community updated successfully");
     } catch (error: any) {
-      if (error.message === "COMMUNITY_NOT_FOUND") {
-        return sendError(res, "Community not found", 404);
-      }
-
-      return sendError(res, "FAILED_TO_UPDATE_COMMUNITY");
+      return sendError(res, error.message || "Internal server error");
     }
   };
 
@@ -95,7 +87,7 @@ export class CommunityController {
 
       return sendSuccess(res, null, "Community deleted successfully");
     } catch (error: any) {
-      return sendError(res, "FAILED_TO_DELETE_COMMUNITY");
+      return sendError(res, error.message || "Internal server error");
     }
   };
 
@@ -123,7 +115,7 @@ export class CommunityController {
         "Community members fetched successfully",
       );
     } catch (error: any) {
-      return sendError(res, "FAILED_TO_FETCH_COMMUNITY_MEMBERS");
+      return sendError(res, error.message || "Internal server error");
     }
   };
 }

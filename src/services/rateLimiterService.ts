@@ -13,7 +13,7 @@ export class RateLimiterService {
     }
 
     if (current > limit) {
-      throw new Error("RATE_LIMIT_EXCEEDED");
+      throw new Error("Rate limit exceed");
     }
   }
 }

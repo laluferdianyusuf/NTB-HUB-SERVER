@@ -305,7 +305,7 @@ export class BookingServices {
 
     const user = await userRepository.findById(userId);
 
-    if (!user) throw new Error("USER_NOT_FOUND");
+    if (!user) throw new Error("User not found");
 
     if (!user.biometricEnabled) {
       await userService.verifyPin(userId, pin);

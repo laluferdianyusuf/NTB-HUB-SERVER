@@ -49,7 +49,7 @@ export class AccountService {
         return accountRepo.findPlatformAccount();
 
       default:
-        throw new Error("INVALID_ACCOUNT_TYPE");
+        throw new Error("Invalid Account Type");
     }
   }
 

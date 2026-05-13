@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { sendError, sendSuccess } from "helpers/response";
 import { CourierService } from "services";
 
 const courierService = new CourierService();
@@ -10,15 +11,9 @@ export class CourierController {
 
       const result = await courierService.assignDelivery(deliveryId);
 
-      return res.status(200).json({
-        success: true,
-        data: result,
-      });
+      sendSuccess(res, result, "Driver assigned");
     } catch (error: any) {
-      return res.status(400).json({
-        success: false,
-        message: error.message,
-      });
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -36,15 +31,9 @@ export class CourierController {
 
       const result = await courierService.rejectDelivery(deliveryId, courierId);
 
-      return res.status(200).json({
-        success: true,
-        data: result,
-      });
+      sendSuccess(res, result, "Driver rejected");
     } catch (error: any) {
-      return res.status(400).json({
-        success: false,
-        message: error.message,
-      });
+      sendError(res, error.message || "Internal server error");
     }
   }
 
@@ -54,15 +43,9 @@ export class CourierController {
 
       const result = await courierService.handleAssignmentTimeout(deliveryId);
 
-      return res.status(200).json({
-        success: true,
-        data: result,
-      });
+      sendSuccess(res, result, "Timeout");
     } catch (error: any) {
-      return res.status(400).json({
-        success: false,
-        message: error.message,
-      });
+      sendError(res, error.message || "Internal server error");
     }
   }
 }
