@@ -91,11 +91,10 @@ export class LedgerRepository {
 
     if (mode === "APP_REVENUE") {
       where.account = {
-        type: "PLATFORM",
+        isPlatform: true,
       };
 
       where.referenceType = "FEE";
-
       where.type = "CREDIT";
     }
 
@@ -115,21 +114,149 @@ export class LedgerRepository {
       };
     }
 
-    const [data, total] = await prisma.$transaction([
+    if (type) {
+      where.referenceType = type as any;
+    }
+
+    const [transactions, total] = await prisma.$transaction([
       prisma.ledgerEntry.findMany({
         where,
         skip,
         take,
         include: {
-          account: true,
+          account: {
+            include: {
+              user: true,
+              venue: {
+                select: {
+                  name: true,
+                },
+              },
+              event: {
+                select: {
+                  name: true,
+                },
+              },
+              community: {
+                select: {
+                  name: true,
+                },
+              },
+              courier: true,
+            },
+          },
         },
         orderBy: {
           createdAt: "desc",
         },
       }),
 
-      prisma.ledgerEntry.count({ where }),
+      prisma.ledgerEntry.count({
+        where,
+      }),
     ]);
+
+    const data = await Promise.all(
+      transactions.map(async (item) => {
+        let sourceType: string | null = null;
+        let sourceName: string | null = null;
+
+        if (item.referenceType === "FEE") {
+          const booking = await prisma.booking.findUnique({
+            where: {
+              id: item.referenceId,
+            },
+            select: {
+              venue: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          });
+
+          if (booking?.venue) {
+            sourceType = "VENUE";
+            sourceName = booking.venue.name;
+          }
+        }
+
+        if (!sourceType) {
+          const eventOrder = await prisma.eventOrder.findUnique({
+            where: {
+              id: item.referenceId,
+            },
+            select: {
+              event: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          });
+
+          if (eventOrder?.event) {
+            sourceType = "EVENT";
+            sourceName = eventOrder.event.name;
+          }
+        }
+
+        if (!sourceType) {
+          const communityEventOrder =
+            await prisma.communityEventOrder.findUnique({
+              where: {
+                id: item.referenceId,
+              },
+              select: {
+                communityEvent: {
+                  select: {
+                    title: true,
+                  },
+                },
+              },
+            });
+
+          if (communityEventOrder?.communityEvent) {
+            sourceType = "COMMUNITY_EVENT";
+            sourceName = communityEventOrder.communityEvent.title;
+          }
+        }
+
+        // ====================================
+        if (item.referenceType === "ORDER") {
+          const order = await prisma.order.findUnique({
+            where: {
+              id: item.referenceId,
+            },
+            select: {
+              venue: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          });
+
+          if (order?.venue) {
+            sourceType = "ORDER";
+            sourceName = order.venue.name;
+          }
+        }
+
+        if (item.referenceType === "TOPUP") {
+          sourceType = "TOPUP";
+          sourceName = "Top Up Balance";
+        }
+
+        return {
+          ...item,
+
+          transactionSource: sourceName ?? "Unknown Transaction",
+
+          transactionSourceType: sourceType,
+        };
+      }),
+    );
 
     return {
       data,

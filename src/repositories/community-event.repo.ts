@@ -211,6 +211,7 @@ export class CommunityEventRepository {
       include: {
         community: true,
         collaborations: true,
+
         communityEventTicketTypes: {
           select: {
             id: true,

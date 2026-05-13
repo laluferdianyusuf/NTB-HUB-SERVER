@@ -56,9 +56,9 @@ export class EventOrderService {
 
     const newQty = items.reduce((a, b) => a + b.qty, 0);
 
-    if (existingTickets + newQty > 2) {
-      throw new Error("Max 2 tickets per user");
-    }
+    // if (existingTickets + newQty > 2) {
+    //   throw new Error("Max 2 tickets per user");
+    // }
 
     let total = 0;
 

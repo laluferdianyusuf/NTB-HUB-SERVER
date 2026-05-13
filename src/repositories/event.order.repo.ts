@@ -27,8 +27,11 @@ export class EventOrderRepository {
       include: {
         event: true,
         user: true,
-        tickets: true,
-        ticketType: true,
+        tickets: {
+          include: {
+            ticketType: true,
+          },
+        },
       },
     });
   }

@@ -67,8 +67,20 @@ export class BookingRepository {
         status: { in: [BookingStatus.PAID, BookingStatus.COMPLETED] },
       },
       select: {
-        userId: true,
-        venueId: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        venue: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        startTime: true,
+        endTime: true,
         totalPrice: true,
       },
       orderBy: {
@@ -423,6 +435,7 @@ export class BookingRepository {
 
     const [
       groupedStatus,
+      totalRevenue,
       todayRevenue,
       pendingBookings,
       ongoingBookings,
@@ -444,6 +457,17 @@ export class BookingRepository {
           createdAt: {
             gte: startOfToday,
           },
+        },
+        _sum: {
+          amount: true,
+        },
+      }),
+
+      prisma.ledgerEntry.aggregate({
+        where: {
+          accountId: venueAccount.id,
+          type: "CREDIT",
+          referenceType: "BOOKING_PAYMENT",
         },
         _sum: {
           amount: true,
@@ -499,6 +523,7 @@ export class BookingRepository {
     };
 
     const totalRevenueToday = Number(todayRevenue._sum.amount ?? 0);
+    const totalRevenues = Number(totalRevenue._sum.amount ?? 0);
 
     for (const row of groupedStatus) {
       summary[row.status.toLowerCase() as keyof typeof summary] =
@@ -508,6 +533,7 @@ export class BookingRepository {
     return {
       summary,
       revenueToday: totalRevenueToday,
+      totalRevenue: totalRevenues,
 
       pending: pendingBookings,
       ongoing: ongoingBookings,
