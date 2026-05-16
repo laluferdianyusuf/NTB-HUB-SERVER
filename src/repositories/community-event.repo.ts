@@ -210,7 +210,18 @@ export class CommunityEventRepository {
       where: { id },
       include: {
         community: true,
-        collaborations: true,
+        collaborations: {
+          include: {
+            community: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+                emailContact: true,
+              },
+            },
+          },
+        },
 
         communityEventTicketTypes: {
           select: {

@@ -120,6 +120,7 @@ export class CommunityMemberRepository {
           select: {
             id: true,
             name: true,
+            email: true,
             photo: true,
           },
         },

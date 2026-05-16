@@ -60,6 +60,7 @@ export class EventRepository {
     const [
       groupedStatus,
       todayRevenue,
+      totalRevenue,
       pendingTicketOrder,
       paidTicketOrder,
       cancelledTicketOrder,
@@ -81,6 +82,17 @@ export class EventRepository {
           createdAt: {
             gte: startOfToday,
           },
+        },
+        _sum: {
+          amount: true,
+        },
+      }),
+
+      prisma.ledgerEntry.aggregate({
+        where: {
+          accountId: eventAccount.id,
+          type: "CREDIT",
+          referenceType: "EVENT_PAYMENT",
         },
         _sum: {
           amount: true,
@@ -180,6 +192,7 @@ export class EventRepository {
     };
 
     const totalRevenueToday = Number(todayRevenue._sum.amount ?? 0);
+    const totalRevenues = Number(totalRevenue._sum.amount ?? 0);
 
     for (const row of groupedStatus) {
       summary[row.status.toLowerCase() as keyof typeof summary] =
@@ -189,7 +202,7 @@ export class EventRepository {
     return {
       summary,
       revenueToday: totalRevenueToday,
-
+      totalRevenue: totalRevenues,
       pending: pendingTicketOrder,
       paid: paidTicketOrder,
       cancelled: cancelledTicketOrder,
