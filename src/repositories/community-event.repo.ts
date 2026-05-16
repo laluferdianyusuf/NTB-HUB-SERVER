@@ -211,13 +211,16 @@ export class CommunityEventRepository {
       include: {
         community: true,
         collaborations: {
-          include: {
+          select: {
+            id: true,
+            role: true,
             community: {
               select: {
                 id: true,
                 name: true,
                 image: true,
                 emailContact: true,
+                description: true,
               },
             },
           },
