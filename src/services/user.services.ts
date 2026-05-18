@@ -93,8 +93,6 @@ export class UserService {
 
     await redis.set(`verify-pin-attempt:${user.id}`, "0", "EX", 5 * 60);
 
-    console.log(pin);
-
     await sendEmail(
       user.email,
       "Verify Your Account",
@@ -314,8 +312,6 @@ export class UserService {
     }
 
     const pin = crypto.randomInt(100000, 999999).toString();
-
-    console.log(pin);
 
     const hashedPin = await bcrypt.hash(pin, 10);
 
