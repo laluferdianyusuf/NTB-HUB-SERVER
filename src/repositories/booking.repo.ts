@@ -82,6 +82,8 @@ export class BookingRepository {
         startTime: true,
         endTime: true,
         totalPrice: true,
+        status: true,
+        createdAt: true,
       },
       orderBy: {
         updatedAt: "desc",
