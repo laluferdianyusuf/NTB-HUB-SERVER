@@ -383,11 +383,6 @@ export class UserService {
       3600,
     );
 
-    await userRoleRepository.assignGlobalRole({
-      userId: user.id,
-      role: Role.CUSTOMER,
-    });
-
     return {
       user: {
         id: user.id,
