@@ -1,42 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 import { withAccelerate } from "@prisma/extension-accelerate";
-
+import { categories } from "../src/utils/categories";
 const prisma = new PrismaClient().$extends(withAccelerate());
 
 async function main() {
-  // const venues = await prisma.venue.findMany();
-
-  // if (venues.length === 0) {
-  //   console.log("No venues. Skip seeding operational hours.");
-  //   return;
-  // }
-
-  // const DEFAULT_OPEN_HOUR = 9; // 09:00
-  // const DEFAULT_CLOSE_HOUR = 17; // 17:00
-
-  // for (const venue of venues) {
-  //   const existingHours = await prisma.operationalHour.findMany({
-  //     where: { venueId: venue.id },
-  //   });
-
-  //   if (existingHours.length === 0) {
-  //     const ops = Array.from({ length: 7 }).map((_, day) => ({
-  //       venueId: venue.id,
-  //       dayOfWeek: day,
-  //       opensAt: DEFAULT_OPEN_HOUR,
-  //       closesAt: DEFAULT_CLOSE_HOUR,
-  //     }));
-
-  //     await prisma.operationalHour.createMany({
-  //       data: ops,
-  //     });
-
-  //     console.log(
-  //       `Venue "${venue.name}" sudah ditambahkan jam operasional default (${DEFAULT_OPEN_HOUR}:00 - ${DEFAULT_CLOSE_HOUR}:00).`,
-  //     );
-  //   }
-  // }
-
   const interests = [
     {
       name: "Caffe & Resto",
@@ -108,6 +75,54 @@ async function main() {
       isPlatform: true,
     },
   });
+
+  for (const category of categories) {
+    await prisma.venueCategory.upsert({
+      where: {
+        id: category.id,
+      },
+      update: {
+        name: category.name,
+        code: category.code,
+        icon: category.icon,
+        isActive: category.isActive,
+      },
+      create: {
+        id: category.id,
+        name: category.name,
+        code: category.code,
+        icon: category.icon,
+        isActive: category.isActive,
+      },
+    });
+
+    for (const subCategory of category.subCategories) {
+      await prisma.venueSubCategory.upsert({
+        where: {
+          id: subCategory.id,
+        },
+        update: {
+          name: subCategory.name,
+          code: subCategory.code,
+          description: subCategory.description,
+          defaultConfig: subCategory.defaultConfig,
+          isActive: true,
+          categoryId: category.id,
+        },
+        create: {
+          id: subCategory.id,
+          categoryId: category.id,
+          name: subCategory.name,
+          code: subCategory.code,
+          description: subCategory.description,
+          defaultConfig: subCategory.defaultConfig,
+          isActive: true,
+        },
+      });
+    }
+  }
+
+  console.log("Categories & SubCategories seeded");
 }
 
 main()
