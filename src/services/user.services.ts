@@ -1,10 +1,10 @@
 import { PrismaClient, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { publisher } from "config/redis.config";
 import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";
 import Redis from "ioredis";
 import jwt from "jsonwebtoken";
-import { LINK } from "utils/link";
 import { sendEmail } from "utils/mail";
 import { uploadImage } from "utils/uploadS3";
 import {
@@ -18,7 +18,6 @@ import {
 } from "../repositories";
 import { AccountService } from "./account.services";
 import { RateLimiterService } from "./rateLimiterService";
-import { publisher } from "config/redis.config";
 
 const prisma = new PrismaClient();
 const redis = new Redis();
@@ -362,10 +361,6 @@ export class UserService {
 
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) throw new Error("Invalid password");
-
-    if (!user.isVerified) {
-      throw new Error("Email not verified");
-    }
 
     const tokens = await this.generateTokens(user.id);
 

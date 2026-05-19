@@ -399,8 +399,8 @@ export class LedgerRepository {
       _sum: { amount: true },
     });
 
-    const totalBalance = Number(credit._sum.amount || 0);
-    const totalExpenses = Number(debit._sum.amount || 0);
+    const totalBalance = Number(debit._sum.amount || 0);
+    const totalExpenses = Number(credit._sum.amount || 0);
     const balance = totalBalance - totalExpenses;
 
     return {
