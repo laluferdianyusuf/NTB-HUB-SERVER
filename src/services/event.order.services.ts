@@ -173,28 +173,28 @@ export class EventOrderService {
       throw new Error("Insufficient balance");
     }
 
-    const platformFee = Number(order.total) * 0.1;
+    const platformFee = Number(order.total) * 0.025;
     const eventAmount = Number(order.total) - platformFee;
 
     await this.ledgerRepository.createMany(
       [
         {
           accountId: userAccount.id,
-          type: "DEBIT",
+          type: "CREDIT",
           amount: Number(order.total),
           referenceType: "EVENT_PAYMENT",
           referenceId: order.id,
         },
         {
           accountId: eventAccount.id,
-          type: "CREDIT",
+          type: "DEBIT",
           amount: eventAmount,
           referenceType: "EVENT_PAYMENT",
           referenceId: order.id,
         },
         {
           accountId: platformAccount.id,
-          type: "CREDIT",
+          type: "DEBIT",
           amount: platformFee,
           referenceType: "FEE",
           referenceId: order.id,

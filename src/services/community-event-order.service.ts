@@ -242,7 +242,7 @@ export class CommunityEventOrderService {
 
     const balance = await this.ledgerRepo.getBalance(userAccount.id);
 
-    const platformFee = Number(invoice.amount) * 0.1;
+    const platformFee = Number(invoice.amount) * 0.025;
     const eventAmount = Number(invoice.amount) - platformFee;
 
     if (!balance || balance.totalBalance < Number(order.total)) {
@@ -259,21 +259,21 @@ export class CommunityEventOrderService {
       [
         {
           accountId: userAccount?.id as string,
-          type: "DEBIT",
+          type: "CREDIT",
           amount: Number(invoice.amount),
           referenceType: "COMMUNITY_EVENT_PAYMENT",
           referenceId: order.id,
         },
         {
           accountId: eventAccount.id,
-          type: "CREDIT",
+          type: "DEBIT",
           amount: eventAmount,
           referenceType: "COMMUNITY_EVENT_PAYMENT",
           referenceId: order.id,
         },
         {
           accountId: platformAccount.id,
-          type: "CREDIT",
+          type: "DEBIT",
           amount: platformFee,
           referenceType: "FEE",
           referenceId: order.id,

@@ -58,6 +58,7 @@ export class EventRepository {
     if (!eventAccount) throw new Error("Event account not found");
 
     const [
+      event,
       groupedStatus,
       todayRevenue,
       totalRevenue,
@@ -66,6 +67,20 @@ export class EventRepository {
       cancelledTicketOrder,
       expiredTicketOrder,
     ] = await Promise.all([
+      prisma.event.findUnique({
+        where: {
+          id: eventId,
+        },
+        include: {
+          tickets: true,
+          account: {
+            select: {
+              id: true,
+            },
+          },
+        },
+      }),
+
       prisma.eventOrder.groupBy({
         by: ["status"],
         where: { eventId },
@@ -105,14 +120,7 @@ export class EventRepository {
           status: EventOrderStatus.PENDING,
         },
         include: {
-          event: true,
           tickets: true,
-          user: true,
-          account: {
-            select: {
-              id: true,
-            },
-          },
         },
         orderBy: {
           createdAt: "desc",
@@ -126,14 +134,7 @@ export class EventRepository {
           status: EventOrderStatus.PAID,
         },
         include: {
-          event: true,
           tickets: true,
-          user: true,
-          account: {
-            select: {
-              id: true,
-            },
-          },
         },
         orderBy: {
           createdAt: "desc",
@@ -147,14 +148,7 @@ export class EventRepository {
           status: EventOrderStatus.CANCELLED,
         },
         include: {
-          event: true,
           tickets: true,
-          user: true,
-          account: {
-            select: {
-              id: true,
-            },
-          },
         },
         orderBy: {
           createdAt: "desc",
@@ -168,14 +162,7 @@ export class EventRepository {
           status: EventOrderStatus.EXPIRED,
         },
         include: {
-          event: true,
           tickets: true,
-          user: true,
-          account: {
-            select: {
-              id: true,
-            },
-          },
         },
         orderBy: {
           createdAt: "desc",
@@ -200,6 +187,7 @@ export class EventRepository {
     }
 
     return {
+      event,
       summary,
       revenueToday: totalRevenueToday,
       totalRevenue: totalRevenues,

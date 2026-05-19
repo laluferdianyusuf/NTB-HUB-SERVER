@@ -115,6 +115,9 @@ export class EventService {
     return {
       message: "Event dashboard fetched successfully",
 
+      event: {
+        detail: dashboard.event,
+      },
       summary: {
         totalPending: dashboard.summary.pending,
         totalPaid: dashboard.summary.paid,
@@ -124,6 +127,7 @@ export class EventService {
 
       finance: {
         revenueToday: dashboard.revenueToday,
+        totalRevenue: dashboard.totalRevenue,
       },
 
       orders: {

@@ -251,14 +251,14 @@ export class OrderServices {
         [
           {
             accountId: userAccount.id as string,
-            type: "DEBIT",
+            type: "CREDIT",
             amount: Number(order.total),
             referenceType: "ORDER",
             referenceId: order.id,
           },
           {
             accountId: venueAccount.id as string,
-            type: "CREDIT",
+            type: "DEBIT",
             amount: Number(order.total),
             referenceType: "ORDER",
             referenceId: order.id,

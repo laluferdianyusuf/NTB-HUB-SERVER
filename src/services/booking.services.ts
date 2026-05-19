@@ -332,7 +332,7 @@ export class BookingServices {
     )
       throw new Error("Insufficient balance");
 
-    const platformFee = Number(invoice.amount) * 0.1;
+    const platformFee = Number(invoice.amount) * 0.01;
     const venueAmount = Number(invoice.amount) - platformFee;
 
     await prisma.$transaction(async (tx) => {
@@ -358,21 +358,21 @@ export class BookingServices {
         [
           {
             accountId: userAccount?.id as string,
-            type: "DEBIT",
+            type: "CREDIT",
             amount: Number(invoice.amount),
             referenceType: "BOOKING_PAYMENT",
             referenceId: booking.id,
           },
           {
             accountId: venueAccount.id,
-            type: "CREDIT",
+            type: "DEBIT",
             amount: venueAmount,
             referenceType: "BOOKING_PAYMENT",
             referenceId: booking.id,
           },
           {
             accountId: platformAccount.id,
-            type: "CREDIT",
+            type: "DEBIT",
             amount: platformFee,
             referenceType: "FEE",
             referenceId: booking.id,
@@ -838,14 +838,14 @@ export class BookingServices {
         await ledgerRepository.createMany([
           {
             accountId: userAccount?.id as string,
-            type: "CREDIT",
+            type: "DEBIT",
             amount: Number(invoice.amount),
             referenceType: "REFUND",
             referenceId: booking.id,
           },
           {
             accountId: booking.venueId,
-            type: "DEBIT",
+            type: "CREDIT",
             amount: Number(invoice.amount) * 0.9,
             referenceType: "REFUND",
             referenceId: booking.id,

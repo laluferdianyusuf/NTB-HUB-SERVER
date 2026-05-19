@@ -75,13 +75,6 @@ createWorker<PaymentWebhookJob>(
               referenceType: "TOPUP",
               referenceId: payment.invoiceId,
             },
-            {
-              accountId: platformAccount.id,
-              type: "CREDIT",
-              amount: 4440,
-              referenceType: "TOPUP",
-              referenceId: payment.invoiceId,
-            },
           ],
           tx,
         );
