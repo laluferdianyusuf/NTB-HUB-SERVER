@@ -718,6 +718,7 @@ export class BookingServices {
 
       finance: {
         revenueToday: dashboard.revenueToday,
+        totalRevenue: dashboard.totalRevenue,
       },
 
       bookings: {
