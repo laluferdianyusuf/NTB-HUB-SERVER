@@ -2,7 +2,8 @@ import { Job } from "bullmq";
 import { publisher } from "config/redis.config";
 import { InvoiceRepository } from "repositories";
 import { BookingRepository } from "repositories/booking.repo";
-import { BookingServices, NotificationService } from "services";
+import { BookingServices } from "services";
+import { NotificationService } from "../services/notification.services";
 import { addDelayedJob, cancelJob, createWorker } from "./index";
 
 const bookingRepository = new BookingRepository();
