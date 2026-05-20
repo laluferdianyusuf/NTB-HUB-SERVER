@@ -1,21 +1,21 @@
-import { Worker } from "bullmq";
-import { prisma } from "config/prisma";
-import { redis } from "config/redis.config";
+// import { Worker } from "bullmq";
+// import { prisma } from "config/prisma";
+// import { redis } from "config/redis.config";
 
-new Worker(
-  "analytics-queue",
-  async (job) => {
-    const { userId, event, payload } = job.data;
+// new Worker(
+//   "analytics-queue",
+//   async (job) => {
+//     const { userId, event, payload } = job.data;
 
-    await prisma.log.create({
-      data: {
-        userId,
-        action: event,
-        description: JSON.stringify(payload),
-      },
-    });
+//     await prisma.activityLog.create({
+//       data: {
+//         entityId: userId,
+//         action: event,
+//         metadata: JSON.stringify(payload),
+//       },
+//     });
 
-    return true;
-  },
-  { connection: redis },
-);
+//     return true;
+//   },
+//   { connection: redis },
+// );

@@ -18,13 +18,13 @@ export class LogController {
     }
   }
 
-  async findLogByUserId(req: Request, res: Response) {
-    try {
-      const userId = req.params.userId;
-      const response = await this.logServices.findLogByUserId(userId);
-      sendSuccess(res, response, "Logs retrieved");
-    } catch (error: any) {
-      sendError(res, error.message || "Internal server error");
-    }
-  }
+  // async findLogByUserId(req: Request, res: Response) {
+  //   try {
+  //     const userId = req.params.userId;
+  //     const response = await this.logServices.findLogByUserId(userId);
+  //     sendSuccess(res, response, "Logs retrieved");
+  //   } catch (error: any) {
+  //     sendError(res, error.message || "Internal server error");
+  //   }
+  // }
 }

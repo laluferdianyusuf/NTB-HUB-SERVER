@@ -21,7 +21,7 @@ export class CommunityEventTicketRepository {
       where: { id },
       include: {
         user: true,
-        event: true,
+        communityEvent: true,
         ticketType: true,
         order: true,
       },
@@ -34,7 +34,7 @@ export class CommunityEventTicketRepository {
       where: { userId },
       include: {
         user: true,
-        event: true,
+        communityEvent: true,
         ticketType: true,
         order: true,
       },
@@ -47,7 +47,7 @@ export class CommunityEventTicketRepository {
       where: { orderId },
       include: {
         user: true,
-        event: true,
+        communityEvent: true,
         ticketType: true,
         order: true,
       },

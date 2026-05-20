@@ -6,7 +6,7 @@ import {
   PromotionCalculationResult,
 } from "../types/promotion-engine.types";
 
-import { Decimal } from "@prisma/client/runtime/library";
+import { Decimal } from "@prisma/client/runtime/client";
 import { PromotionCache } from "cache/promotion.cache";
 import {
   PromotionItemRepository,

@@ -136,22 +136,24 @@ export class MenuRepository {
   async getMostPopularMenus(limit = 10, tx?: Prisma.TransactionClient) {
     const client = this.transaction(tx);
 
-    const grouped = await client.orderItem.groupBy({
-      by: ["menuId"],
-      _sum: {
-        quantity: true,
-        price: true,
-      },
-      _count: {
-        id: true,
-      },
-      orderBy: {
-        _sum: {
-          quantity: "desc",
-        },
-      },
-      take: limit,
-    });
+    const grouped = await client.$queryRaw<
+      {
+        menuId: string;
+        totalSold: number;
+        totalOrders: bigint;
+        revenue: number;
+      }[]
+    >`
+SELECT
+  "menuId",
+  SUM(quantity)::int as "totalSold",
+  COUNT(id)::bigint as "totalOrders",
+  SUM(price)::float as revenue
+FROM "OrderItem"
+GROUP BY "menuId"
+ORDER BY "totalSold" DESC
+LIMIT ${limit}
+`;
 
     const menus = await client.menu.findMany({
       where: {
@@ -181,9 +183,9 @@ export class MenuRepository {
         menuId: g.menuId,
         menuName: menu?.name,
         venueName: menu?.venue?.name,
-        totalSold: g._sum.quantity ?? 0,
-        totalOrders: g._count.id,
-        revenue: g._sum.price ?? 0,
+        totalSold: Number(g.totalSold ?? 0),
+        totalOrders: Number(g.totalOrders ?? 0),
+        revenue: Number(g.revenue ?? 0),
       };
     });
   }

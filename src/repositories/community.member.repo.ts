@@ -1,4 +1,4 @@
-import { Prisma, CommunityMember, CommunityMemberStatus } from "@prisma/client";
+import { CommunityMember, CommunityMemberStatus, Prisma } from "@prisma/client";
 import { prisma } from "config/prisma";
 
 interface Pagination {
@@ -161,7 +161,6 @@ export class CommunityMemberRepository {
       where: {
         userId,
         communityId,
-        deletedAt: null,
       },
       select: { id: true },
     });
@@ -173,7 +172,6 @@ export class CommunityMemberRepository {
     const memberships = await prisma.communityMember.findMany({
       where: {
         userId,
-        deletedAt: null,
       },
       select: {
         communityId: true,

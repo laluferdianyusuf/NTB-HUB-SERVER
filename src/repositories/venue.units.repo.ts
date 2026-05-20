@@ -86,9 +86,6 @@ export class VenueUnitRepository {
             endTime: {
               gt: startTime,
             },
-            invoice: {
-              status: "PAID",
-            },
           },
           select: {
             startTime: true,

@@ -1,4 +1,4 @@
-import { Decimal } from "@prisma/client/runtime/library";
+import { Decimal } from "@prisma/client/runtime/client";
 
 export const toBool = (v: any) =>
   v === true || v === "true" || v === 1 || v === "1";

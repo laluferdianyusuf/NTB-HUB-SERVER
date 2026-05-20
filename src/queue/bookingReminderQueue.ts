@@ -1,8 +1,8 @@
-import { createWorker, addDelayedJob, cancelJob } from "./index";
+import { Notification } from "@prisma/client";
+import { Job } from "bullmq";
 import { BookingRepository, NotificationRepository } from "../repositories";
 import { NotificationService } from "../services/notification.services";
-import { Job } from "bullmq";
-import { Notification } from "@prisma/client";
+import { addDelayedJob, cancelJob, createWorker } from "./index";
 
 const QUEUE_NAME = "booking-reminder";
 const bookingRepository = new BookingRepository();
@@ -33,11 +33,12 @@ createWorker<BookingReminderJobData>(
       message = `Booking kamu akan segera selesai pada ${booking.endTime.toLocaleTimeString()}`;
     }
 
-    await notificationRepository.createNewNotification({
-      userId,
+    await notificationRepository.create({
+      recipientType: "USER",
+      recipientId: userId,
       title,
       message,
-      type: "Booking",
+      type: "SYSTEM",
       isGlobal: false,
     } as Notification);
 

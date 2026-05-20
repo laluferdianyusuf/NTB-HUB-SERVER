@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from "express";
-import { getDistanceMeter } from "helpers/geo";
+import { NextFunction, Request, Response } from "express";
+import { calcDistanceMeters } from "helpers/haversine";
 
 export const geoFenceMiddleware =
   (taskGetter: (req: Request) => Promise<any>) =>
@@ -23,7 +23,7 @@ export const geoFenceMiddleware =
       return res.status(400).json({ message: "Task tidak punya lokasi" });
     }
 
-    const distance = getDistanceMeter(
+    const distance = calcDistanceMeters(
       latitude,
       longitude,
       task.latitude,

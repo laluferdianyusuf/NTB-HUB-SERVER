@@ -5,7 +5,7 @@ import {
   Prisma,
   PrismaClient,
 } from "@prisma/client";
-import { JsonObject } from "@prisma/client/runtime/library";
+import { JsonObject } from "@prisma/client/runtime/client";
 
 const prisma = new PrismaClient();
 

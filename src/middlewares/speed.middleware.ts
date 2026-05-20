@@ -1,6 +1,6 @@
 import { redisCache } from "config/redis.config";
-import { getDistanceMeter } from "helpers/geo";
-import { Request, Response, NextFunction } from "express";
+import { NextFunction, Response } from "express";
+import { calcDistanceMeters } from "helpers/haversine";
 
 export const speedCheckMiddleware = async (
   req: any,
@@ -14,7 +14,7 @@ export const speedCheckMiddleware = async (
   const last = await redisCache.hgetall(key);
 
   if (last.lat && last.lng && last.time) {
-    const distance = getDistanceMeter(
+    const distance = calcDistanceMeters(
       Number(last.lat),
       Number(last.lng),
       latitude,
