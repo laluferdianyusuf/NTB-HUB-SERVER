@@ -28,7 +28,7 @@ type CopyNextDayInput = {
   toDay: number;
 };
 
-export class OperationalServices {
+export class OperationalService {
   async createOperationalHours(
     venueId: string,
     operationalHours: OperationalHourInput[] | string,

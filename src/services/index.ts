@@ -30,7 +30,7 @@ export * from "./maps.services";
 export * from "./menu.services";
 export * from "./news.services";
 export * from "./notification.services";
-export * from "./operational.services";
+export * from "./operational.service";
 export * from "./order.services";
 export * from "./payment.services";
 export * from "./points.services";

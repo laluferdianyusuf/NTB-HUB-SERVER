@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import { sendError, sendSuccess } from "helpers/response";
-import { OperationalServices } from "services";
+import { OperationalService } from "services";
 
-const operationalServices = new OperationalServices();
+const operationalServices = new OperationalService();
 
 export class OperationalControllers {
   async createOperationalHours(req: Request, res: Response) {
