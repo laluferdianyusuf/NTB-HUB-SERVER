@@ -1,7 +1,7 @@
-import { Prisma, PrismaClient, Venue } from "@prisma/client";
+import { Prisma, Venue } from "@prisma/client";
 import { FindVenuesParams } from "../types/venues.params";
 
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma";
 
 export class VenueRepository {
   async createVenue(

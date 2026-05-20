@@ -1,7 +1,7 @@
-import { Menu, Notification, PrismaClient, Promotion } from "@prisma/client";
+import { Menu, Promotion } from "@prisma/client";
 import { PromotionCache } from "cache/promotion.cache";
-import { publisher } from "config/redis.config";
 import { uploadImage } from "utils/uploadS3";
+import { prisma } from "../config/prisma";
 import {
   MenuRepository,
   NotificationRepository,
@@ -11,7 +11,6 @@ import {
   VenueRepository,
 } from "./../repositories";
 import { NotificationService } from "./notification.services";
-const prisma = new PrismaClient();
 
 const menuRepository = new MenuRepository();
 const venueRepository = new VenueRepository();

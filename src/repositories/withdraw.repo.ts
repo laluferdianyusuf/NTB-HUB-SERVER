@@ -1,7 +1,5 @@
-import { Prisma, PrismaClient, WithdrawStatus } from "@prisma/client";
-
-const prisma = new PrismaClient();
-
+import { Prisma, WithdrawStatus } from "@prisma/client";
+import { prisma } from "../config/prisma";
 export class WithdrawRepository {
   async create(
     data: Prisma.WithdrawRequestCreateInput,

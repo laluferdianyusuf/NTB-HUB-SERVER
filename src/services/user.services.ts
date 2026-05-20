@@ -1,4 +1,4 @@
-import { PrismaClient, Role } from "@prisma/client";
+import { Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { publisher } from "config/redis.config";
 import crypto from "crypto";
@@ -19,7 +19,7 @@ import {
 import { AccountService } from "./account.services";
 import { RateLimiterService } from "./rateLimiterService";
 
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma";
 const redis = new Redis();
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 

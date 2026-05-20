@@ -1,6 +1,6 @@
-import { Prisma, PrismaClient, OrderItem as PrismaOrder } from "@prisma/client";
+import { Prisma, OrderItem as PrismaOrder } from "@prisma/client";
 
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma";
 
 export class OrderItemRepository {
   private transaction(tx?: Prisma.TransactionClient) {

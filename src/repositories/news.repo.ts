@@ -1,7 +1,7 @@
-import { News, NewsComment, NewsStatus, PrismaClient } from "@prisma/client";
+import { News, NewsComment, NewsStatus } from "@prisma/client";
 import dayjs from "dayjs";
 
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma";
 
 export class NewsRepository {
   create(data: {

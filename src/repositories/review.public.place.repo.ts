@@ -1,5 +1,5 @@
-import { Prisma, PrismaClient, ReviewPublicPlace } from "@prisma/client";
-const prisma = new PrismaClient();
+import { Prisma, ReviewPublicPlace } from "@prisma/client";
+import { prisma } from "../config/prisma";
 
 export interface CreateReviewPublicPlaceDTO {
   placeId: string;

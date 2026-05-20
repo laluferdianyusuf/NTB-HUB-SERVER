@@ -1,8 +1,8 @@
-import { Prisma, PrismaClient } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { VenueStaffRepository } from "repositories";
 import { uploadImage } from "utils/uploadS3";
 
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma";
 const repo = new VenueStaffRepository();
 
 export class VenueStaffService {

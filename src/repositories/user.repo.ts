@@ -1,6 +1,6 @@
-import { Prisma, PrismaClient, User } from "@prisma/client";
+import { Prisma, User } from "@prisma/client";
 
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma";
 
 export type CreateUserInput = {
   name: string;

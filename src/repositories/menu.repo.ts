@@ -1,6 +1,6 @@
-import { Menu, Prisma, PrismaClient } from "@prisma/client";
+import { Menu, Prisma } from "@prisma/client";
 
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma";
 
 export class MenuRepository {
   private transaction(tx?: Prisma.TransactionClient) {

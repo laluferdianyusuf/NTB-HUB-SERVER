@@ -1,6 +1,6 @@
-import { BookingType, Prisma, PrismaClient, UnitType } from "@prisma/client";
+import { BookingType, Prisma, UnitType } from "@prisma/client";
 
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma";
 
 type FindAllParams = {
   search?: string;

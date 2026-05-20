@@ -1,7 +1,6 @@
-import { PrismaClient } from "@prisma/client";
 import dayjs from "dayjs";
 
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma";
 export class PublicPlaceImpressionRepository {
   async createImpression({
     placeId,

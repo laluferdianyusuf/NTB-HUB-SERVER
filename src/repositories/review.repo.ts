@@ -1,5 +1,5 @@
-import { Booking, Prisma, PrismaClient, Review } from "@prisma/client";
-const prisma = new PrismaClient();
+import { Prisma, Review } from "@prisma/client";
+import { prisma } from "../config/prisma";
 
 export class ReviewRepository {
   async create(data: Prisma.ReviewCreateInput, tx?: Prisma.TransactionClient) {

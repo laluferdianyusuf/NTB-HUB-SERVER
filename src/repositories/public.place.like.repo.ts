@@ -1,6 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma";
 
 export class PublicPlaceLikeRepository {
   async likePublicPlace(placeId: string, userId: string) {

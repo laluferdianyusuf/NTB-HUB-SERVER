@@ -1,5 +1,5 @@
-import { Prisma, PrismaClient, UserBalance } from "@prisma/client";
-const prisma = new PrismaClient();
+import { Prisma, UserBalance } from "@prisma/client";
+import { prisma } from "../config/prisma";
 
 export class UserBalanceRepository {
   private transaction(tx?: Prisma.TransactionClient) {

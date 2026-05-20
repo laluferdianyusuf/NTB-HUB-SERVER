@@ -1,6 +1,6 @@
-import { PrismaClient, Floor } from "@prisma/client";
+import { Floor } from "@prisma/client";
 
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma";
 
 export class FloorRepository {
   // find all floor at venue

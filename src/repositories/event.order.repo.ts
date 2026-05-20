@@ -1,10 +1,5 @@
-import {
-  EventOrder,
-  EventOrderStatus,
-  Prisma,
-  PrismaClient,
-} from "@prisma/client";
-const prisma = new PrismaClient();
+import { EventOrder, EventOrderStatus, Prisma } from "@prisma/client";
+import { prisma } from "../config/prisma";
 
 export class EventOrderRepository {
   createOrder(

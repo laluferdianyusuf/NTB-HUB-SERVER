@@ -1,4 +1,4 @@
-import { Booking, BookingStatus, Prisma, PrismaClient } from "@prisma/client";
+import { Booking, BookingStatus, Prisma } from "@prisma/client";
 
 type FindBookingByVenueParams = {
   venueId: string;
@@ -8,7 +8,7 @@ type FindBookingByVenueParams = {
   limit?: number;
 };
 
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma";
 export const bookingInclude = {
   user: {
     select: {

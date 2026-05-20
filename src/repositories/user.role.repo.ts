@@ -1,6 +1,6 @@
-import { Prisma, PrismaClient, Role } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
 
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma";
 
 export class UserRoleRepository {
   private db(tx?: Prisma.TransactionClient) {

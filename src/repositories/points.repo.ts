@@ -1,10 +1,10 @@
-import { Point, Prisma, PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import { Point, Prisma } from "@prisma/client";
+import { prisma } from "../config/prisma";
 
 export class PointsRepository {
   async generatePoints(
     data: Prisma.PointUncheckedCreateInput,
-    tx?: Prisma.TransactionClient
+    tx?: Prisma.TransactionClient,
   ): Promise<Point> {
     const db = tx ?? prisma;
     return await db.point.create({ data });

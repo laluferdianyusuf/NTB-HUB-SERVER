@@ -1,7 +1,5 @@
-import { PrismaClient } from "@prisma/client";
-import { withAccelerate } from "@prisma/extension-accelerate";
+import { prisma } from "../src/config/prisma";
 import { categories } from "../src/utils/categories";
-const prisma = new PrismaClient().$extends(withAccelerate());
 
 async function main() {
   const interests = [

@@ -1,6 +1,6 @@
-import { LocationTracking, PrismaClient } from "@prisma/client";
+import { LocationTracking } from "@prisma/client";
 
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma";
 
 export class LocationRepository {
   async save(

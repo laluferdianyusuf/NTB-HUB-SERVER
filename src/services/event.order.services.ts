@@ -1,12 +1,8 @@
-import {
-  EventOrder,
-  EventOrderStatus,
-  Prisma,
-  PrismaClient,
-} from "@prisma/client";
+import { EventOrder, EventOrderStatus, Prisma } from "@prisma/client";
 import crypto from "crypto";
 import { generateTicketQR } from "helpers/qrCodeHelper";
 import jwt from "jsonwebtoken";
+import { prisma } from "../config/prisma";
 import {
   AccountRepository,
   ActivityLogRepository,
@@ -23,8 +19,6 @@ import {
   UserRepository,
 } from "../repositories";
 import { UserService } from "./user.services";
-
-const prisma = new PrismaClient();
 
 export class EventOrderService {
   private eventOrderRepo = new EventOrderRepository();

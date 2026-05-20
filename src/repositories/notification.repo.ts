@@ -3,10 +3,9 @@ import {
   NotificationRecipientType,
   NotificationType,
   Prisma,
-  PrismaClient,
 } from "@prisma/client";
 
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma";
 
 export class NotificationRepository {
   private getClient(tx?: Prisma.TransactionClient) {

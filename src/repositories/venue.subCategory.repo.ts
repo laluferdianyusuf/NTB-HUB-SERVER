@@ -1,7 +1,5 @@
-import { Prisma, PrismaClient, VenueSubCategory } from "@prisma/client";
-
-const prisma = new PrismaClient();
-
+import { Prisma, VenueSubCategory } from "@prisma/client";
+import { prisma } from "../config/prisma";
 export class VenueSubCategoryRepository {
   create(data: {
     categoryId: string;

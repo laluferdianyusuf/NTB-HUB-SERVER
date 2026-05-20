@@ -3,11 +3,10 @@ import {
   ActivityEntityType,
   ActorType,
   Prisma,
-  PrismaClient,
 } from "@prisma/client";
 import { JsonObject } from "@prisma/client/runtime/client";
 
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma";
 
 export class ActivityLogRepository {
   async create(

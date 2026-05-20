@@ -1,12 +1,6 @@
-import {
-  Event,
-  EventOrderStatus,
-  EventStatus,
-  Prisma,
-  PrismaClient,
-} from "@prisma/client";
+import { Event, EventOrderStatus, EventStatus, Prisma } from "@prisma/client";
 
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma";
 
 export class EventRepository {
   async createEvent(data: {

@@ -1,7 +1,6 @@
 import { Prisma, PrismaClient, VenueStaff } from "@prisma/client";
 
-const prisma = new PrismaClient();
-
+import { prisma } from "../config/prisma";
 type DB = Prisma.TransactionClient | PrismaClient;
 
 export class VenueStaffRepository {
