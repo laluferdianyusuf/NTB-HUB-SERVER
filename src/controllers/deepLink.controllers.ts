@@ -8,7 +8,6 @@ import {
 } from "repositories";
 import { TrackingService } from "services";
 import { DeepLinkDataService } from "services/deepLink.services";
-import { isMobile } from "../utils/device";
 
 const ALLOWED_TYPES = [
   "user",
@@ -57,7 +56,8 @@ export class DeepLinkController {
 
     const query = new URLSearchParams(req.query as any).toString();
 
-    const deepLink = `ntbhub-apps://${type}?${query}`;
+    const appLink = `https://app.ntbhub.com/${type}/${id}`;
+    const deepLink = `ntbhub-apps://${type}/${id}`;
 
     const playStore =
       "https://play.google.com/store/apps/details?id=com.laluferdian.ntbhubapps";
@@ -69,16 +69,19 @@ export class DeepLinkController {
     <meta property="og:description" content="${safe.description}" />
     <meta property="og:image" content="${safe.image}" />
 
-    ${
-      isMobile(userAgent)
-        ? `<meta http-equiv="refresh" content="0; url=${deepLink}" />`
-        : ""
-    }
+    <!-- UNIVERSAL LINK FIRST -->
+    <meta http-equiv="refresh" content="0; url=${appLink}" />
 
     <script>
+      // fallback ke app scheme
+      setTimeout(() => {
+        window.location.href = "${deepLink}";
+      }, 500);
+
+      // fallback store kalau app tidak ada
       setTimeout(() => {
         window.location.href = "${playStore}";
-      }, 2000);
+      }, 2500);
     </script>
   </head>
 
@@ -86,7 +89,7 @@ export class DeepLinkController {
     <h2>${safe.title}</h2>
     <p>${safe.description}</p>
 
-    <a href="${deepLink}">Open App</a><br/><br/>
+    <a href="${appLink}">Open App</a><br/><br/>
     <a href="${playStore}">Download App</a>
   </body>
 </html>
