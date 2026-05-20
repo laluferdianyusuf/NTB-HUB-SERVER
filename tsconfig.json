@@ -1,39 +1,29 @@
 {
-  // Visit https://aka.ms/tsconfig to read more about this file
-  "compileOnSave": false,
   "compilerOptions": {
-    // File Layout
-    // "rootDir": "./src",
-    // "outDir": "./dist",
+    "module": "commonjs",
+    "target": "es2020",
 
-    // Environment Settings
-    // See also https://aka.ms/tsconfig/module
-    "module": "nodenext",
-    "target": "es2024",
-    "lib": ["ES2024", "ESNext.AsyncIterable"],
-    "typeRoots": ["node_modules/@types"],
-    "allowSyntheticDefaultImports": true,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "forceConsistentCasingInFileNames": true,
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    "baseUrl": "./src",
+
+    "paths": {
+      "*": ["*"]
+    },
+
     "moduleResolution": "node",
-    "pretty": true,
-    // For nodejs:
-    // "lib": ["esnext"],
-    // "types": ["node"],
-    // and npm install -D @types/node
 
-    // Other Outputs
-    "sourceMap": true,
-    "declaration": true,
-    "declarationMap": true,
-    "outDir": "dist",
-    "allowJs": true,
-    "noEmit": false,
     "esModuleInterop": true,
+
     "resolveJsonModule": true,
-    "baseUrl": "src"
+
+    "strict": false,
+
+    "skipLibCheck": true
   },
+
   "include": ["src/**/*.ts"],
+
   "exclude": ["node_modules"]
 }

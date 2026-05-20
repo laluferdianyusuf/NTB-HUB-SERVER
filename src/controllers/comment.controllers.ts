@@ -1,7 +1,7 @@
-import { Request, Response } from "express";
-import { z } from "zod";
 import { CommentEntityType } from "@prisma/client";
+import { Request, Response } from "express";
 import { CommentService } from "services";
+import { z } from "zod";
 
 export class CommentController {
   private service = new CommentService();
