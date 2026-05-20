@@ -29,7 +29,7 @@ export * from "./log.services";
 export * from "./maps.services";
 export * from "./menu.services";
 export * from "./news.services";
-export * from "./notification.services";
+export { NotificationService } from "./notification.services";
 export * from "./operational.service";
 export * from "./order.services";
 export * from "./payment.services";
