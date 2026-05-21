@@ -60,7 +60,7 @@ export class DeepLinkController {
     const deepLink = `ntbhub-apps://${type}/${id}`;
 
     const playStore =
-      "https://play.google.com/store/apps/details?id=com.laluferdian.ntbhubapps";
+      "https://play.google.com/store/apps/details?id= com.ntbhub.app";
 
     return res.send(`
 <html>
