@@ -1,4 +1,5 @@
 import { Venue } from "@prisma/client";
+import { prisma } from "config/prisma";
 import { publisher } from "config/redis.config";
 import { calcDistanceMeters, formatDistance } from "helpers/haversine";
 import { toNum } from "helpers/parser";
@@ -13,7 +14,6 @@ import {
   VenueLikeRepository,
   VenueRepository,
 } from "../repositories";
-import { prisma } from "config/prisma";
 
 type Segment = "VIP" | "Returning" | "New" | "Blocked";
 
@@ -279,6 +279,7 @@ export class VenueServices {
 
         updatedAll: venue.updatedAt,
         isActive: venue.isActive,
+        ownerId: venue.ownerId,
 
         distance: distanceMeters,
         distanceKm,

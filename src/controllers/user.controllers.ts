@@ -102,6 +102,8 @@ export class UserController {
         data: result,
       });
     } catch (error: any) {
+      console.log(error);
+
       sendError(res, error.message || "Internal server error");
     }
   }

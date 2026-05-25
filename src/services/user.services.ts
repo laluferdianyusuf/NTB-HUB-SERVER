@@ -70,68 +70,83 @@ export class UserService {
 
     const hashedPassword = await bcrypt.hash(data.password, 12);
 
-    const user = await userRepository.create({
-      email: data.email,
-      name: data.name,
-      username: data.username,
-      password: hashedPassword,
-      photo,
-      isVerified: false,
-    });
-
     const pin = crypto.randomInt(100000, 999999).toString();
-
     const hashedPin = await bcrypt.hash(pin, 10);
 
-    await redis.set(
-      `verify-pin:${user.id}`,
-      hashedPin,
-      "EX",
-      5 * 60, // 5 menit
-    );
+    let user;
 
-    await redis.set(`verify-pin-attempt:${user.id}`, "0", "EX", 5 * 60);
+    try {
+      user = await prisma.$transaction(async (tx) => {
+        const newUser = await userRepository.create(
+          {
+            email: data.email,
+            name: data.name,
+            username: data.username,
+            password: hashedPassword,
+            photo,
+            isVerified: false,
+          },
+          tx,
+        );
 
-    await sendEmail(
-      user.email,
-      "Verify Your Account",
-      `
-    <html>
-      <body style="font-family:Arial,sans-serif;background:#f4f6f8;padding:30px;">
-        <div style="max-width:500px;margin:auto;background:#fff;padding:30px;border-radius:10px;">
-          
-          <h2>Email Verification</h2>
+        return newUser;
+      });
 
-          <p>Hello <b>${user.name}</b>,</p>
+      await redis.set(`verify-pin:${user.id}`, hashedPin, "EX", 5 * 60);
 
-          <p>Use the following verification code to activate your account:</p>
+      await redis.set(`verify-pin-attempt:${user.id}`, "0", "EX", 5 * 60);
 
-          <div style="font-size:28px;letter-spacing:6px;font-weight:bold;text-align:center;margin:20px 0;">
-            ${pin}
+      await sendEmail(
+        user.email,
+        "Verify Your Account",
+        `
+      <html>
+        <body style="font-family:Arial,sans-serif;background:#f4f6f8;padding:30px;">
+          <div style="max-width:500px;margin:auto;background:#fff;padding:30px;border-radius:10px;">
+            
+            <h2>Email Verification</h2>
+
+            <p>Hello <b>${user.name}</b>,</p>
+
+            <p>Use the following verification code to activate your account:</p>
+
+            <div style="font-size:28px;letter-spacing:6px;font-weight:bold;text-align:center;margin:20px 0;">
+              ${pin}
+            </div>
+
+            <p style="color:#777;font-size:13px;">
+              This code will expire in <b>5 minutes</b>.
+            </p>
+
+            <p style="color:#999;font-size:12px;">
+              If you didn't request this, ignore this email.
+            </p>
+
           </div>
+        </body>
+      </html>
+      `,
+      );
 
-          <p style="color:#777;font-size:13px;">
-            This code will expire in <b>5 minutes</b>.
-          </p>
+      return {
+        message: "Verification code sent to email",
+        data: {
+          userId: user.id,
+          email: user.email,
+        },
+      };
+    } catch (err) {
+      console.log(err);
 
-          <p style="color:#999;font-size:12px;">
-            If you didn't request this, ignore this email.
-          </p>
+      if (user?.id) {
+        await userRepository.delete(user.id);
 
-        </div>
-      </body>
-    </html>
-    `,
-    );
+        await redis.del(`verify-pin:${user.id}`);
+        await redis.del(`verify-pin-attempt:${user.id}`);
+      }
 
-    return {
-      message: "Verification code sent to email",
-
-      data: {
-        userId: user.id,
-        email: user.email,
-      },
-    };
+      throw new Error("Registration failed. Please try again.");
+    }
   }
 
   async registerAdmin(
@@ -432,6 +447,16 @@ export class UserService {
           tx,
         );
 
+        await pointRepository.generatePoints(
+          {
+            userId: user.id,
+            points: 100,
+            activity: "REGISTER",
+            reference: user.id,
+          },
+          tx,
+        );
+
         return newUser;
       });
     }
@@ -478,6 +503,10 @@ export class UserService {
     const user = await userRepository.findById(userId);
     if (!user) {
       throw new Error("User not found");
+    }
+
+    if (!user.isVerified) {
+      throw new Error("User not verified");
     }
 
     const roles = await userRoleRepository.findByUserId(userId);

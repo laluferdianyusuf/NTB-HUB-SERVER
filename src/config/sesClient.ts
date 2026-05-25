@@ -1,7 +1,10 @@
-import { SESClient } from "@aws-sdk/client-ses";
 import nodemailer from "nodemailer";
+import {
+  SESv2Client,
+  SendEmailCommand,
+} from "@aws-sdk/client-sesv2";
 
-export const ses = new SESClient({
+const sesClient = new SESv2Client({
   region: process.env.AWS_REGION,
   credentials: {
     accessKeyId: process.env.AWS_SES_ACCESS_KEY!,
@@ -9,6 +12,11 @@ export const ses = new SESClient({
   },
 });
 
-export const mailTransporter = nodemailer.createTransport({
-  SES: { ses },
-} as any);
+export const mailTransporter = nodemailer.createTransport(
+  {
+    SES: {
+      sesClient,
+      SendEmailCommand,
+    },
+  } as any
+);

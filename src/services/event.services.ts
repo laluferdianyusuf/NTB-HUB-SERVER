@@ -96,6 +96,7 @@ export class EventService {
       capacity: event.capacity,
       updatedAt: event.updatedAt,
       tickets: event.ticketTypes,
+      ownerId: event.ownerId,
     }));
 
     return {
@@ -166,6 +167,7 @@ export class EventService {
       status: e.status,
       venue: e.venue,
       community: e.community,
+      ownerId: e.ownerId,
       type: "EVENT" as const,
     }));
 
