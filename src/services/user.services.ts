@@ -449,10 +449,10 @@ export class UserService {
 
         await pointRepository.generatePoints(
           {
-            userId: user.id,
+            userId: newUser.id,
             points: 100,
             activity: "REGISTER",
-            reference: user.id,
+            reference: newUser.id,
           },
           tx,
         );
