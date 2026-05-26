@@ -40,7 +40,10 @@ export class UserRepository {
   }) {
     const { search, page = 1, pageSize = 10 } = params || {};
 
-    const skip = (page - 1) * pageSize;
+    const safePage = Number(page) || 1;
+    const safePageSize = Number(pageSize) || 10;
+
+    const skip = (safePage - 1) * safePageSize;
 
     const where: any = {
       isVerified: true,
@@ -70,7 +73,7 @@ export class UserRepository {
     return prisma.user.findMany({
       where,
       skip,
-      take: pageSize,
+      take: safePageSize, // 🔥 FIX: pastikan selalu number valid
       orderBy: {
         name: "asc",
       },

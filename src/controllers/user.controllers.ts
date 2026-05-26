@@ -163,6 +163,8 @@ export class UserController {
 
       sendSuccess(res, users, "User retrieved");
     } catch (error: any) {
+      console.log(error);
+
       sendError(res, error.message || "Internal server error");
     }
   }

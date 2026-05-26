@@ -651,13 +651,14 @@ export class UserService {
   }) {
     const { search, limit, page = 1, pageSize = 10 } = params || {};
 
-    const take = limit ?? pageSize;
+    const safePage = Number(page) || 1;
+    const safePageSize = Number(limit ?? pageSize) || 10;
 
     const [users, total] = await Promise.all([
       userRepository.findAllUsers({
         search,
-        page,
-        pageSize: take,
+        page: safePage,
+        pageSize: safePageSize,
       }),
 
       userRepository.countAllUsers({
@@ -669,11 +670,11 @@ export class UserService {
       data: users,
       meta: {
         total,
-        page,
-        pageSize: take,
-        totalPages: Math.ceil(total / take),
-        hasNextPage: page * take < total,
-        hasPrevPage: page > 1,
+        page: safePage,
+        pageSize: safePageSize,
+        totalPages: Math.ceil(total / safePageSize),
+        hasNextPage: safePage * safePageSize < total,
+        hasPrevPage: safePage > 1,
       },
     };
   }
