@@ -882,6 +882,9 @@ model Promotion {
   promotionSchedules   PromotionSchedule[]
   promotionImpressions PromotionImpression[]
   promotionClicks      PromotionClick[]
+
+  @@index([venueId])
+@@index([userId])
 }
 
 model PromotionItem {
@@ -897,6 +900,8 @@ model PromotionItem {
 
   promotion Promotion @relation(fields: [promotionId], references: [id])
   menu      Menu?     @relation(fields: [menuId], references: [id])
+
+  @@index([promotionId])
 }
 
 model PromotionUsage {
