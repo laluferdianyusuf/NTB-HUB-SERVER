@@ -652,12 +652,10 @@ export class UserService {
     const { search, limit, page = 1, pageSize = 10 } = params || {};
 
     const take = limit ?? pageSize;
-    const skip = (page - 1) * take;
 
     const [users, total] = await Promise.all([
       userRepository.findAllUsers({
         search,
-        limit: take,
         page,
         pageSize: take,
       }),
