@@ -37,7 +37,7 @@ export class PaymentServices {
       [
         {
           accountId: userAccount.id,
-          type: "DEBIT",
+          type: "CREDIT",
           amount,
           referenceType: "TOPUP",
           referenceId: invoiceId,

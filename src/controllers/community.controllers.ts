@@ -2,6 +2,7 @@ import { CommunityMemberStatus } from "@prisma/client";
 import { Request, Response } from "express";
 import { sendSuccess, sendError } from "helpers/response";
 import { CommunityService } from "services";
+import { createCommunitySchema } from "validations";
 
 export class CommunityController {
   private service = new CommunityService();
@@ -10,7 +11,13 @@ export class CommunityController {
     try {
       const file = req.file;
 
-      const result = await this.service.createCommunity(req.body, file);
+      const validation = createCommunitySchema.safeParse(req.body);
+
+      if (!validation.success) {
+        throw new Error(validation.error.issues[0].message);
+      }
+
+      const result = await this.service.createCommunity(validation.data, file);
 
       sendSuccess(res, result, "Community created successfully", 201);
     } catch (error: any) {

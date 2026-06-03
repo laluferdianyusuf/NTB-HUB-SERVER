@@ -554,6 +554,14 @@ export class UserService {
         expiresAt: inv.expiresAt,
       }));
 
+    const pendingCommunityInvitations = invitations
+      .filter((inv) => inv.communityId)
+      .map((inv) => ({
+        communityId: inv.communityId!,
+        key: inv.key,
+        expiresAt: inv.expiresAt,
+      }));
+
     await redis.set(
       `user:${user.id}`,
       JSON.stringify({
@@ -585,6 +593,7 @@ export class UserService {
       invitations: {
         venues: pendingVenueInvitations,
         events: pendingEventInvitations,
+        community: pendingCommunityInvitations,
       },
     };
   }

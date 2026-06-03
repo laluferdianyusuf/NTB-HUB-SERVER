@@ -399,8 +399,8 @@ export class LedgerRepository {
       _sum: { amount: true },
     });
 
-    const totalBalance = Number(debit._sum.amount || 0);
-    const totalExpenses = Number(credit._sum.amount || 0);
+    const totalBalance = Number(credit._sum.amount || 0);
+    const totalExpenses = Number(debit._sum.amount || 0);
     const balance = totalBalance - totalExpenses;
 
     return {
@@ -528,7 +528,7 @@ export class LedgerRepository {
     const result = await prisma.ledgerEntry.groupBy({
       by: ["referenceType"],
       where: {
-        type: LedgerDirection.DEBIT,
+        type: LedgerDirection.CREDIT,
         account: {
           type: AccountType.USER,
         },
@@ -547,7 +547,7 @@ export class LedgerRepository {
   async getDailyRevenue() {
     const transactions = await prisma.ledgerEntry.findMany({
       where: {
-        type: LedgerDirection.DEBIT,
+        type: LedgerDirection.CREDIT,
         account: {
           type: AccountType.USER,
         },

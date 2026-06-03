@@ -376,14 +376,14 @@ export class WithdrawService {
         [
           {
             accountId: account.id,
-            type: "CREDIT",
+            type: "DEBIT",
             amount: Number(withdraw.amount),
             referenceType: "WITHDRAWAL",
             referenceId: withdraw.id,
           },
           {
             accountId: platformAccount.id,
-            type: "DEBIT",
+            type: "CREDIT",
             amount: Number(withdraw.fee),
             referenceType: "FEE",
             referenceId: withdraw.id,

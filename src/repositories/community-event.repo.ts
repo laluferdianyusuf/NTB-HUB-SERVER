@@ -76,7 +76,7 @@ export class CommunityEventRepository {
       prisma.ledgerEntry.aggregate({
         where: {
           accountId: eventAccount.id,
-          type: "CREDIT",
+          type: "DEBIT",
           referenceType: "COMMUNITY_EVENT_PAYMENT",
           createdAt: {
             gte: startOfToday,

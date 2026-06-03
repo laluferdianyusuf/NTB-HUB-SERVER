@@ -174,21 +174,21 @@ export class EventOrderService {
       [
         {
           accountId: userAccount.id,
-          type: "CREDIT",
+          type: "DEBIT",
           amount: Number(order.total),
           referenceType: "EVENT_PAYMENT",
           referenceId: order.id,
         },
         {
           accountId: eventAccount.id,
-          type: "DEBIT",
+          type: "CREDIT",
           amount: eventAmount,
           referenceType: "EVENT_PAYMENT",
           referenceId: order.id,
         },
         {
           accountId: platformAccount.id,
-          type: "DEBIT",
+          type: "CREDIT",
           amount: platformFee,
           referenceType: "FEE",
           referenceId: order.id,
@@ -198,7 +198,7 @@ export class EventOrderService {
     );
 
     await this.userBalanceRepo.decrementBalance(
-      order.userId,
+      userId,
       Number(invoice.amount),
       tx,
     );
@@ -280,7 +280,6 @@ export class EventOrderService {
       orderId: string;
       ticketTypeId: string;
     }[] = [];
-
     for (const item of items) {
       const type = await this.eventTicketTypeRepo.findById(
         tx,

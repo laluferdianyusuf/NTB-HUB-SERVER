@@ -259,21 +259,21 @@ export class CommunityEventOrderService {
       [
         {
           accountId: userAccount?.id as string,
-          type: "CREDIT",
+          type: "DEBIT",
           amount: Number(invoice.amount),
           referenceType: "COMMUNITY_EVENT_PAYMENT",
           referenceId: order.id,
         },
         {
           accountId: eventAccount.id,
-          type: "DEBIT",
+          type: "CREDIT",
           amount: eventAmount,
           referenceType: "COMMUNITY_EVENT_PAYMENT",
           referenceId: order.id,
         },
         {
           accountId: platformAccount.id,
-          type: "DEBIT",
+          type: "CREDIT",
           amount: platformFee,
           referenceType: "FEE",
           referenceId: order.id,

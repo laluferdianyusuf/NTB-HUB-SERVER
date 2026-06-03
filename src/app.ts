@@ -20,27 +20,27 @@ app.use(express.urlencoded({ extended: true }));
 
 let activeRequests = 0;
 
-app.use((req, res, next) => {
-  activeRequests++;
+// app.use((req, res, next) => {
+//   activeRequests++;
 
-  const start = Date.now();
+//   const start = Date.now();
 
-  console.log(
-    `[START] ${req.method} ${req.originalUrl} | Active: ${activeRequests}`,
-  );
+//   console.log(
+//     `[START] ${req.method} ${req.originalUrl} | Active: ${activeRequests}`,
+//   );
 
-  res.on("finish", () => {
-    activeRequests--;
+//   res.on("finish", () => {
+//     activeRequests--;
 
-    console.log(
-      `[END] ${req.method} ${req.originalUrl} | ${
-        Date.now() - start
-      }ms | Active: ${activeRequests}`,
-    );
-  });
+//     console.log(
+//       `[END] ${req.method} ${req.originalUrl} | ${
+//         Date.now() - start
+//       }ms | Active: ${activeRequests}`,
+//     );
+//   });
 
-  next();
-});
+//   next();
+// });
 
 const server = http.createServer(app);
 

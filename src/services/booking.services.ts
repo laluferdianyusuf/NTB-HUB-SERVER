@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { BookingType, Prisma } from "@prisma/client";
 import { prisma } from "config/prisma";
 import { publisher } from "config/redis.config";
 import { toLocalDBTime } from "helpers/formatIsoDate";
@@ -76,24 +76,79 @@ export class BookingServices {
 
   async createBooking(data: CreateBookingProps) {
     const service = await venueServiceRepository.findById(data.serviceId);
+
     if (!service || !service.isActive) {
       throw new Error("Service not available");
     }
 
-    const unit = await venueUnitRepository.findById(data.unitId);
-    if (!unit || !unit.isActive) {
-      throw new Error("Unit not available");
+    let unit: any = null;
+    let startTime: Date;
+    let endTime: Date;
+    let bookingPrice = 0;
+
+    const needsUnit =
+      service.bookingType === BookingType.TIME ||
+      service.bookingType === BookingType.SESSION;
+
+    if (needsUnit) {
+      if (!data.unitId) {
+        throw new Error("Unit required");
+      }
+
+      unit = await venueUnitRepository.findById(data.unitId);
+
+      if (!unit || !unit.isActive) {
+        throw new Error("Unit not available");
+      }
     }
 
-    const startTime = new Date(
-      `${data.date}T${String(data.startTime).padStart(2, "0")}:00:00`,
-    );
-    const endTime = new Date(
-      `${data.date}T${String(data.endTime).padStart(2, "0")}:00:00`,
-    );
+    if (service.bookingType === BookingType.TIME) {
+      if (data.startTime === undefined || data.endTime === undefined) {
+        throw new Error("Invalid booking data");
+      }
 
-    if (endTime <= startTime) {
-      throw new Error("Invalid booking time range");
+      startTime = new Date(
+        `${data.date}T${String(data.startTime).padStart(2, "0")}:00:00`,
+      );
+
+      endTime = new Date(
+        `${data.date}T${String(data.endTime).padStart(2, "0")}:00:00`,
+      );
+
+      if (endTime <= startTime) {
+        throw new Error("Invalid booking time range");
+      }
+
+      const hours = data.endTime - data.startTime;
+
+      bookingPrice = hours * Number(unit.price);
+    } else if (service.bookingType === BookingType.SESSION) {
+      if (!data.sessionId) {
+        throw new Error("Session required");
+      }
+
+      const config = service.config as any;
+
+      const session = config?.sessions?.find(
+        (s: any) => s.id === data.sessionId,
+      );
+
+      if (!session) {
+        throw new Error("Session not found");
+      }
+
+      const [startHour] = session.start.split(":");
+      const [endHour] = session.end.split(":");
+
+      startTime = new Date(`${data.date}T${startHour.padStart(2, "0")}:00:00`);
+
+      endTime = new Date(`${data.date}T${endHour.padStart(2, "0")}:00:00`);
+
+      bookingPrice = session.price ?? Number(unit?.price ?? 0);
+    } else {
+      startTime = new Date(`${data.date}T00:00:00`);
+      endTime = new Date(`${data.date}T23:59:59`);
+      bookingPrice = 0;
     }
 
     const dayOfWeek = startTime.getDay();
@@ -107,26 +162,32 @@ export class BookingServices {
       throw new Error("Venue closed");
     }
 
+    const bookingStartHour = startTime.getHours();
+    const bookingEndHour = endTime.getHours();
+
     if (
-      data.startTime < operational.opensAt ||
-      data.endTime > operational.closesAt
+      bookingStartHour < operational.opensAt ||
+      bookingEndHour > operational.closesAt
     ) {
       throw new Error("Outside operational hours");
     }
 
-    const overlapping = await bookingRepository.checkOverlapping({
-      serviceId: data.serviceId,
-      unitId: data.unitId,
-      startTime,
-      endTime,
-    });
+    const needsOverlapCheck =
+      service.bookingType === BookingType.TIME ||
+      service.bookingType === BookingType.SESSION;
 
-    if (overlapping) {
-      throw new Error("Time slot already booked");
+    if (needsOverlapCheck) {
+      const overlapping = await bookingRepository.checkOverlapping({
+        serviceId: data.serviceId,
+        unitId: unit?.id ?? null,
+        startTime,
+        endTime,
+      });
+
+      if (overlapping) {
+        throw new Error("Time slot already booked");
+      }
     }
-
-    const hours = data.endTime - data.startTime;
-    const bookingPrice = hours * Number(unit.price);
 
     const invoiceNumber = `INV-${crypto
       .randomUUID()
@@ -139,7 +200,7 @@ export class BookingServices {
           userId: data.userId,
           venueId: data.venueId,
           serviceId: data.serviceId,
-          unitId: data.unitId,
+          unitId: unit?.id ?? null,
           startTime,
           endTime,
           totalPrice: bookingPrice,
@@ -153,9 +214,8 @@ export class BookingServices {
       const orderItemsData: any[] = [];
       const promotionInputItems: any[] = [];
 
-      if (data.orders && data.orders.length > 0) {
+      if (data.orders?.length) {
         const menuIds = data.orders.map((o) => o.menuId);
-
         const menus = await menuRepository.findMenuByIds(menuIds);
 
         const menuMap = new Map(menus.map((m) => [m.id, m]));
@@ -196,6 +256,7 @@ export class BookingServices {
         discount += promo.discountAmount;
         freeItems.push(...promo.freeItems);
       }
+
       const finalOrderTotal = orderTotal - discount;
 
       let order = null;
@@ -214,7 +275,6 @@ export class BookingServices {
 
         const itemsToInsert = [
           ...orderItemsData.map((i) => ({
-            // ...i,
             orderId: order!.id,
             menuId: i.menuId,
             quantity: i.quantity,
@@ -239,7 +299,7 @@ export class BookingServices {
         }
       }
 
-      const invoiceTotal = bookingPrice + finalOrderTotal;
+      const invoiceTotal = bookingPrice + (finalOrderTotal ?? 0);
 
       const invoice = await invoiceRepository.create(
         {
@@ -264,9 +324,14 @@ export class BookingServices {
       };
     });
 
+    /**
+     * =========================
+     * 11. NOTIFICATIONS + EVENTS
+     * =========================
+     */
     await notificationService.sendToVenueOwner(
       data.venueId,
-      `New Booking Is Pending`,
+      "New Booking Is Pending",
       `Booking with ${invoiceNumber} is created`,
       null,
     );
@@ -274,6 +339,7 @@ export class BookingServices {
     const pendingBookings = await bookingRepository.findBookingPendingByUserId(
       result.booking.userId,
     );
+
     await publishEvent("venue-events", "venue:sync", {
       venueId: result.booking.venueId,
       bookings: await this.getVenueDashboard(result.booking.venueId),
@@ -358,21 +424,21 @@ export class BookingServices {
         [
           {
             accountId: userAccount?.id as string,
-            type: "CREDIT",
+            type: "DEBIT",
             amount: Number(invoice.amount),
             referenceType: "BOOKING_PAYMENT",
             referenceId: booking.id,
           },
           {
             accountId: venueAccount.id,
-            type: "DEBIT",
+            type: "CREDIT",
             amount: venueAmount,
             referenceType: "BOOKING_PAYMENT",
             referenceId: booking.id,
           },
           {
             accountId: platformAccount.id,
-            type: "DEBIT",
+            type: "CREDIT",
             amount: platformFee,
             referenceType: "FEE",
             referenceId: booking.id,
@@ -839,18 +905,19 @@ export class BookingServices {
         await ledgerRepository.createMany([
           {
             accountId: userAccount?.id as string,
-            type: "DEBIT",
+            type: "CREDIT",
             amount: Number(invoice.amount),
             referenceType: "REFUND",
             referenceId: booking.id,
           },
           {
             accountId: booking.venueId,
-            type: "CREDIT",
+            type: "DEBIT",
             amount: Number(invoice.amount) * 0.9,
             referenceType: "REFUND",
             referenceId: booking.id,
           },
+          // PLATFORM
         ]);
         await userBalanceRepository.incrementBalance(
           booking.userId,
