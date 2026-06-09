@@ -454,7 +454,7 @@ export class BookingRepository {
       prisma.ledgerEntry.aggregate({
         where: {
           accountId: venueAccount.id,
-          type: "CREDIT",
+          type: "DEBIT",
           referenceType: "BOOKING_PAYMENT",
         },
         _sum: {
@@ -465,7 +465,7 @@ export class BookingRepository {
       prisma.ledgerEntry.aggregate({
         where: {
           accountId: venueAccount.id,
-          type: "CREDIT",
+          type: "DEBIT",
           referenceType: "BOOKING_PAYMENT",
           createdAt: {
             gte: startOfToday,
@@ -568,7 +568,7 @@ export class BookingRepository {
           prisma.ledgerEntry.aggregate({
             where: {
               accountId: venue.id,
-              type: "CREDIT",
+              type: "DEBIT",
               referenceType: "BOOKING_PAYMENT",
             },
             _sum: {

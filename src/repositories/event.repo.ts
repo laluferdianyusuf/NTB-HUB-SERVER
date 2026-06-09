@@ -86,7 +86,7 @@ export class EventRepository {
       prisma.ledgerEntry.aggregate({
         where: {
           accountId: eventAccount.id,
-          type: "CREDIT",
+          type: "DEBIT",
           referenceType: "EVENT_PAYMENT",
           createdAt: {
             gte: startOfToday,
@@ -100,7 +100,7 @@ export class EventRepository {
       prisma.ledgerEntry.aggregate({
         where: {
           accountId: eventAccount.id,
-          type: "CREDIT",
+          type: "DEBIT",
           referenceType: "EVENT_PAYMENT",
         },
         _sum: {

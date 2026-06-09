@@ -449,10 +449,10 @@ export class UserService {
 
         await pointRepository.generatePoints(
           {
-            userId: user.id,
+            userId: newUser.id,
             points: 100,
             activity: "REGISTER",
-            reference: user.id,
+            reference: newUser.id,
           },
           tx,
         );
@@ -554,6 +554,14 @@ export class UserService {
         expiresAt: inv.expiresAt,
       }));
 
+    const pendingCommunityInvitations = invitations
+      .filter((inv) => inv.communityId)
+      .map((inv) => ({
+        communityId: inv.communityId!,
+        key: inv.key,
+        expiresAt: inv.expiresAt,
+      }));
+
     await redis.set(
       `user:${user.id}`,
       JSON.stringify({
@@ -585,6 +593,7 @@ export class UserService {
       invitations: {
         venues: pendingVenueInvitations,
         events: pendingEventInvitations,
+        community: pendingCommunityInvitations,
       },
     };
   }
@@ -651,15 +660,14 @@ export class UserService {
   }) {
     const { search, limit, page = 1, pageSize = 10 } = params || {};
 
-    const take = limit ?? pageSize;
-    const skip = (page - 1) * take;
+    const safePage = Number(page) || 1;
+    const safePageSize = Number(limit ?? pageSize) || 10;
 
     const [users, total] = await Promise.all([
       userRepository.findAllUsers({
         search,
-        limit: take,
-        page,
-        pageSize: take,
+        page: safePage,
+        pageSize: safePageSize,
       }),
 
       userRepository.countAllUsers({
@@ -671,11 +679,11 @@ export class UserService {
       data: users,
       meta: {
         total,
-        page,
-        pageSize: take,
-        totalPages: Math.ceil(total / take),
-        hasNextPage: page * take < total,
-        hasPrevPage: page > 1,
+        page: safePage,
+        pageSize: safePageSize,
+        totalPages: Math.ceil(total / safePageSize),
+        hasNextPage: safePage * safePageSize < total,
+        hasPrevPage: safePage > 1,
       },
     };
   }

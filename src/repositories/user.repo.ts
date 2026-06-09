@@ -35,11 +35,15 @@ export class UserRepository {
 
   async findAllUsers(params?: {
     search?: string;
-    limit?: number;
     page?: number;
     pageSize?: number;
   }) {
-    const { search, limit, page = 1, pageSize = 10 } = params || {};
+    const { search, page = 1, pageSize = 10 } = params || {};
+
+    const safePage = Number(page) || 1;
+    const safePageSize = Number(pageSize) || 10;
+
+    const skip = (safePage - 1) * safePageSize;
 
     const where: any = {
       isVerified: true,
@@ -68,7 +72,8 @@ export class UserRepository {
 
     return prisma.user.findMany({
       where,
-      take: 10,
+      skip,
+      take: safePageSize, // 🔥 FIX: pastikan selalu number valid
       orderBy: {
         name: "asc",
       },
@@ -94,7 +99,6 @@ export class UserRepository {
             },
           },
         },
-
         communityMemberships: {
           where: { status: "APPROVED" },
           include: {

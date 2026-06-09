@@ -1,32 +1,12 @@
 import { BookingType, UnitType } from "@prisma/client";
-import { jsonToObject } from "helpers/parser";
+import { jsonToObject, toBool } from "helpers/parser";
 import { uploadImage } from "utils/uploadS3";
 import {
   VenueRepository,
   VenueServiceRepository,
   VenueSubCategoryRepository,
 } from "../repositories";
-
-type ServiceConfig = {
-  sections?: {
-    schedule?: boolean;
-    units?: boolean;
-    menu?: boolean;
-  };
-
-  durationStepMinutes?: number;
-  minDurationMinutes?: number;
-  maxDurationMinutes?: number;
-
-  sessions?: Array<{
-    id: string;
-    label: string;
-    start: string;
-    end: string;
-    price?: number;
-    quota?: number;
-  }>;
-};
+import { ServiceConfig } from "types/service";
 
 type QueryParams = {
   search?: string;
@@ -48,7 +28,7 @@ export function validateVenueServiceConfig(
 
   if (
     (bookingType === BookingType.TIME || bookingType === BookingType.SESSION) &&
-    sections.schedule !== true
+    toBool(sections.schedule) !== true
   ) {
     throw new Error(
       "Schedule section must be enabled for TIME or SESSION booking",
@@ -58,15 +38,15 @@ export function validateVenueServiceConfig(
   if (
     unitType &&
     bookingType !== BookingType.SESSION &&
-    sections.units !== true
+    toBool(sections.units) !== true
   ) {
     throw new Error("Units section must be enabled when unitType is defined");
   }
 
   if (
-    sections.schedule !== true &&
-    sections.units !== true &&
-    sections.menu !== true
+    toBool(sections.schedule) !== true &&
+    toBool(sections.units) !== true &&
+    toBool(sections.menu) !== true
   ) {
     throw new Error("At least one section must be enabled");
   }

@@ -35,6 +35,8 @@ export class UserBalanceRepository {
     amount: number,
     tx?: Prisma.TransactionClient,
   ): Promise<void> {
+    console.log(userId, amount);
+
     const client = this.transaction(tx);
     await client.userBalance.update({
       where: { userId },
